@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/logging.h,v 1.11 1998/05/20 06:10:51 richard Exp $
+  $Header: /cvs/src/chrony/logging.h,v 1.13 1999/04/19 20:27:29 richard Exp $
 
   =======================================================================
 

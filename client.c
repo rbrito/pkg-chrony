@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/client.c,v 1.38 1998/06/22 06:01:32 richard Exp $
+  $Header: /cvs/src/chrony/client.c,v 1.51 2000/06/17 21:51:10 richard Exp $
 
   =======================================================================
 
@@ -34,6 +34,8 @@ struct sockaddr_in his_addr;
 
 static int on_terminal = 0;
 
+static int no_dns = 0;
+
 /* ================================================== */
 /* Forward prototypes */
 
@@ -45,11 +47,10 @@ static void process_cmd_manual_delete(const char *line);
    a new set of utilities that can be linked into either
    the daemon or the client. */
 
-char *
+static char *
 time_to_log_form(time_t t)
 {
   struct tm stm;
-  char *result;
   static char buffer[64];
   static char *months[] = {"Jan", "Feb", "Mar", "Apr",
                            "May", "Jun", "Jul", "Aug",
@@ -57,11 +58,26 @@ time_to_log_form(time_t t)
 
 
   stm = *gmtime(&t);
-  sprintf(buffer, "%2d%s%02d %02d:%02d:%02d",
+  snprintf(buffer, 64, "%2d%s%02d %02d:%02d:%02d", /* Was sprintf JGH 19 Nov 2000 */
           stm.tm_mday, months[stm.tm_mon], stm.tm_year % 100,
           stm.tm_hour, stm.tm_min, stm.tm_sec);
 
   return buffer;
+}
+
+/* ================================================== */
+
+static char *
+UTI_IPToDottedQuad(unsigned long ip)
+{
+  unsigned long a, b, c, d;
+  static char result[64];
+  a = (ip>>24) & 0xff;
+  b = (ip>>16) & 0xff;
+  c = (ip>> 8) & 0xff;
+  d = (ip>> 0) & 0xff;
+  snprintf(result, 64, "%ld.%ld.%ld.%ld", a, b, c, d); /* Was sprintf JGH 19 Nov 2000 */
+  return result;
 }
 
 /* ================================================== */
@@ -996,6 +1012,7 @@ give_help(void)
   printf("allow [<subnet-addr>] : Allow NTP access to that subnet as a default\n");
   printf("allow all [<subnet-addr>] : Allow NTP access to that subnet and all children\n");
   printf("burst <n-good>/<n-max> [<mask>/<masked-address>] : Start a rapid set of measurements\n");
+  printf("clients : Report on clients that have accessed the server\n");
   printf("cmdaccheck <address> : Check whether command access is allowed to <address>\n");
   printf("cmdallow [<subnet-addr>] : Allow command access to that subnet as a default\n");
   printf("cmdallow all [<subnet-addr>] : Allow command access to that subnet and all children\n");
@@ -1004,14 +1021,14 @@ give_help(void)
   printf("cyclelogs : Close and re-open logs files\n");
   printf("deny [<subnet-addr>] : Deny NTP access to that subnet as a default\n");
   printf("deny all [<subnet-addr>] : Deny NTP access to that subnet and all children\n");
-  printf("dfreq [<delta-freq>] : Apply low level delta frequency to clock\n");
-  printf("doffset [<delta-offset>] : Apply low level delta offset to clock\n");
   printf("dump : Dump all measurements to save files\n");
   printf("exit : Leave the program\n");
   printf("help : Generate this help\n");
   printf("local off : Disable server capability for unsynchronised clock\n");
   printf("local stratum <stratum> : Enable server capability for unsynchronised clock\n");
+  printf("makestep : Jump the time to remove any correction being slewed\n");
   printf("manual off|on|reset : Disable/enable/reset settime command and statistics\n");
+  printf("manual list : Show previous settime entries\n");
   printf("minpoll <address> <new-minpoll> : Modify minimum polling interval of source\n");
   printf("maxdelay <address> <new-max-delay> : Modify maximum round-trip valid sample delay for source\n");
   printf("maxdelayratio <address> <new-max-ratio> : Modify max round-trip delay ratio for source\n");
@@ -1348,8 +1365,12 @@ process_cmd_sources(char *line)
           resid_skew = (double) (ntohl(reply.data.source_data.resid_skew)) * 1.0e-3;
 
           hostname_buf[25] = 0;
-          dns_lookup = DNS_IPAddress2Name(ip_addr);
-          strncpy(hostname_buf, dns_lookup, 25);
+          if (no_dns) {
+            snprintf(hostname_buf, 32, "%s", UTI_IPToDottedQuad(ip_addr)); /* Was sprintf JGH 19 Nov 2000 */
+          } else {
+            dns_lookup = DNS_IPAddress2Name(ip_addr);
+            strncpy(hostname_buf, dns_lookup, 25);
+          }
 
           switch (mode) {
             case RPY_SD_MD_CLIENT:
@@ -1450,8 +1471,12 @@ process_cmd_sourcestats(char *line)
           sd_us = ntohl(reply.data.sourcestats.sd_us);
 
           hostname_buf[15] = 0;
-          dns_lookup = DNS_IPAddress2Name(ip_addr);
-          strncpy(hostname_buf, dns_lookup, 15);
+          if (no_dns) {
+            snprintf(hostname_buf, 32, "%s", UTI_IPToDottedQuad(ip_addr)); /* Was sprintf JGH 19 Nov 2000 */
+          } else {
+            dns_lookup = DNS_IPAddress2Name(ip_addr);
+            strncpy(hostname_buf, dns_lookup, 15);
+          }
 
           printf("%-15s  %2lu   %2lu  ", hostname_buf, n_samples, n_runs);
           print_seconds(span_seconds);
@@ -1513,8 +1538,8 @@ process_cmd_tracking(char *line)
     d = (ref_id) & 0xff;
     printf("Reference ID    : %lu.%lu.%lu.%lu (%s)\n",
            a, b, c, d,
-           DNS_IPAddress2Name(ref_id));
-    printf("Stratum         : %ld\n", ntohl(reply.data.tracking.stratum));
+           (no_dns) ? UTI_IPToDottedQuad(ref_id) : DNS_IPAddress2Name(ref_id));
+    printf("Stratum         : %lu\n", (unsigned long) ntohl(reply.data.tracking.stratum));
     ref_time.tv_sec = ntohl(reply.data.tracking.ref_time_s);
     ref_time.tv_usec = ntohl(reply.data.tracking.ref_time_us);
     ref_time_tm = *gmtime((time_t *)&ref_time.tv_sec);
@@ -1522,7 +1547,8 @@ process_cmd_tracking(char *line)
     correction_tv.tv_sec = ntohl(reply.data.tracking.current_correction_s);
     correction_tv.tv_usec = ntohl(reply.data.tracking.current_correction_us);
     correction = (double) correction_tv.tv_sec + 1.0e-6 * correction_tv.tv_usec;
-    printf("System time     : %.6f seconds %s of NTP time\n", fabs(correction), (correction < 0.0) ? "slow" : "fast");
+    printf("System time     : %.6f seconds %s of NTP time\n", fabs(correction),
+           (correction > 0.0) ? "slow" : "fast");
     freq_ppm = WIRE2REAL(reply.data.tracking.freq_ppm);
     resid_freq_ppm = WIRE2REAL(reply.data.tracking.resid_freq_ppm);
     skew_ppm = WIRE2REAL(reply.data.tracking.skew_ppm);
@@ -1784,9 +1810,13 @@ process_cmd_clients(char *line)
               last_ntp_hit_ago = ntohl(reply.data.client_accesses.clients[j].last_ntp_hit_ago);
               last_cmd_hit_ago = ntohl(reply.data.client_accesses.clients[j].last_cmd_hit_ago);
 
-              dns_lookup = DNS_IPAddress2Name(ip);
-              hostname_buf[25] = 0;
-              strncpy(hostname_buf, dns_lookup, 25);
+              if (no_dns) {
+                snprintf(hostname_buf, 32, "%s", UTI_IPToDottedQuad(ip)); /* Was sprintf JGH 19 Nov 2000 */
+              } else {
+                dns_lookup = DNS_IPAddress2Name(ip);
+                hostname_buf[25] = 0;
+                strncpy(hostname_buf, dns_lookup, 25);
+              }
               printf("%-25s  %6d  %6d  %6d  %6d  %6d  ",
                      hostname_buf,
                      client_hits, peer_hits,
@@ -1904,9 +1934,13 @@ process_cmd_clients(char *line)
               last_ntp_hit_ago = ntohl(reply.data.client_accesses_by_index.clients[j].last_ntp_hit_ago);
               last_cmd_hit_ago = ntohl(reply.data.client_accesses_by_index.clients[j].last_cmd_hit_ago);
 
-              dns_lookup = DNS_IPAddress2Name(ip);
-              hostname_buf[25] = 0;
-              strncpy(hostname_buf, dns_lookup, 25);
+              if (no_dns) {
+                snprintf(hostname_buf, 32, "%s", UTI_IPToDottedQuad(ip)); /* Was sprintf JGH 19 Nov 2000 */
+              } else {
+                dns_lookup = DNS_IPAddress2Name(ip);
+                hostname_buf[25] = 0;
+                strncpy(hostname_buf, dns_lookup, 25);
+              }
               printf("%-25s  %6ld  %6ld  %6ld  %6ld  %6ld  ",
                      hostname_buf,
                      client_hits, peer_hits,
@@ -2009,11 +2043,6 @@ process_cmd_manual_delete(const char *line)
   CMD_Reply reply;
   int submit_ok, auth_ok;
   int status;
-  int n_samples;
-  RPY_ManualListSample *sample;
-  int i;
-  time_t when;
-  double slewed_offset, orig_offset, residual;
 
   if (sscanf(line, "%d", &index) != 1) {
     fprintf(stderr, "Bad syntax for manual delete command\n");
@@ -2348,15 +2377,21 @@ main(int argc, char **argv)
   while (++argv, --argc) {
     if (!strcmp(*argv, "-h")) {
       ++argv, --argc;
-      hostname = *argv;
+      if (*argv) {
+        hostname = *argv;
+      }
     } else if (!strcmp(*argv, "-p")) {
       ++argv, --argc;
-      port = atoi(*argv);
+      if (*argv) {
+        port = atoi(*argv);
+      }
+    } else if (!strcmp(*argv, "-n")) {
+      no_dns = 1;
     } else if (!strcmp("-v", *argv) || !strcmp("--version",*argv)) {
       printf("chronyc (chrony) version %s\n", PROGRAM_VERSION_STRING);
       exit(0);
     } else if (!strncmp(*argv, "-", 1)) {
-      fprintf(stderr, "Usage : %s [-h <hostname>] [-p <port-number>] [command]\n", progname);
+      fprintf(stderr, "Usage : %s [-h <hostname>] [-p <port-number>] [-n] [command]\n", progname);
       exit(1);
     } else {
       break; /* And process remainder of line as a command */

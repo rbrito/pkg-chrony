@@ -80,7 +80,7 @@ the RFC did not make absolutely clear.  The core algorithms in
 
 @node Getting the software, Platforms, Availability, Availability
 @subsection Getting the software
-Links on @uref{http://www.curnow.demon.co.uk/chrony/index.html, the
+Links on @uref{http://www.rrbcurnow.freeuk.com/chrony/index.html, the
 chrony home page} describe how to obtain the software.
 
 @node Platforms,  , Getting the software, Availability
@@ -400,11 +400,10 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 @node Installation, Typical scenarios, Introduction, Top
 @chapter Installation
 
-The software is distributed as source code which has to be compiled
-unless you have installed the Debian package, in which case it is
-already compiled and installed with a default configuration.  The source
-code is supplied in the form of a gzipped tar file, which unpacks to a
-subdirectory identifying the name and version of the program.
+The software is distributed as source code which has to be compiled.
+The source code is supplied in the form of a gzipped tar file, which
+unpacks to a subdirectory identifying the name and version of the
+program.
 
 After unpacking the source code, change directory into it, and type
 
@@ -834,6 +833,14 @@ dumpdir /var/log/chrony
 rtcfile /etc/chrony.rtc
 @end example
 
+With Freeserve as the ISP, I use the following server lines :
+
+@example
+server 194.152.64.68 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+server 194.152.64.35 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+server 194.152.64.34 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+@end example
+
 I use @code{pppd} for connecting to my ISP.  This runs two scripts
 @file{/etc/ppp/ip-up} and @file{/etc/ppp/ip-down} when the link goes
 online and offline respectively.
@@ -1058,6 +1065,7 @@ directives can occur in any order in the file.
 
 @menu
 * allow directive::             Give access to NTP clients
+* bindaddress directive::       Limit the network interface that is used
 * commandkey directive::        Set runtime command key
 * cmdport directive::           Set port to use for runtime commanding
 * deny directive::              Deny access to NTP clients
@@ -1068,9 +1076,12 @@ directives can occur in any order in the file.
 * keyfile directive::           Specify location of file containing keys
 * local directive::             Allow unsynchronised machine to act as server
 * log directive::               Make daemon log certain sets of information
+* logchange directive::         Generate syslog messages if large offsets occur
 * logdir directive::            Specify directory for logging
+* mailonchange directive::      Send email if a clock correction above a threshold occurs
 * manual directive::            Allow manual entry using chronyc's settime cmd.
 * maxupdateskew directive::     Stop bad estimates upsetting machine clock
+* noclientlog directive::       Prevent chronyd from gathering data about clients
 * peer directive::              Specify an NTP peer
 * port directive::              Set port to use for NTP packets
 * rtcfile directive::           Specify the file where real-time clock data is stored
@@ -2055,6 +2066,7 @@ interface.
 * allow command::               Allowing NTP client access
 * allow all command::           Allowing NTP client access
 * burst command::               Initiating a rapid set of measurements
+* clients command::             Show clients that have accessed the server
 * cmdaccheck command::          Verifying command client access
 * cmdallow command::            Allowing command client access
 * cmdallow all command::        Allowing command client access
@@ -2068,6 +2080,7 @@ interface.
 * exit command::                Exit from chronyc
 * help command::                Generate help summary
 * local command::               Let computer be a server when it is unsynchronised
+* makestep command::            Immediately correct the system clock instead of slewing
 * manual command::              Enable/disable/configure options for settime
 * maxdelay command::            Set max measurement delay for a source
 * maxdelayratio command::       Set max measurement delay for a source as ratio

@@ -1,6 +1,6 @@
 ##################################################
 #
-# $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/Makefile.in,v 1.19 1998/05/21 06:03:16 richard Exp $
+# $Header: /cvs/src/chrony/Makefile.in,v 1.30 2000/07/24 21:44:44 richard Exp $
 #
 # =======================================================================
 #
@@ -20,7 +20,7 @@ INSTALL_PREFIX=@INSTALL_PREFIX@
 CC = gcc
 CCWARNFLAGS =
 #CCWARNFLAGS = -Wmissing-prototypes -Wall
-OPTFLAGS = -O2
+OPTFLAGS = -O2 -g
 
 OBJS = util.o sched.o regress.o local.o \
 	sys.o main.o ntp_io.o ntp_core.o ntp_sources.o \
@@ -46,7 +46,7 @@ EXTRA_CLI_LIBS=@EXTRA_CLI_LIBS@
 
 DEFS=@SYSDEFS@
 
-CFLAGS = $(CCWARNFLAGS) $(DEFS) $(OPTFLAGS)
+CFLAGS = $(CCWARNFLAGS) $(OPTFLAGS)
 
 # Until we have a main procedure we can link, just build object files
 # to test compilation
@@ -63,43 +63,46 @@ chronyc : $(CLI_OBJS)
 	gcc -MM $(SRCS) $(EXTRA_SRCS) > .depend
 
 distclean :
-	-rm *.o *.s chronyc chronyd core options.h Makefile *~
+	-rm -f *.o *.s chronyc chronyd core options.h Makefile *~
 
 clean :
-	-rm *.o *.s chronyc chronyd core *~
+	-rm -f *.o *.s chronyc chronyd core *~
+
+version.h : version.txt
+	sed -e 's/[$$]Name: \(.*\) [$$]/\1/;' < version.txt > version.h
 
 
 # For install, don't use the install command, because its switches
 # seem to vary between systems.
 
 install:
+	[ -d $(INSTALL_PREFIX) ] || mkdir $(INSTALL_PREFIX)
+	[ -d $(INSTALL_PREFIX)/sbin ] || mkdir $(INSTALL_PREFIX)/sbin
+	[ -d $(INSTALL_PREFIX)/bin ] || mkdir $(INSTALL_PREFIX)/bin
+	[ -d $(INSTALL_PREFIX)/share/doc ] || mkdir $(INSTALL_PREFIX)/share/doc
+	[ -d $(INSTALL_PREFIX)/share/doc/chrony ] || mkdir $(INSTALL_PREFIX)/share/doc/chrony
 	cp chronyd $(INSTALL_PREFIX)/sbin/chronyd
 	chown root $(INSTALL_PREFIX)/sbin/chronyd
 	chmod 555 $(INSTALL_PREFIX)/sbin/chronyd
 	cp chronyc $(INSTALL_PREFIX)/bin/chronyc
 	chown root $(INSTALL_PREFIX)/bin/chronyc
 	chmod 555 $(INSTALL_PREFIX)/bin/chronyc
-
-kit :
-	tar czvf - *.[ch] Makefile todo.tex configure VERSIONS > kit.tar.gz
-
-patch :
-	rcsdiff -u *.c *.h Makefile configure > patchfile 2>/dev/null
-
-test_regress : test_regress.o
-	$(CC) $(CFLAGS) -o test_regress test_regress.o -lm
-
-timemd5 : timemd5.o md5.o
-	$(CC) $(CFLAGS) -o timemd5 timemd5.o md5.o
-
-freqcomb : freqcomb.o
-	$(CC) $(CFLAGS) -o freqcomb freqcomb.o -lm
+	cp chrony.txt $(INSTALL_PREFIX)/share/doc/chrony/chrony.txt
+	chown root $(INSTALL_PREFIX)/share/doc/chrony/chrony.txt
+	chmod 444 $(INSTALL_PREFIX)/share/doc/chrony/chrony.txt
+	cp LICENCE $(INSTALL_PREFIX)/share/doc/chrony/LICENCE
+	chown root $(INSTALL_PREFIX)/share/doc/chrony/LICENCE
+	chmod 444 $(INSTALL_PREFIX)/share/doc/chrony/LICENCE
+	cp README $(INSTALL_PREFIX)/share/doc/chrony/README
+	chown root $(INSTALL_PREFIX)/share/doc/chrony/README
+	chmod 444 $(INSTALL_PREFIX)/share/doc/chrony/README
 
 %.o : %.c
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) $(DEFS) -c $<
 
 %.s : %.c
-	$(CC) $(CFLAGS) -S $<
+	$(CC) $(CFLAGS) $(DEFS) -S $<
 
+main.o logging.o client.o : version.h
 
 

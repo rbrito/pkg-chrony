@@ -1,3 +1,61 @@
+chrony (1.14-7) unstable; urgency=medium
+
+  * Changed rtc_linux.c to not include linux/mc146818rtc.h
+    when building for sparc, because Moshe Zadka says this
+    will allow chrony to build there.
+  * Closes: #142670
+
+ --  <jhasler@debian.org>  Wed, 17 Apr 2002 17:00:00 -0500
+
+chrony (1.14-6) unstable; urgency=low
+
+  * Changed architecture back to 'any'.
+  * Applied portability patch from LaMont Jones.
+  * Closes: #104774
+
+ --  <jhasler@debian.org>  Mon, 1 Apr 2002 21:00:00 -0600
+
+chrony (1.14-5) unstable; urgency=low
+
+  * Changed architecture from 'any' to 'i386 sparc'.
+    Neither I nor the author can test on anything but i386.  If
+    you want chrony on anything else send me a tested patch.
+  * Closes: #101039
+  * Closes: #104774
+
+ --  <john@dhh.gt.org>  Fri, 28 Dec 2001 20:10:00 -0600
+
+chrony (1.14-4) unstable; urgency=low
+
+  * Fixed bug in man pages.
+  * Closes: #95134
+
+ --  <john@dhh.gt.org>  Tue, 24 Apr 2001 20:10:00 -0500
+
+chrony (1.14-3) unstable; urgency=low
+
+  * Replaced <linux/spinlock.h> in rtc_linux.c with
+    typedef int spinlock_t as suggested by Paul Slootman.
+  * Put #define CROAK(message) assert(0) in pktlength.h
+    to fix Alpha build problem.
+  * Closes: #86991
+
+ --  <john@dhh.gt.org>  Sat, 24 Feb 2001 22:45:00 -0600
+
+chrony (1.14-2) unstable; urgency=low
+
+   * Closes: #84597
+
+ --  <john@dhh.gt.org>  Sat, 3 Feb 2001 21:25:00 -0600
+
+chrony (1.14-1) unstable; urgency=low
+
+   * New upstream release.
+   * Fixed more sprintfs.
+   * Closes: #50793, #52570, #48216, #65209, #62924, #70377, #61485, #76661 
+
+ --  <john@dhh.gt.org>  Mon, 20 Nov 2000 20:25:00 -0600
+
 chrony (1.10-3) unstable; urgency=low
 
    * Patched cron,weekly script with (corrected) patch
@@ -72,8 +130,3 @@ chrony (1.02-1) unstable; urgency=low
   * Initial Release.
 
  --  <john@dhh.gt.org>  Fri,  6 Nov 1998 23:00:08 -0600
-
-Local variables:
-mode: debian-changelog
-add-log-mailing-address: "john@dhh.gt.org"
-End:

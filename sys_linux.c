@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/sys_linux.c,v 1.16 1998/05/20 06:11:10 richard Exp $
+  $Header: /cvs/src/chrony/sys_linux.c,v 1.24 2000/07/18 06:40:14 richard Exp $
 
   =======================================================================
 
@@ -19,7 +19,6 @@
 #ifdef LINUX
 
 #include <sys/time.h>
-#include <linux/timex.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <math.h>
@@ -31,10 +30,8 @@
 #include "sched.h"
 #include "util.h"
 #include "logging.h"
+#include "wrap_adjtimex.h"
 
-/* This doesn't seem to be in any include files !! */
-
-extern int adjtimex(struct timex *);
 static long current_tick;
 
 /* This is the value of tick, in seconds, including the current vernier
@@ -135,7 +132,6 @@ static double delta_total_tick;
 static void
 stop_fast_slew(void)
 {
-  struct timex txc;
   struct timeval T1, T1d, T1a;
   struct timezone tz;
   double end_window;
@@ -144,25 +140,21 @@ stop_fast_slew(void)
   double introduced_dispersion;
 
   /* Should never get here unless this is true */
-  assert(fast_slewing);
-
-  txc.modes = ADJ_TICK;
-  txc.tick = current_tick;
+  if (!fast_slewing) {
+    CROAK("Should be fast slewing");
+  }
   
   /* Now set the thing off */
   if (gettimeofday(&T1, &tz) < 0) {
-    perror("gettimeofday() failed in stop_fast_slew");
-    assert(0);
+    CROAK("gettimeofday() failed in stop_fast_slew");
   }
   
-  if (adjtimex(&txc) < 0) {
-    perror("adjtimex() failed in stop_fast_slew");
-    assert(0);
+  if (TMX_SetTick(current_tick) < 0) {
+    CROAK("adjtimex() failed in stop_fast_slew");
   }
   
   if (gettimeofday(&T1d, &tz) < 0) {
-    perror("gettimeofday() failed in stop_fast_slew");
-    assert(0);
+    CROAK("gettimeofday() failed in stop_fast_slew");
   }
 
   fast_slewing = 0;
@@ -193,9 +185,9 @@ stop_fast_slew(void)
 static void
 initiate_slew(void)
 {
-  struct timex txc;
   double dseconds;
   long tick_adjust;
+  long offset;
   struct timeval T0, T0d, T0a;
   struct timeval end_of_slew;
   struct timezone tz;
@@ -203,7 +195,9 @@ initiate_slew(void)
   double introduced_dispersion;
 
   /* Don't want to get here if we already have an adjust on the go! */
-  assert(!fast_slewing);
+  if (fast_slewing) {
+    CROAK("Should not be fast slewing");
+  }
 
   if (offset_register == 0.0) {
     return;
@@ -211,12 +205,10 @@ initiate_slew(void)
 
   if (fabs(offset_register) < MAX_ADJUST_WITH_ADJTIME) {
     /* Use adjtime to do the shift */
-    txc.modes = ADJ_OFFSET_SINGLESHOT;
-    txc.offset = (long)(0.5 + 1.0e6*(-offset_register));
+    offset = (long)(0.5 + 1.0e6*(-offset_register));
 
-    if (adjtimex(&txc) < 0) {
-      perror("adjtimex() failed in initiate_slew");
-      assert(0);
+    if (TMX_ApplyOffset(&offset) < 0) {
+      CROAK("adjtimex() failed in initiate_slew");
     }
 
     offset_register = 0.0;
@@ -234,23 +226,17 @@ initiate_slew(void)
     delta_total_tick = (double) tick_adjust / 1.0e6;
     dseconds = - offset_register * (current_total_tick + delta_total_tick) / delta_total_tick;
 
-    txc.modes = ADJ_TICK;
-    txc.tick  = slewing_tick;
-
     /* Now set the thing off */
     if (gettimeofday(&T0, &tz) < 0) {
-      perror("gettimeofday() failed in initiate_slew");
-      assert(0);
+      CROAK("gettimeofday() failed in initiate_slew");
     }
 
-    if (adjtimex(&txc) < 0) {
-      perror("adjtimex() failed to start big slew");
-      assert(0);
+    if (TMX_SetTick(slewing_tick) < 0) {
+      CROAK("adjtimex() failed to start big slew");
     }
 
     if (gettimeofday(&T0d, &tz) < 0) {
-      perror("gettimeofday() failed in initiate_slew");
-      assert(0);
+      CROAK("gettimeofday() failed in initiate_slew");
     }
 
     /* Now work out the uncertainty in when we actually started the
@@ -318,20 +304,18 @@ abort_slew(void)
 static void
 accrue_offset(double offset)
 {
-  struct timex txc;
-
+  long toffset;
+  
   /* Add the new offset to the register */
   offset_register += offset;
 
   /* Cancel any standard adjtime that is running */
-  txc.modes = ADJ_OFFSET_SINGLESHOT;
-  txc.offset = 0;
-  if (adjtimex(&txc) < 0) {
-    perror("adjtimex() failed in accrue_offset");
-    assert(0);
+  toffset = 0;
+  if (TMX_ApplyOffset(&toffset) < 0) {
+    CROAK("adjtimex() failed in accrue_offset");
   }
 
-  offset_register -= (double) txc.offset / 1.0e6;
+  offset_register -= (double) toffset / 1.0e6;
 
   if (!fast_slewing) {
     initiate_slew();
@@ -354,15 +338,13 @@ apply_step_offset(double offset)
   }
 
   if (gettimeofday(&old_time, &tz) < 0) {
-    perror("gettimeofday in apply_step_offset");
-    assert(0);
+    CROAK("gettimeofday in apply_step_offset");
   }
 
   UTI_AddDoubleToTimeval(&old_time, -offset, &new_time);
 
   if (settimeofday(&new_time, &tz) < 0) {
-    perror("settimeofday in apply_step_offset");
-    assert(0);
+    CROAK("settimeofday in apply_step_offset");
   }
 
   initiate_slew();
@@ -379,7 +361,6 @@ apply_step_offset(double offset)
 static void
 set_frequency(double freq_ppm) {
 
-  struct timex txc;
   long required_tick;
   double required_freq; /* what we use */
   double scaled_freq; /* what adjtimex & the kernel use */
@@ -416,16 +397,8 @@ set_frequency(double freq_ppm) {
     scaled_freq = -freq_scale * required_freq;
   }
 
-  txc.modes = ADJ_TICK | ADJ_FREQUENCY | ADJ_STATUS;
-
-  txc.freq = (long)(scaled_freq * (double)(1 << SHIFT_USEC));
-  txc.tick = required_tick;
-  txc.status = STA_UNSYNC; /* Prevent any of the FLL/PLL stuff coming
-                              up */
-
-  if (adjtimex(&txc) < 0) {
-    perror("adjtimex failed for set_frequency");
-    assert(0);
+  if (TMX_SetFrequency(scaled_freq, required_tick) < 0) {
+    CROAK("adjtimex failed for set_frequency");
   }
 
   current_tick = required_tick;
@@ -443,21 +416,19 @@ set_frequency(double freq_ppm) {
 static double
 read_frequency(void)
 {
-  struct timex txc;
   double tick_term;
+  double unscaled_freq;
   double freq_term;
 
-  txc.modes = 0; /* pure read */
-  if (adjtimex(&txc) < 0) {
-    perror("adjtimex failed in read_frequency");
-    assert(0);
+  if (TMX_GetFrequency(&unscaled_freq) < 0) {
+    CROAK("adjtimex failed in read_frequency");
   }
 
   /* Use current_tick here rather than txc.tick, otherwise we're
      thrown off course when doing a fast slew (in which case, txc.tick
      is nowhere near the nominal value) */
   tick_term = 100.0 * (double)(NOMINAL_TICK - current_tick);
-  freq_term = (txc.freq / (double)(1 << SHIFT_USEC)) / freq_scale;
+  freq_term = unscaled_freq / freq_scale;
   
 #if 0
   LOG(LOGS_INFO, LOGF_SysLinux, "txc.tick=%ld txc.freq=%ld tick_term=%f freq_term=%f\n",
@@ -484,35 +455,29 @@ get_offset_correction(struct timeval *raw,
      3. Any amount of adjtime correction remaining */
 
 
-  struct timex txc;
   double adjtime_left;
   double fast_slew_duration;
   double fast_slew_achieved;
   double fast_slew_remaining;
+  long offset;
 
   if (have_readonly_adjtime) {
-    txc.modes = 0;
-    if (adjtimex(&txc) < 0) {
-      LOG(LOGS_ERR, LOGF_SysLinux, "adjtimex() failed in get_offset_correction");
-      assert(0);
+    if (TMX_GetOffsetLeft(&offset) < 0) {
+      CROAK("adjtimex() failed in get_offset_correction");
     }
     
-    adjtime_left = (double)txc.offset / 1.0e6;
+    adjtime_left = (double)offset / 1.0e6;
   } else {
-    txc.modes = ADJ_OFFSET_SINGLESHOT;
-    txc.offset = 0;
-    if (adjtimex(&txc) < 0) {
-      LOG(LOGS_ERR, LOGF_SysLinux, "adjtimex() failed in get_offset_correction");
-      assert(0);
+    offset = 0;
+    if (TMX_ApplyOffset(&offset) < 0) {
+      CROAK("adjtimex() failed in get_offset_correction");
     }
     
-    adjtime_left = (double)txc.offset / 1.0e6;
+    adjtime_left = (double)offset / 1.0e6;
 
-    txc.modes = ADJ_OFFSET_SINGLESHOT;
     /* txc.offset still set from return value of last call */
-    if (adjtimex(&txc) < 0) {
-      LOG(LOGS_ERR, LOGF_SysLinux, "adjtimex() failed in get_offset_correction");
-      assert(0);
+    if (TMX_ApplyOffset(&offset) < 0) {
+      CROAK("adjtimex() failed in get_offset_correction");
     }
   }
 
@@ -535,33 +500,29 @@ get_offset_correction(struct timeval *raw,
 static void
 immediate_step(void)
 {
-  struct timex txc;
   struct timeval old_time, new_time;
   struct timezone tz;
+  long offset;
 
   if (fast_slewing) {
     abort_slew();
   }
 
-  txc.modes = ADJ_OFFSET_SINGLESHOT;
-  txc.offset = 0;
-  if (adjtimex(&txc) < 0) {
-    perror("adjtimex() failed in immediate_step");
-    assert(0);
+  offset = 0;
+  if (TMX_ApplyOffset(&offset) < 0) {
+    CROAK("adjtimex() failed in immediate_step");
   }
 
-  offset_register -= (double) txc.offset / 1.0e6;
+  offset_register -= (double) offset / 1.0e6;
 
   if (gettimeofday(&old_time, &tz) < 0) {
-    perror("gettimeofday() failed in immediate_step");
-    assert(0);
+    CROAK("gettimeofday() failed in immediate_step");
   }
 
   UTI_AddDoubleToTimeval(&old_time, -offset_register, &new_time);
 
   if (settimeofday(&new_time, &tz) < 0) {
-    perror("settimeofday() failed in immediate_step");
-    assert(0);
+    CROAK("settimeofday() failed in immediate_step");
   }
 
   offset_register = 0.0;
@@ -653,6 +614,8 @@ get_version_specific_details(void)
           have_readonly_adjtime = 0; /* For safety ! */
           break;
         case 2:
+        case 3:
+        case 4:
           /* These seem to be like 2.0.32 */
           freq_scale = 128.0 / 128.125;
           have_readonly_adjtime = 0;

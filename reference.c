@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/reference.c,v 1.28 1998/08/01 10:34:25 richard Exp $
+  $Header: /cvs/src/chrony/reference.c,v 1.34 1999/09/21 21:04:12 richard Exp $
 
   =======================================================================
 
@@ -54,6 +54,11 @@ static int do_mail_change;
 static double mail_change_threshold;
 static char *mail_change_user;
 
+/* Filename of the drift file. */
+static char *drift_file=NULL;
+
+static void update_drift_file(double, double);
+
 #define MAIL_PROGRAM "/usr/lib/sendmail"
 
 /* ================================================== */
@@ -63,9 +68,6 @@ static char *logfilename = NULL;
 static unsigned long logwrites = 0;
 
 #define TRACKING_LOG "tracking.log"
-
-/* File handle containing the drift file */
-static FILE *drift_fh = NULL;
 
 /* ================================================== */
 
@@ -80,7 +82,6 @@ static FILE *drift_fh = NULL;
 void
 REF_Initialise(void)
 {
-  char *drift_file;
   char *direc;
   FILE *in;
   char line[1024];
@@ -107,7 +108,7 @@ REF_Initialise(void)
           our_frequency_ppm = file_freq_ppm;
           our_skew = 1.0e-6 * file_skew_ppm;
         } else {
-          LOG(LOGS_WARN, LOGF_Reference, "Could not read valid frequency and skew from driftfile %s\n",
+          LOG(LOGS_WARN, LOGF_Reference, "Could not parse valid frequency and skew from driftfile %s\n",
               drift_file);
         }
       } else {
@@ -120,18 +121,7 @@ REF_Initialise(void)
           drift_file);
     }
 
-    /* And open the drift file for writing later */
-    drift_fh = fopen(drift_file, "w");
-    if (!drift_fh) {
-      LOG(LOGS_WARN, LOGF_Reference, "Could not open driftfile %s for writing\n",
-          drift_file);
-    } else {
-      /* Write value back */
-      rewind(drift_fh);
-      /* Write the frequency and skew parameters in ppm */
-      fprintf(drift_fh, "%.4f %.4f", our_frequency_ppm, 1.0e6 * our_skew);
-      fflush(drift_fh);
-    }
+    update_drift_file(our_frequency_ppm,our_skew);
   }
     
   LCL_SetAbsoluteFrequency(our_frequency_ppm);
@@ -177,10 +167,6 @@ REF_Finalise(void)
     fclose(logfile);
   }
 
-  if (drift_fh) {
-    fclose(drift_fh);
-  }
-
   initialised = 0;
   return;
 }
@@ -203,16 +189,57 @@ Cube(double x)
 #endif
 
 /* ================================================== */
+/* Update the drift coefficients to the file. */
 
 static void
 update_drift_file(double freq_ppm, double skew)
 {
-  if (drift_fh) {
-    rewind(drift_fh);
-    /* Write the frequency and skew parameters in ppm */
-    fprintf(drift_fh, "%20.4f %20.4f\n", freq_ppm, 1.0e6 * skew);
-    fflush(drift_fh);
-  }    
+  struct stat buf;
+  char *temp_drift_file;
+  FILE *out;
+
+  /* Create a temporary file with a '.tmp' extension. */
+
+  temp_drift_file = (char*) Malloc(strlen(drift_file)+8);
+
+  if(!temp_drift_file) {
+    return;
+  }
+
+  strcpy(temp_drift_file,drift_file);
+  strcat(temp_drift_file,".tmp");
+
+  out = fopen(temp_drift_file, "w");
+  if (!out) {
+    Free(temp_drift_file);
+    LOG(LOGS_WARN, LOGF_Reference, "Could not open temporary driftfile %s.tmp for writing\n",
+        drift_file);
+    return;
+  }
+
+  /* Write the frequency and skew parameters in ppm */
+  fprintf(out, "%20.4f %20.4f\n", freq_ppm, 1.0e6 * skew);
+
+  fclose(out);
+
+  /* Clone the file attributes from the existing file if there is one. */
+
+  if (!stat(drift_file,&buf)) {
+    chown(temp_drift_file,buf.st_uid,buf.st_gid);
+    chmod(temp_drift_file,buf.st_mode&0777);
+  }
+
+  /* Rename the temporary file to the correct location (see rename(2) for details). */
+
+  if (rename(temp_drift_file,drift_file)) {
+    unlink(temp_drift_file);
+    Free(temp_drift_file);
+    LOG(LOGS_WARN, LOGF_Reference, "Could not replace old driftfile %s with new one %s.tmp (%d)\n",
+        drift_file,drift_file);
+    return;
+  }
+
+  Free(temp_drift_file);
 }
 
 /* ================================================== */
@@ -237,7 +264,7 @@ maybe_log_offset(double offset)
 
   if (do_mail_change &&
       (abs_offset > mail_change_threshold)) {
-    sprintf(buffer, "%s %s", MAIL_PROGRAM, mail_change_user);
+    snprintf(buffer, 256, "%s %s", MAIL_PROGRAM, mail_change_user); /* Was sprintf JGH 19 Nov 2000 */
     p = popen(buffer, "w");
     if (p) {
       if (gethostname(host, sizeof(host)) < 0) {
@@ -389,7 +416,9 @@ REF_SetReference(int stratum,
     fflush(logfile);
   }
 
-  update_drift_file(abs_freq_ppm, our_skew);
+  if (drift_file) {
+    update_drift_file(abs_freq_ppm, our_skew);
+  }
 
   /* And now set the freq and offset to zero */
   our_frequency = 0.0;
@@ -409,7 +438,7 @@ REF_SetManualReference
  double skew
 )
 {
-  int mjd, hour, minute, second, millisecond;
+  int millisecond;
   double abs_freq_ppm;
 
   /* We are not synchronised to an external source, as such.  This is
@@ -427,7 +456,7 @@ REF_SetManualReference
 
   if (logfile) {
     millisecond = ref_time->tv_usec / 1000;
-    
+
     fprintf(logfile, "%5s %-15s %2d %10.3f %10.3f %10.3e\n",
             UTI_TimeToLogForm(ref_time->tv_sec),
             "127.127.1.1",
@@ -439,8 +468,9 @@ REF_SetManualReference
     fflush(logfile);
   }
 
-  update_drift_file(abs_freq_ppm, our_skew);
-
+  if (drift_file) {
+    update_drift_file(abs_freq_ppm, our_skew);
+  }
 }
 
 /* ================================================== */
@@ -449,7 +479,7 @@ void
 REF_SetUnsynchronised(void)
 {
   /* Variables required for logging to statistics log */
-  int mjd, hour, minute, second, millisecond;
+  int millisecond;
   struct timeval now;
   double local_clock_err;
 
@@ -459,7 +489,7 @@ REF_SetUnsynchronised(void)
     LCL_ReadCookedTime(&now, &local_clock_err);
 
     millisecond = now.tv_usec / 1000;
-      
+
     fprintf(logfile, "%s %-15s  0 %10.3f %10.3f %10.3e\n",
             UTI_TimeToLogForm(now.tv_sec),
             "0.0.0.0",

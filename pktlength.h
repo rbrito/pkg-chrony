@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/pktlength.h,v 1.2 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/pktlength.h,v 1.2 1999/04/19 20:27:29 richard Exp $
 
   =======================================================================
 
@@ -19,11 +19,12 @@
 
 #ifndef GOT_PKTLENGTH_H
 #define GOT_PKTLENGTH_H
-
 #include "candm.h"
 
 extern int PKL_CommandLength(CMD_Request *r);
 
 extern int PKL_ReplyLength(CMD_Reply *r);
+
+#define CROAK(message) assert(0) /* Added JGH Feb 24 2001  FIXME */
 
 #endif /* GOT_PKTLENGTH_H */

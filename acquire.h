@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/acquire.h,v 1.6 1998/05/20 06:10:38 richard Exp $
+  $Header: /cvs/src/chrony/acquire.h,v 1.7 1999/04/19 20:27:29 richard Exp $
 
   =======================================================================
 

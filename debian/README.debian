@@ -37,20 +37,14 @@ chrony for DEBIAN
  but 1 these scripts won't work without editing.
 
  As installed, chronyd will be started on bootup and will attempt to
- contact the default server whenever you connect to your ISP.
+ contact the default server whenever you connect to your ISP and assumes
+ that your hardware clock is on GMT.
 
  Use 'info chrony' to read the complete documentation. 
 
  All the files in the Debian chrony package are licensed under the chrony
- license (/usr/doc/chrony/LICENCE.gz) except where otherwise noted.
+ license (/usr/share/doc/chrony/LICENCE.gz) except where otherwise noted.
 
- Support for non-Intel platforms is experimental.  Also, the author suspects
- that the RTC stuff (not turned on in the default configuration) does not
- work on Alpha.  Please test it.
 
- The upstream version number of the previous release was 1.02.  The upstream 
- version number of this release is 1.1.  Dpkg says that 1.1 < 1.02 so I have
- had to make the Debian version number 1.10.
-
- John Hasler <john@dhh.gt.org>, 12 May 1999
+ John Hasler <john@dhh.gt.org>, 20 Nov 2000
 

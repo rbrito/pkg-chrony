@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/nameserv.c,v 1.11 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/nameserv.c,v 1.11 1999/04/19 20:27:29 richard Exp $
 
   =======================================================================
 
@@ -67,7 +67,7 @@ DNS_IPAddress2Name(unsigned long ip_addr)
       b = (ip_addr >> 16) & 0xff;
       c = (ip_addr >>  8) & 0xff;
       d = (ip_addr)       & 0xff;
-      snprintf(buffer, 16, "%u.%u.%u.%u", a, b, c, d); /* was sprintf JGH 2/8/99 */
+      snprintf(buffer, 16, "%u.%u.%u.%u", a, b, c, d); /* was sprintf JGH 19 Nov 2000 */
       return buffer;
     } else {
       return host->h_name;

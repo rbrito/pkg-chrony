@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/ntp_core.c,v 1.34 1998/07/27 21:25:42 richard Exp $
+  $Header: /cvs/src/chrony/ntp_core.c,v 1.40 2000/07/24 21:44:45 richard Exp $
 
   =======================================================================
 
@@ -843,8 +843,8 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
      measurement in seconds */
   double error_in_estimate;
   int poll_to_use;
-  double delay_time;
-  int requeue_transmit;
+  double delay_time = 0;
+  int requeue_transmit = 0;
   int delta_score;
 
   /* ==================== */
@@ -1213,7 +1213,7 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
           
           break;
         default:
-          assert(0);
+          CROAK("Impossible");
           break;
       }
       
@@ -1227,7 +1227,7 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
       break;
 
     default:
-      assert(0);
+      CROAK("Impossible");
       break;
 
   }
@@ -1789,7 +1789,7 @@ NCR_InitiateSampleBurst(NCR_Instance inst, int n_good_samples, int n_total_sampl
 
 
       default:
-        assert(0);
+        CROAK("Impossible");
         break;
     }
   }
@@ -1811,7 +1811,7 @@ NCR_ReportSource(NCR_Instance inst, RPT_SourceReport *report, struct timeval *no
       report->mode = RPT_NTP_PEER;
       break;
     default:
-      assert(0);
+      CROAK("Impossible");
   }
   
   return;

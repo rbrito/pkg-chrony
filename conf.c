@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/conf.c,v 1.25 1998/06/22 05:51:06 richard Exp $
+  $Header: /cvs/src/chrony/conf.c,v 1.30 1999/04/29 20:29:28 richard Exp $
 
   =======================================================================
 
@@ -31,8 +31,7 @@
 
 /* ================================================== */
 
-/* Was "/etc/chrony.conf" JGH Sun Nov  8 18:11:11 CST 1998 */
-#define DEFAULT_CONF_FILE "/etc/chrony/chrony.conf"
+#define DEFAULT_CONF_FILE "/etc/chrony/chrony.conf" /* Was /etc/chrony.conf JGH 20 Nov 2000 */
 
 /* ================================================== */
 /* Forward prototypes */
@@ -483,7 +482,7 @@ static void
 parse_initstepslew(const char *line)
 {
   const char *p;
-  char hostname[256];
+  char hostname[2048]; /* Was 256 JGH 18 Nov 2000 */
   int n;
   unsigned long ip_addr;
 
@@ -566,7 +565,7 @@ parse_logchange(const char *line)
 static void
 parse_mailonchange(const char *line)
 {
-  char buffer[128];
+  char buffer[2048]; /* Was 128 JGH 18 Nov 2000 */
   if (sscanf(line, "%s%lf", buffer, &mail_change_threshold) == 2) {
     mail_user_on_change = MallocArray(char, strlen(buffer)+1);
     strcpy(mail_user_on_change, buffer);

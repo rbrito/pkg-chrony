@@ -8,7 +8,7 @@ set -e
 [ -x /usr/sbin/chronyd ] || exit 0
 umask 022
 cd /var/log/chrony
-[ "`ls -1A *.log`" ] || exit 0
+[ "`ls -1A *.log 2>/dev/null`" ] || exit 0
 for FILE in *.log
 	do
   		savelog -c 7 $FILE > /dev/null

@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/util.c,v 1.10 1998/07/12 10:45:27 richard Exp $
+  $Header: /cvs/src/chrony/util.c,v 1.13 1999/08/17 21:21:46 richard Exp $
 
   =======================================================================
 
@@ -52,17 +52,21 @@ UTI_CompareTimevals(struct timeval *a, struct timeval *b)
   } else if (a->tv_sec > b->tv_sec) {
     return +1;
   } else {
-    assert(a->tv_sec == b->tv_sec);
+    if (a->tv_sec != b->tv_sec) {
+      CROAK("a->tv_sec != b->tv_sec");
+    }
     if (a->tv_usec < b->tv_usec) {
       return -1;
     } else if (a->tv_usec > b->tv_usec) {
       return +1;
     } else {
-      assert(a->tv_usec == b->tv_usec);
+      if (a->tv_usec != b->tv_usec) {
+        CROAK("a->tv_usec != b->tv_usec");
+      }
       return 0;
     }
   }
-  assert(0); /* Shouldn't be able to fall through. */
+  CROAK("Impossible"); /* Shouldn't be able to fall through. */
 }
 
 /* ================================================== */
@@ -173,12 +177,6 @@ UTI_AverageDiffTimevals (struct timeval *earlier,
     *diff = 0.0;
   }
 
-#if 0
-  assert(*diff >= 0.0); /* Otherwise, the definition of earlier and later
-                           is likely to be bogus elsewhere, and we want
-                           to know */
-#endif
-
   tvhalf.tv_sec = tvdiff.tv_sec / 2;
   tvhalf.tv_usec = tvdiff.tv_usec / 2 + (tvdiff.tv_sec % 2);
   
@@ -220,7 +218,7 @@ UTI_TimevalToString(struct timeval *tv)
   stm = *gmtime((time_t *) &(tv->tv_sec));
   strftime(buffer, sizeof(buffer), "%a %x %X", &stm);
   result = NEXT_BUFFER;
-  snprintf(result, 64, "%s.%06ld", buffer, (unsigned long)(tv->tv_usec)); /* was sprintf JGH 2/28/99 */
+  snprintf(result, 64, "%s.%06ld", buffer, (unsigned long)(tv->tv_usec)); /* was sprintf JGH 19 Nov 2000 */
   return result;
 }
 
@@ -261,7 +259,7 @@ UTI_IPToDottedQuad(unsigned long ip)
   c = (ip>> 8) & 0xff;
   d = (ip>> 0) & 0xff;
   result = NEXT_BUFFER;
-  snprintf(result, 16, "%ld.%ld.%ld.%ld", a, b, c, d); /* was sprintf JGH 2/28/99 */
+  snprintf(result, 64, "%ld.%ld.%ld.%ld", a, b, c, d); /* was sprintf JGH 19 Nov 2000 */
   return result;
 }
 
@@ -280,7 +278,7 @@ UTI_TimeToLogForm(time_t t)
   result = NEXT_BUFFER;
 
   stm = *gmtime(&t);
-  snprintf(result, 17, "%2d%s%02d %02d:%02d:%02d", /* was sprintf JGH 2/28/99 */
+  snprintf(result, 64, "%2d%s%02d %02d:%02d:%02d", /* was sprintf JGH 19 Nov 2000 */
           stm.tm_mday, months[stm.tm_mon], stm.tm_year % 100,
           stm.tm_hour, stm.tm_min, stm.tm_sec);
 
@@ -297,6 +295,22 @@ UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *
   UTI_DiffTimevalsToDouble(&elapsed, when, old_tv);
   delta_time = elapsed * dfreq - doffset;
   UTI_AddDoubleToTimeval(old_tv, delta_time, new_tv);
+}
+
+/* ================================================== */
+/* Force a core dump and exit without doing abort() or assert(0).
+   These do funny things with the call stack in the core file that is
+   generated, which makes diagnosis difficult. */
+
+int
+croak(char *file, int line, char *msg)
+{
+  int a;
+  LOG(LOGS_ERR, LOGF_Util, "Unexpected condition [%s] at %s:%d, core dumped\n",
+      msg, file, line);
+  a = * (int *) 0;
+  return a; /* Can't happen - this stops the optimiser optimising the
+               line above */
 }
 
 /* ================================================== */

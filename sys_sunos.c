@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/sys_sunos.c,v 1.10 1998/05/20 06:11:12 richard Exp $
+  $Header: /cvs/src/chrony/sys_sunos.c,v 1.15 2000/06/12 21:22:49 richard Exp $
 
   =======================================================================
 
@@ -78,21 +78,18 @@ clock_initialise(void)
   current_freq = 0.0;
 
   if (gettimeofday(&T0, &tz) < 0) {
-    perror("gettimeofday() failed in clock_initialise()");
-    assert(0);
+    CROAK("gettimeofday() failed in clock_initialise()");
   }
 
   newadj.tv_sec = 0;
   newadj.tv_usec = 0;
 
   if (adjtime(&newadj, &oldadj) < 0) {
-    perror("adjtime() failed in clock_initialise");
-    assert(0);
+    CROAK("adjtime() failed in clock_initialise");
   }
 
   if (adjtime(&newadj, &oldadj) < 0) {
-    perror("adjtime() failed in clock_initialise");
-    assert(0);
+    CROAK("adjtime() failed in clock_initialise");
   }
 
   return;
@@ -126,8 +123,7 @@ start_adjust(void)
 
   /* Determine the amount of error built up since the last adjustment */
   if (gettimeofday(&T1, &tz) < 0) {
-    perror("gettimeofday() failed in start_adjust");
-    assert(0);
+    CROAK("gettimeofday() failed in start_adjust");
   }
 
   UTI_DiffTimevalsToDouble(&elapsed, &T1, &T0);
@@ -158,8 +154,7 @@ start_adjust(void)
   UTI_DiffTimevalsToDouble(&rounding_error, &newadj, &exact_newadj);
 
   if (adjtime(&newadj, &oldadj) < 0) {
-    perror("adjtime() failed in start_adjust");
-    assert(0);
+    CROAK("adjtime() failed in start_adjust");
   }
 
   UTI_TimevalToDouble(&oldadj, &old_adjust_remaining);
@@ -187,13 +182,11 @@ stop_adjust(void)
   zeroadj.tv_usec = 0;
 
   if (adjtime(&zeroadj, &remadj) < 0) {
-    perror("adjtime() failed in stop_adjust");
-    assert(0);
+    CROAK("adjtime() failed in stop_adjust");
   }
 
   if (gettimeofday(&T1, &tz) < 0) {
-    perror("gettimeofday() failed in stop_adjust");
-    assert(0);
+    CROAK("gettimeofday() failed in stop_adjust");
   }
   
   UTI_DiffTimevalsToDouble(&elapsed, &T1, &T0);
@@ -236,15 +229,13 @@ apply_step_offset(double offset)
   
   stop_adjust();
   if (gettimeofday(&old_time, &tz) < 0) {
-    perror("gettimeofday in apply_step_offset");
-    assert(0);
+    CROAK("gettimeofday in apply_step_offset");
   }
 
   UTI_AddDoubleToTimeval(&old_time, -offset, &new_time);
 
   if (settimeofday(&new_time, &tz) < 0) {
-    perror("settimeofday in apply_step_offset");
-    assert(0);
+    CROAK("settimeofday in apply_step_offset");
   }
 
   UTI_AddDoubleToTimeval(&T0, offset, &T1);
@@ -335,8 +326,9 @@ setup_kernel(unsigned long on_off)
   unsigned long our_tick = 10000;
   unsigned long default_tickadj = 625;
 
-
-  assert(on_off==1 || on_off==0);
+  if (on_off!=1 && on_off!=0) {
+    CROAK("on_off should be 0 or 1");
+  }
 
   kt = kvm_open(NULL, NULL, NULL, O_RDWR, NULL);
   if (!kt) {

@@ -1,13 +1,14 @@
 Source: chrony
 Section: admin
 Priority: extra
-Maintainer:  John Hasler <john@dhh.gt.org>
-Standards-Version: 2.4.0.0
+Maintainer:  John Hasler <jhasler@debian.org>
+Standards-Version: 3.2.1.0
+Build-Depends: debhelper
 
 Package: chrony
 Architecture: any
 Depends: ${shlibs:Depends}
-Conflicts: xntp3
+Conflicts: ntp, ntpdate
 Description: It sets your computer's clock from time servers on the Net.
  It consists of a pair of programs :
  `chronyd'.  This is a daemon which runs in background on the

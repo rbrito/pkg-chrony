@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-# MAde with the aid of dh_make, by Craig Small
+# Made with the aid of dh_make, by Craig Small
 # Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
 # Some lines taken from debmake, by Cristoph Lameter.
 
@@ -51,17 +51,17 @@ binary-arch: build install
 	dh_installexamples
 	dh_installmenu
 #	dh_installemacsen
-	dh_installinit
+	dh_installinit -n
 	dh_installcron
 	dh_installmanpages
 #	dh_undocumented
 	dh_installchangelogs 
 	cp chrony.conf debian/tmp/etc/chrony
 	cp chrony.keys debian/tmp/etc/chrony
-	cp chrony.info debian/tmp/usr/info
-	cp chrony.info-1 debian/tmp/usr/info
-	cp chrony.info-2 debian/tmp/usr/info
-	cp chrony.info-3 debian/tmp/usr/info
+	cp chrony.info debian/tmp/usr/share/info
+	cp chrony.info-1 debian/tmp/usr/share/info
+	cp chrony.info-2 debian/tmp/usr/share/info
+	cp chrony.info-3 debian/tmp/usr/share/info
 	cp debian/ip-up debian/tmp/etc/ppp/ip-up.d/chrony
 	cp debian/ip-down debian/tmp/etc/ppp/ip-down.d/chrony
 	dh_strip
@@ -74,7 +74,7 @@ binary-arch: build install
 	dh_shlibdeps
 	dh_gencontrol
 #	dh_makeshlibs
-	dh_md5sums
+#	dh_md5sums
 	dh_builddeb
 
 source diff:                                                                  

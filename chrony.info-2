@@ -1,7 +1,37 @@
-This is Info file chrony.info, produced by Makeinfo version 1.68 from
-the input file chrony.texi.
+This is chrony.info, produced by makeinfo version 4.0 from chrony.texi.
 
    This only occurs in the info case
+
+
+File: chrony.info,  Node: driftfile directive,  Next: dumpdir directive,  Prev: deny directive,  Up: Configuration file
+
+driftfile
+---------
+
+   One of the main activities of the `chronyd' program is to work out
+the rate at which the system clock gains or loses time relative to real
+time.
+
+   Whenever `chronyd' computes a new value of the gain/loss rate, it is
+desirable to record it somewhere.  This allows `chronyd' to begin
+compensating the system clock at that rate whenever it is restarted,
+even before it has had a chance to obtain an equally good estimate of
+the rate during the new run.  (This process may take many minutes, at
+least).
+
+   The driftfile command allows a file to be specified into which
+`chronyd' can store the rate information.  Two parameters are recorded
+in the file.  The first is the rate at which the system clock gains or
+loses time, expressed in parts per million, with gains positive.
+Therefore, a value of 100.0 indicates that when the system clock has
+advanced by a second, it has gained 100 microseconds on reality (so the
+true time has only advanced by 999900 microseconds).  The second is an
+estimate of the error bound around the first value in which the true
+rate actually lies.
+
+   An example of the driftfile command is
+
+     driftfile /etc/chrony.drift
 
 
 File: chrony.info,  Node: dumpdir directive,  Next: dumponexit directive,  Prev: driftfile directive,  Up: Configuration file
@@ -175,7 +205,7 @@ being confused with real time, were it ever to leak out to clients that
 have visibility of real servers.
 
 
-File: chrony.info,  Node: log directive,  Next: logdir directive,  Prev: local directive,  Up: Configuration file
+File: chrony.info,  Node: log directive,  Next: logchange directive,  Prev: local directive,  Up: Configuration file
 
 log
 ---
@@ -306,7 +336,7 @@ values from the example line above) :
   7. The estimated rate at which the local clock is gaining or losing
      time relative to the source (in seconds per second, positive means
      the local clock is gaining).  This is relative to the compensation
-     currently being applied to the local clock, *not* to the local
+     currently being applied to the local clock, _not_ to the local
      clock without any compensation. [1.874e-06]
 
   8. The estimated error in the rate value (in seconds per second).
@@ -421,37 +451,77 @@ values from the example line above) :
 meanings of the columns.
 
 
-File: chrony.info,  Node: logdir directive,  Next: manual directive,  Prev: log directive,  Up: Configuration file
+File: chrony.info,  Node: logchange directive,  Next: logdir directive,  Prev: log directive,  Up: Configuration file
+
+logchange
+---------
+
+   This directive forces `chronyd' to send a message to syslog if it
+makes a system clock adjustment larger than a threshold value.  An
+example of use is
+
+     logchange 0.5
+
+   which would cause a syslog message to be generated a system clock
+error of over 0.5 seconds starts to be compensated.
+
+   Clock errors detected either via NTP packets or via timestamps
+entered via the `settime' command of `chronyc' are logged.
+
+   This directive assumes that syslog messages are appearing where
+somebody can see them.  This allows that person to see if a large error
+has arisen, e.g. because of a fault, or because of faulty timezone
+handling, for example when summer time (daylight saving) starts or ends.
+
+
+File: chrony.info,  Node: logdir directive,  Next: mailonchange directive,  Prev: logchange directive,  Up: Configuration file
 
 logdir
 ------
 
-   This command allows the directory where log files are written to be
+   This directive allows the directory where log files are written to be
 specified.
 
-   An example of the use of this command is
+   An example of the use of this directive is
 
      logdir /var/log/chrony
 
 
-File: chrony.info,  Node: manual directive,  Next: maxupdateskew directive,  Prev: logdir directive,  Up: Configuration file
+File: chrony.info,  Node: mailonchange directive,  Next: manual directive,  Prev: logdir directive,  Up: Configuration file
+
+mailonchange
+------------
+
+   This directive defines an email address to which mail should be sent
+if chronyd applies a correction exceeding a particular threshold to the
+system clock.
+
+   An example of use of this directive is
+
+     mailonchange root@localhost 0.5
+
+   This would send a mail message to root if a change of more than 0.5
+seconds were applied to the system clock.
+
+
+File: chrony.info,  Node: manual directive,  Next: maxupdateskew directive,  Prev: mailonchange directive,  Up: Configuration file
 
 manual
 ------
 
    The `manual' directive enables support at run-time for the `settime'
-command in chronyc (*note settime command::.).  If no `manual'
-directive is included, any attempt to use the `settime' command in
-chronyc will be met with an error message.
+command in chronyc (*note settime command::).  If no `manual' directive
+is included, any attempt to use the `settime' command in chronyc will
+be met with an error message.
 
    Note that the `settime' command can be enabled at run-time using the
-`manual' command in chronyc (*note manual command::.).  (The idea of
-the two commands is that the `manual' command controls the manual clock
+`manual' command in chronyc (*note manual command::).  (The idea of the
+two commands is that the `manual' command controls the manual clock
 driver's behaviour, whereas the `settime' command allows samples of
 manually entered time to be provided).
 
 
-File: chrony.info,  Node: maxupdateskew directive,  Next: peer directive,  Prev: manual directive,  Up: Configuration file
+File: chrony.info,  Node: maxupdateskew directive,  Next: noclientlog directive,  Prev: manual directive,  Up: Configuration file
 
 maxupdateskew
 -------------
@@ -486,13 +556,23 @@ has large error bounds, the existing master estimate will dominate in
 the new master estimate.
 
 
-File: chrony.info,  Node: peer directive,  Next: port directive,  Prev: maxupdateskew directive,  Up: Configuration file
+File: chrony.info,  Node: noclientlog directive,  Next: peer directive,  Prev: maxupdateskew directive,  Up: Configuration file
+
+noclientlog
+-----------
+
+   This directive, which takes no arguments, specifies that client
+accesses are not to be logged.  Normally they are logged, allowing
+statistics to be reported using the `clients' command in `chronyc'.
+
+
+File: chrony.info,  Node: peer directive,  Next: port directive,  Prev: noclientlog directive,  Up: Configuration file
 
 peer
 ----
 
    The syntax of this directive is identical to that for the `server'
-directive (*note server directive::.), except that it is used to specify
+directive (*note server directive::), except that it is used to specify
 an NTP peer rather than an NTP server.
 
 
@@ -560,8 +640,14 @@ rtconutc
 local time (including any daylight saving changes).  This is convenient
 on PCs running Linux which are dual-booted with DOS or Windows.
 
+   NOTE : IF YOU KEEP THE REAL TIME CLOCK ON LOCAL TIME AND YOUR
+COMPUTER IS OFF WHEN DAYLIGHT SAVING (SUMMER TIME) STARTS OR ENDS, THE
+COMPUTER'S SYSTEM TIME WILL BE ONE HOUR IN ERROR WHEN YOU NEXT BOOT AND
+START CHRONYD.
+
    An alternative is for the RTC to keep Universal Coordinated Time
-(UTC).
+(UTC).  This does not suffer from the 1 hour problem when daylight
+saving starts or ends.
 
    If the `rtconutc' directive appears, it means the RTC is required to
 keep UTC.  The directive takes no arguments.  It is equivalent to
@@ -761,10 +847,10 @@ usually be tightly controlled.  There are two mechanisms supported:
   2. Any command that actually reconfigures some aspect of `chronyd's'
      behaviour requires the user of chronyc to know a password.  This
      password is specified in `chronyd's' keys file (*note keyfile
-     directive::.)  and specified via the commandkey option in its
-     configuration file (*note commandkey directive::.).
+     directive::) and specified via the commandkey option in its
+     configuration file (*note commandkey directive::).
 
-   Only the following commands can be used *without* providing a
+   Only the following commands can be used _without_ providing a
 password:
 
    * `exit'
@@ -804,6 +890,7 @@ interface.
 * allow command::               Allowing NTP client access
 * allow all command::           Allowing NTP client access
 * burst command::               Initiating a rapid set of measurements
+* clients command::             Show clients that have accessed the server
 * cmdaccheck command::          Verifying command client access
 * cmdallow command::            Allowing command client access
 * cmdallow all command::        Allowing command client access
@@ -817,6 +904,7 @@ interface.
 * exit command::                Exit from chronyc
 * help command::                Generate help summary
 * local command::               Let computer be a server when it is unsynchronised
+* makestep command::            Immediately correct the system clock instead of slewing
 * manual command::              Enable/disable/configure options for settime
 * maxdelay command::            Set max measurement delay for a source
 * maxdelayratio command::       Set max measurement delay for a source as ratio
@@ -865,7 +953,7 @@ add peer
 
    Following the words `add peer', the syntax of the following
 parameters and options is identical to that for the `peer' directive in
-the configuration file (*note peer directive::.).
+the configuration file (*note peer directive::).
 
    An example of using this command is shown below.
 
@@ -882,7 +970,7 @@ add server
 
    Following the words `add server', the syntax of the following
 parameters and options is identical to that for the `server' directive
-in the configuration file (*note server directive::.).
+in the configuration file (*note server directive::).
 
    An example of using this command is shown below.
 
@@ -895,7 +983,7 @@ allow
 .....
 
    The effect of the allow command is identical to the `allow'
-directive in the configuration file (*note allow directive::.).
+directive in the configuration file (*note allow directive::).
 
    The syntax is illustrated in the following examples:
 
@@ -910,10 +998,10 @@ allow all
 .........
 
    The effect of the allow command is identical to the `allow all'
-directive in the configuration file (*note allow directive::.).
+directive in the configuration file (*note allow directive::).
 
 
-File: chrony.info,  Node: burst command,  Next: cmdaccheck command,  Prev: allow all command,  Up: Chronyc command reference
+File: chrony.info,  Node: burst command,  Next: clients command,  Prev: allow all command,  Up: Chronyc command reference
 
 burst
 .....
@@ -978,7 +1066,57 @@ sources whose IP addresses are of the form `1.2.x.y', where x and y are
 arbitrary.
 
 
-File: chrony.info,  Node: cmdaccheck command,  Next: cmdallow command,  Prev: burst command,  Up: Chronyc command reference
+File: chrony.info,  Node: clients command,  Next: cmdaccheck command,  Prev: burst command,  Up: Chronyc command reference
+
+clients
+.......
+
+   This command shows a list of all clients that have accessed the
+server, through either the NTP or command/monitoring ports.  There are
+no arguments.
+
+   An example of the output is
+
+   Hostname                   Client    Peer CmdAuth CmdNorm  CmdBad
+LstN  LstC =========================  ======  ======  ======  ======
+======  ====  ==== localhost                       0       0      15
+  1       0   29y     0 aardvark.xxx                    4       0
+0       0       0    49   29y badger.xxx                      4
+0       0       0       0     6   29y
+
+   Each row shows the data for a single host.  Only hosts that have
+passed the host access checks (set with the `allow', `deny', `cmdallow'
+and `cmddeny' commands or configuration file directives) are logged.
+
+   The columns are as follows:
+
+  1. The hostname of the client
+
+  2. The number of times the client has accessed the server using an NTP
+     client mode packet.
+
+  3. The number of times the client has accessed the server using an NTP
+     symmetric active mode packet.
+
+  4. The number of authenticated command packets that have been
+     processed from the client (i.e. those following a successful
+     `password' command).
+
+  5. The number of unauthenticated command packets that have been
+     processed from the client.
+
+  6. The number of bad command packets received from the client (not all
+     forms of bad packet are logged).
+
+  7. Time since the last NTP packet was received
+
+  8. Time since the last command packet was received
+
+   The last two entries will be shown as the time since 1970 if no
+packet of that type has ever been received.
+
+
+File: chrony.info,  Node: cmdaccheck command,  Next: cmdallow command,  Prev: clients command,  Up: Chronyc command reference
 
 cmdaccheck
 ..........
@@ -1077,7 +1215,7 @@ deny
 ....
 
    The effect of the allow command is identical to the `deny' directive
-in the configuration file (*note deny directive::.).
+in the configuration file (*note deny directive::).
 
    The syntax is illustrated in the following examples:
 
@@ -1092,7 +1230,7 @@ deny all
 ........
 
    The effect of the allow command is identical to the `deny all'
-directive in the configuration file (*note deny directive::.).
+directive in the configuration file (*note deny directive::).
 
 
 File: chrony.info,  Node: dump command,  Next: exit command,  Prev: deny all command,  Up: Chronyc command reference
@@ -1131,7 +1269,7 @@ help
 arguments.
 
 
-File: chrony.info,  Node: local command,  Next: manual command,  Prev: help command,  Up: Chronyc command reference
+File: chrony.info,  Node: local command,  Next: makestep command,  Prev: help command,  Up: Chronyc command reference
 
 local
 .....
@@ -1154,150 +1292,24 @@ sets the stratum at which it should claim to be synchronised.
    The second example disables the local reference mode.
 
 
-File: chrony.info,  Node: manual command,  Next: maxdelay command,  Prev: local command,  Up: Chronyc command reference
+File: chrony.info,  Node: makestep command,  Next: manual command,  Prev: local command,  Up: Chronyc command reference
 
-manual
-......
-
-   The manual command enables and disables use of the `settime' command
-(*note settime command::.), and is used to modify the behaviour of the
-manual clock driver.
-
-   Examples of the command are shown below.
-
-     manual on
-     manual off
-     manual reset
-
-   The first form of the command enables use of the `settime' command.
-
-   The second form of the command disables use of the `settime' command.
-
-   When a time is entered with the `settime' command, the current time
-and machine clock error are stored within `chronyd'.  When another time
-is entered later, the rate of gain or loss of the machine clock is
-computed and used to adjust the running speed of the machine clock.
-
-   If you want to correct the machine time without this rate
-compensation being performed, use the third form of the `manual'
-command first.  This will purge any previous measurements stored within
-`chronyd'.
-
-
-File: chrony.info,  Node: maxdelay command,  Next: maxdelayratio command,  Prev: manual command,  Up: Chronyc command reference
-
-maxdelay
+makestep
 ........
 
-   This allows the `maxdelay' option for one of the sources to be
-modified, in the same way as specifying the `maxdelay' option for the
-`server' directive in the configuration file (*note server
-directive::.).
+   Normally chronyd will cause the system to gradually correct any time
+offset, by slowing down or speeding up the clock as required.  In
+certain situations, the system clock may be so far adrift that this
+slewing process would take a very long time to correct the system clock.
 
-   The following examples illustrate the syntax
+   The `makestep' command can be used in this situation.  It cancels
+any remaining correction that was being slewed, and jumps the system
+clock by the equivalent amount, making it correct immediately.
 
-     maxdelay foo.bar.com 0.3
-     maxdelay 1.2.3.4 0.0015
+   BE WARNED - certain software will be seriously affected by such
+jumps to the system time.  (That is the reason why chronyd uses slewing
+normally.)
 
-   The first example sets the maximum network delay allowed for a
-measurement to the host `foo.bar.com' to 0.3 seconds.  The second
-example sets the maximum network delay for a measurement to the host
-with IP address `1.2.3.4' to 1.5 milliseconds.
-
-   (Any measurement whose network delay exceeds the specified value is
-discarded.)
-
-
-File: chrony.info,  Node: maxdelayratio command,  Next: maxpoll command,  Prev: maxdelay command,  Up: Chronyc command reference
-
-maxdelayratio
-.............
-
-   This allows the `maxdelayratio' option for one of the sources to be
-modified, in the same way as specifying the `maxdelayratio' option for
-the `server' directive in the configuration file (*note server
-directive::.).
-
-   The following examples illustrate the syntax
-
-     maxdelayratio foo.bar.com 1.5
-     maxdelayratio 1.2.3.4 2.0
-
-   The first example sets the maximum network delay for a measurement to
-the host `foo.bar.com' to be 1.5 times the minimum delay found amongst
-the previous measurements that have been retained.  The second example
-sets the maximum network delay for a measurement to the host with IP
-address `1.2.3.4' to be double the retained minimum.
-
-   As for `maxdelay', any measurement whose network delay is too large
-will be discarded.
-
-
-File: chrony.info,  Node: maxpoll command,  Next: maxupdateskew command,  Prev: maxdelayratio command,  Up: Chronyc command reference
-
-maxpoll
-.......
-
-   The `maxpoll' command is used to modify the minimum polling interval
-for one of the current set of sources.  It is equivalent to the
-`maxpoll' option in the `server' directive in the configuration file
-(*note server directive::.).
-
-   The syntax is as follows
-
-     maxpoll <host> <new-maxpoll>
-
-   where the host can be specified as either a machine name or
-dotted-quad IP address.  The new minimum poll is specified as a base-2
-logarithm of the number of seconds between polls (e.g. specify 6 for 64
-second sampling).
-
-   An example is
-
-     maxpoll foo.bar.com 10
-
-   which sets the maximum polling interval for the host `foo.bar.com'
-to 1024 seconds.
-
-   Note that the new maximum polling interval only takes effect after
-the next measurement has been made.
-
-
-File: chrony.info,  Node: maxupdateskew command,  Next: minpoll command,  Prev: maxpoll command,  Up: Chronyc command reference
-
-maxupdateskew
-.............
-
-   This command has the same effect as the `maxupdateskew' directive in
-the configuration file, see *Note maxupdateskew directive::.
-
-
-File: chrony.info,  Node: minpoll command,  Next: offline command,  Prev: maxupdateskew command,  Up: Chronyc command reference
-
-minpoll
-.......
-
-   The `minpoll' command is used to modify the minimum polling interval
-for one of the current set of sources.  It is equivalent to the
-`minpoll' option in the `server' directive in the configuration file
-(*note server directive::.).
-
-   The syntax is as follows
-
-     minpoll <host> <new-minpoll>
-
-   where the host can be specified as either a machine name or
-dotted-quad IP address.  The new minimum poll is specified as a base-2
-logarithm of the number of seconds between polls (e.g. specify 6 for 64
-second sampling).
-
-   An example is
-
-     minpoll foo.bar.com 5
-
-   which sets the minimum polling interval for the host `foo.bar.com'
-to 32 seconds.
-
-   Note that the new minimum polling interval only takes effect after
-the next measurement has been made.
+   The `makestep' command is currently only available on the Linux
+version of chrony.
 

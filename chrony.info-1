@@ -1,5 +1,4 @@
-This is Info file chrony.info, produced by Makeinfo version 1.68 from
-the input file chrony.texi.
+This is chrony.info, produced by makeinfo version 4.0 from chrony.texi.
 
    This only occurs in the info case
 
@@ -56,8 +55,8 @@ File: chrony.info,  Node: Acknowledgements,  Next: Availability,  Prev: Overview
 Acknowledgements
 ================
 
-   The `chrony' suite makes use of the algorithm known as *RSA Data
-Security, Inc. MD5 Message-Digest Algorithm* for authenticating
+   The `chrony' suite makes use of the algorithm known as _RSA Data
+Security, Inc. MD5 Message-Digest Algorithm_ for authenticating
 messages between different machines on the network.
 
    In writing the `chronyd' program, extensive use has been made of
@@ -83,7 +82,9 @@ File: chrony.info,  Node: Getting the software,  Next: Platforms,  Prev: Availab
 Getting the software
 --------------------
 
-   Links on the chrony home page (http://www.curnow.demon.co.uk/chrony/index.html) describe how to obtain the software.
+   Links on the chrony home page
+(http://www.rrbcurnow.freeuk.com/chrony/index.html) describe how to
+obtain the software.
 
 
 File: chrony.info,  Node: Platforms,  Prev: Getting the software,  Up: Availability
@@ -135,7 +136,8 @@ xntpd
 -----
 
    The `reference' implementation of the Network Time Protocol is the
-program `xntpd', available via The NTP home page (http://www.eecis.udel.edu/~ntp).
+program `xntpd', available via The NTP home page
+(http://www.eecis.udel.edu/~ntp).
 
    `xntpd' is designed to support all the operating modes defined by
 RFC1305, and has driver support for a large number of reference clocks
@@ -145,8 +147,8 @@ thereby providing a so-called 'stratum 1' server.
    Things `chronyd' can do that `xntpd' can't:
 
    * `chronyd' can perform usefully in an environment where access to
-     the time reference is intermittent.  `chronyd' estimates *both*
-     the current time offset *and* the rate at which the computer's
+     the time reference is intermittent.  `chronyd' estimates _both_
+     the current time offset _and_ the rate at which the computer's
      clock gains or loses time, and can use that rate estimate to trim
      the clock after the reference disappears.  `xntpd' corrects any
      time offset by speeding up and slowing down the computer clock, and
@@ -179,7 +181,7 @@ thereby providing a so-called 'stratum 1' server.
    * `xntpd' supports a range of different hardware reference clocks
      (GPS, atomic etc) that can be connected to a computer to provide a
      `stratum-1' server.  `chronyd' does not support any such hardware
-     *yet*; I don't have access to any to do any development work.
+     _yet_; I don't have access to any to do any development work.
      However, the software architecture should allow such equipment to
      be interfaced at a later date.
 
@@ -231,7 +233,7 @@ networks of computers, they will track the `majority vote' time.  For
 such isolated networks, `chronyd' requires one computer to be the
 `master' with the others slaved to it.  If the master has a particular
 defective clock, the whole set of computers will tend to slip relative
-to real time (but they *will* stay accurate relative to one another).
+to real time (but they _will_ stay accurate relative to one another).
 
 
 File: chrony.info,  Node: Distribution and warranty,  Prev: Other time synchronisation packages,  Up: Introduction
@@ -377,11 +379,10 @@ File: chrony.info,  Node: Installation,  Next: Typical scenarios,  Prev: Introdu
 Installation
 ************
 
-   The software is distributed as source code which has to be compiled
-unless you have installed the Debian package, in which case it is
-already compiled and installed with a default configuration.  The source
-code is supplied in the form of a gzipped tar file, which unpacks to a
-subdirectory identifying the name and version of the program.
+   The software is distributed as source code which has to be compiled.
+The source code is supplied in the form of a gzipped tar file, which
+unpacks to a subdirectory identifying the name and version of the
+program.
 
    After unpacking the source code, change directory into it, and type
 
@@ -683,8 +684,8 @@ Dual-boot systems may work; it depends what (if anything) the other
 system does to the system's real-time clock.
 
    Much of the configuration for this case is discussed earlier (*note
-Infrequent connection::.).  This section addresses specifically the
-case of a computer which is turned off between 'sessions'.
+Infrequent connection::).  This section addresses specifically the case
+of a computer which is turned off between 'sessions'.
 
    In this case, `chronyd' relies on the computer's real-time clock
 (RTC) to maintain the time between the periods when it is powered up.
@@ -782,9 +783,9 @@ Typical configuration files.
 example configuration files are shown in this section.
 
    For the `/etc/chrony.conf' file, the following can be used as an
-example.  *NOTE : The `server' directives are only applicable to
+example.  _NOTE : The `server' directives are only applicable to
 customers of Demon Internet; users of other ISPs will need to use their
-own ISP's NTP servers or public NTP servers.*
+own ISP's NTP servers or public NTP servers._
 
      server 158.152.1.65 minpoll 5 maxpoll 10 maxdelay 0.4 offline
      server 158.152.1.76 minpoll 5 maxpoll 10 maxdelay 0.4 offline
@@ -798,6 +799,12 @@ own ISP's NTP servers or public NTP servers.*
      dumponexit
      dumpdir /var/log/chrony
      rtcfile /etc/chrony.rtc
+
+   With Freeserve as the ISP, I use the following server lines :
+
+     server 194.152.64.68 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+     server 194.152.64.35 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+     server 194.152.64.34 minpoll 5 maxpoll 10 maxdelay 0.4 offline
 
    I use `pppd' for connecting to my ISP.  This runs two scripts
 `/etc/ppp/ip-up' and `/etc/ppp/ip-down' when the link goes online and
@@ -946,7 +953,7 @@ the command
 
      Support for real-time clocks is limited at present - the criteria
      are described in the section on the `rtcfile' directive (*note
-     rtcfile directive::.).
+     rtcfile directive::).
 
      If `chronyd' cannot support the real time clock on your computer,
      this option cannot be used and a warning message will be logged to
@@ -1023,6 +1030,7 @@ directives can occur in any order in the file.
 * Menu:
 
 * allow directive::             Give access to NTP clients
+* bindaddress directive::       Limit the network interface that is used
 * commandkey directive::        Set runtime command key
 * cmdport directive::           Set port to use for runtime commanding
 * deny directive::              Deny access to NTP clients
@@ -1033,9 +1041,12 @@ directives can occur in any order in the file.
 * keyfile directive::           Specify location of file containing keys
 * local directive::             Allow unsynchronised machine to act as server
 * log directive::               Make daemon log certain sets of information
+* logchange directive::         Generate syslog messages if large offsets occur
 * logdir directive::            Specify directory for logging
+* mailonchange directive::      Send email if a clock correction above a threshold occurs
 * manual directive::            Allow manual entry using chronyc's settime cmd.
 * maxupdateskew directive::     Stop bad estimates upsetting machine clock
+* noclientlog directive::       Prevent chronyd from gathering data about clients
 * peer directive::              Specify an NTP peer
 * port directive::              Set port to use for NTP packets
 * rtcfile directive::           Specify the file where real-time clock data is stored
@@ -1043,7 +1054,7 @@ directives can occur in any order in the file.
 * server directive::            Specify an NTP server
 
 
-File: chrony.info,  Node: allow directive,  Next: commandkey directive,  Prev: Configuration file,  Up: Configuration file
+File: chrony.info,  Node: allow directive,  Next: bindaddress directive,  Prev: Configuration file,  Up: Configuration file
 
 allow
 -----
@@ -1090,18 +1101,43 @@ access, except for the 1.2.3.x subnet, which is denied access, however
 the host 1.2.3.4 is allowed access.
 
    In the second example, the `allow all 1.2' directives overrides the
-effect of *any* previous directive relating to a subnet within the
+effect of _any_ previous directive relating to a subnet within the
 specified subnet.  Within a configuration file this capability is
 probably rather moot; however, it is of greater use for reconfiguration
-at run-time via `chronyc' (*note allow all command::.).
+at run-time via `chronyc' (*note allow all command::).
 
    Note, if the `initstepslew' directive (*note initstepslew
-directive::.) is used in the configuration file, each of the computers
+directive::) is used in the configuration file, each of the computers
 listed in that directive must allow client access by this computer for
 it to work.
 
 
-File: chrony.info,  Node: commandkey directive,  Next: cmdport directive,  Prev: allow directive,  Up: Configuration file
+File: chrony.info,  Node: bindaddress directive,  Next: commandkey directive,  Prev: allow directive,  Up: Configuration file
+
+bindaddress
+-----------
+
+   The bindaddress allows you to restrict the network interface to which
+chronyd will listen for packets.  This provides an additional level of
+access restriction above that available through the 'deny' mechanism.
+
+   Suppose you have a local ethernet with addresses in the 192.168.1.0
+subnet together with a dial-up connection.  The ethernet interface's IP
+address is 192.168.1.1.  Suppose (for some reason) you want to block all
+access through the dialup connection (note, this will even block replies
+from servers on the dialup side, so you will not be able to synchronise
+to an external source).  You could add the line
+
+     bindaddress 192.168.1.1
+
+   to the configuration file.
+
+   This directive affects both NTP (UDP port 123) packets and
+chronyc/chronyd command and monitoring packets (UDP port 323 by
+default).
+
+
+File: chrony.info,  Node: commandkey directive,  Next: cmdport directive,  Prev: bindaddress directive,  Up: Configuration file
 
 commandkey
 ----------
@@ -1152,7 +1188,7 @@ File: chrony.info,  Node: deny directive,  Next: driftfile directive,  Prev: cmd
 deny
 ----
 
-   This is similar to the `allow' directive (*note allow directive::.),
+   This is similar to the `allow' directive (*note allow directive::),
 except that it denies NTP client access to a particular subnet or host,
 rather than allowing it.
 
@@ -1160,35 +1196,4 @@ rather than allowing it.
 
    There is also a `deny all' directive with similar behaviour to the
 `allow all' directive.
-
-
-File: chrony.info,  Node: driftfile directive,  Next: dumpdir directive,  Prev: deny directive,  Up: Configuration file
-
-driftfile
----------
-
-   One of the main activities of the `chronyd' program is to work out
-the rate at which the system clock gains or loses time relative to real
-time.
-
-   Whenever `chronyd' computes a new value of the gain/loss rate, it is
-desirable to record it somewhere.  This allows `chronyd' to begin
-compensating the system clock at that rate whenever it is restarted,
-even before it has had a chance to obtain an equally good estimate of
-the rate during the new run.  (This process may take many minutes, at
-least).
-
-   The driftfile command allows a file to be specified into which
-`chronyd' can store the rate information.  Two parameters are recorded
-in the file.  The first is the rate at which the system clock gains or
-loses time, expressed in parts per million, with gains positive.
-Therefore, a value of 100.0 indicates that when the system clock has
-advanced by a second, it has gained 100 microseconds on reality (so the
-true time has only advanced by 999900 microseconds).  The second is an
-estimate of the error bound around the first value in which the true
-rate actually lies.
-
-   An example of the driftfile command is
-
-     driftfile /etc/chrony.drift
 

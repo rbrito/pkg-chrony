@@ -1,7 +1,181 @@
-This is Info file chrony.info, produced by Makeinfo version 1.68 from
-the input file chrony.texi.
+This is chrony.info, produced by makeinfo version 4.0 from chrony.texi.
 
    This only occurs in the info case
+
+
+File: chrony.info,  Node: manual command,  Next: maxdelay command,  Prev: makestep command,  Up: Chronyc command reference
+
+manual
+......
+
+   The manual command enables and disables use of the `settime' command
+(*note settime command::), and is used to modify the behaviour of the
+manual clock driver.
+
+   Examples of the command are shown below.
+
+     manual on
+     manual off
+     manual delete 1
+     manual list
+     manual reset
+
+   The `on' form of the command enables use of the `settime' command.
+
+   The `off' form of the command disables use of the `settime' command.
+
+   The `list' form of the command lists all the samples currently
+stored in `chronyd'.  The output is illustrated below.
+
+     210 n_samples = 1
+     #    Date  Time(UTC)    Slewed   Original   Residual
+     ====================================================
+      0 27Jan99 22:09:20       0.00       0.97       0.00
+
+   The columns as as follows :
+
+  1. The sample index (used for the `manual delet'e command)
+
+  2. The date and time of the sample
+
+  3. The system clock error when the timestamp was entered, adjusted to
+     allow for changes made to the system clock since.
+
+  4. The system clock error when the timestamp was entered, as it
+     originally was (without allowing for changes to the system clock
+     since).
+
+  5. The regression residual at this point, in seconds.  This allows
+     'outliers' to be easily spotted, so that they can be deleted using
+     the `manual delete' command.
+
+   The `delete' form of the command deletes a single sample.  The
+parameter is the index of the sample, as shown in the first column of
+the output from `manual list'.  Following deletion of the data point,
+the current error and drift rate are re-estimated from the remaining
+data points and the system clock trimmed if necessary.  This option is
+intended to allow 'outliers' to be discarded, i.e. samples where the
+administrator realises he/she has entered a very poor timestamp.
+
+   The `reset' form of the command deletes all samples at once.  The
+system clock is left running as it was before the command was entered.
+
+
+File: chrony.info,  Node: maxdelay command,  Next: maxdelayratio command,  Prev: manual command,  Up: Chronyc command reference
+
+maxdelay
+........
+
+   This allows the `maxdelay' option for one of the sources to be
+modified, in the same way as specifying the `maxdelay' option for the
+`server' directive in the configuration file (*note server directive::).
+
+   The following examples illustrate the syntax
+
+     maxdelay foo.bar.com 0.3
+     maxdelay 1.2.3.4 0.0015
+
+   The first example sets the maximum network delay allowed for a
+measurement to the host `foo.bar.com' to 0.3 seconds.  The second
+example sets the maximum network delay for a measurement to the host
+with IP address `1.2.3.4' to 1.5 milliseconds.
+
+   (Any measurement whose network delay exceeds the specified value is
+discarded.)
+
+
+File: chrony.info,  Node: maxdelayratio command,  Next: maxpoll command,  Prev: maxdelay command,  Up: Chronyc command reference
+
+maxdelayratio
+.............
+
+   This allows the `maxdelayratio' option for one of the sources to be
+modified, in the same way as specifying the `maxdelayratio' option for
+the `server' directive in the configuration file (*note server
+directive::).
+
+   The following examples illustrate the syntax
+
+     maxdelayratio foo.bar.com 1.5
+     maxdelayratio 1.2.3.4 2.0
+
+   The first example sets the maximum network delay for a measurement to
+the host `foo.bar.com' to be 1.5 times the minimum delay found amongst
+the previous measurements that have been retained.  The second example
+sets the maximum network delay for a measurement to the host with IP
+address `1.2.3.4' to be double the retained minimum.
+
+   As for `maxdelay', any measurement whose network delay is too large
+will be discarded.
+
+
+File: chrony.info,  Node: maxpoll command,  Next: maxupdateskew command,  Prev: maxdelayratio command,  Up: Chronyc command reference
+
+maxpoll
+.......
+
+   The `maxpoll' command is used to modify the minimum polling interval
+for one of the current set of sources.  It is equivalent to the
+`maxpoll' option in the `server' directive in the configuration file
+(*note server directive::).
+
+   The syntax is as follows
+
+     maxpoll <host> <new-maxpoll>
+
+   where the host can be specified as either a machine name or
+dotted-quad IP address.  The new minimum poll is specified as a base-2
+logarithm of the number of seconds between polls (e.g. specify 6 for 64
+second sampling).
+
+   An example is
+
+     maxpoll foo.bar.com 10
+
+   which sets the maximum polling interval for the host `foo.bar.com'
+to 1024 seconds.
+
+   Note that the new maximum polling interval only takes effect after
+the next measurement has been made.
+
+
+File: chrony.info,  Node: maxupdateskew command,  Next: minpoll command,  Prev: maxpoll command,  Up: Chronyc command reference
+
+maxupdateskew
+.............
+
+   This command has the same effect as the `maxupdateskew' directive in
+the configuration file, see *Note maxupdateskew directive::.
+
+
+File: chrony.info,  Node: minpoll command,  Next: offline command,  Prev: maxupdateskew command,  Up: Chronyc command reference
+
+minpoll
+.......
+
+   The `minpoll' command is used to modify the minimum polling interval
+for one of the current set of sources.  It is equivalent to the
+`minpoll' option in the `server' directive in the configuration file
+(*note server directive::).
+
+   The syntax is as follows
+
+     minpoll <host> <new-minpoll>
+
+   where the host can be specified as either a machine name or
+dotted-quad IP address.  The new minimum poll is specified as a base-2
+logarithm of the number of seconds between polls (e.g. specify 6 for 64
+second sampling).
+
+   An example is
+
+     minpoll foo.bar.com 5
+
+   which sets the minimum polling interval for the host `foo.bar.com'
+to 32 seconds.
+
+   Note that the new minimum polling interval only takes effect after
+the next measurement has been made.
 
 
 File: chrony.info,  Node: offline command,  Next: online command,  Prev: minpoll command,  Up: Chronyc command reference
@@ -104,7 +278,7 @@ library.  Other systems do not have this restriction.)
 
    The password is any string of characters not containing whitespace.
 It has to match `chronyd's' currently defined command key (*note
-commandkey directive::.).
+commandkey directive::).
 
 
 File: chrony.info,  Node: quit command,  Next: rtcdata command,  Prev: password command,  Up: Chronyc command reference
@@ -180,8 +354,8 @@ settime
    The `settime' command allows the current time to be entered
 manually, if this option has been configured into `chronyd'.  (It may be
 configured either with the `manual' directive in the configuration file
-(*note manual directive::.), or with the `manual' command of chronyc
-(*note manual command::.).
+(*note manual directive::), or with the `manual' command of chronyc
+(*note manual command::).
 
    It should be noted that the computer's sense of time will only be as
 accurate as the reference you use for providing this input (e.g. your
@@ -196,9 +370,14 @@ able to enter a local time (rather than UTC).
 that the computer's clock was wrong.  It should be apparent from this if
 you have entered the time wrongly, e.g. with the wrong time zone.
 
-   The software always allows you to enter the time again, replacing the
-measurement you just entered, for example if you realise that it was
-wrong.  You are given a 5 minute period for doing this.
+   The rate of drift of the system clock is estimated by a regression
+process using the entered measurement and all previous measurements
+entered during the present run of `chronyd'.  However, the entered
+measurement is used for adjusting the current clock offset (rather than
+the estimated intercept from the regression, which is ignored).
+Contrast what happens with the `manual delete' command, where the
+intercept is used to set the current offset (since there is no
+measurement that has just been typed in in that case).
 
    The time is parsed by the public domain `getdate' algorithm.
 Consequently, you can only specify time to the nearest second.
@@ -366,9 +545,9 @@ performance.  An example of the output is shown below.
      which the computer is currently synchronised.  If this is
      `127.127.1.1' it means the computer is not synchronised to any
      external source and that you have the `local' mode operating (via
-     the `local' command in `chronyc' (*note local command::.), or the
+     the `local' command in `chronyc' (*note local command::), or the
      `local' directive in the `/etc/chrony.conf' file (*note local
-     directive::.)).
+     directive::)).
 
 `Stratum'
      The stratum indicates how many hops away from a computer with an
@@ -381,7 +560,7 @@ performance.  An example of the output is shown below.
      reference source was processed.
 
 `System time'
-     In normal operation, `chronyd' *never* steps the system clock,
+     In normal operation, `chronyd' _never_ steps the system clock,
      because any jump in the timescale can have adverse consequences for
      certain application programs.  Instead, any error in the system
      clock is corrected by slightly speeding up or slowing down the
@@ -481,7 +660,7 @@ the RTC is more than 1 second away from the system clock):
 
   4. Save the RTC parameters to the RTC file (specified with the
      `rtcfile' directive in the configuration file (*note rtcfile
-     directive::.).
+     directive::).
 
    The last step is done as a precaution against the computer suffering
 a power failure before either the daemon exits or the `writertc'
@@ -502,9 +681,9 @@ writertc
 
    The `writertc' command writes the currently estimated error and
 gain/loss rate parameters for the RTC to the RTC file (specified with
-the `rtcfile' directive (*note rtcfile directive::.)).  This
-information is also written automatically when `chronyd' is killed
-(with SIGHUP, SIGINT, SIGQUIT or SIGTERM).
+the `rtcfile' directive (*note rtcfile directive::)).  This information
+is also written automatically when `chronyd' is killed (with SIGHUP,
+SIGINT, SIGQUIT or SIGTERM).
 
 
 File: chrony.info,  Node: Porting guide,  Prev: Usage reference,  Up: Top

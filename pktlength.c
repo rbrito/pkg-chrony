@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/pktlength.c,v 1.6 1999/04/21 20:17:25 richard Exp $
+  $Header: /cvs/src/chrony/pktlength.c,v 1.8 1999/09/21 21:03:38 richard Exp $
 
   =======================================================================
 
@@ -20,6 +20,7 @@
 
 #include "sysincl.h"
 
+#include "util.h"
 #include "pktlength.h"
 
 /* ================================================== */
@@ -134,7 +135,7 @@ PKL_CommandLength(CMD_Request *r)
         return offsetof(CMD_Request, data.make_step.EOR);
       default:
         /* If we fall through the switch, it most likely means we've forgotten to implement a new case */
-        assert(0);
+        CROAK("Impossible");
     }
   }
 
@@ -211,7 +212,7 @@ PKL_ReplyLength(CMD_Reply *r)
           }
         }
       default:
-        assert(0);
+        CROAK("Impossible");
     }
   }
 

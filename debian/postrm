@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
+#DEBHELPER#
 # postrm for chrony John Hasler Dec 17 1998
 rm -f /var/lib/chrony/*
-install-info --quiet --remove chrony.info
 if [ -x /usr/bin/update-menus ] ; then 
 	/usr/bin/update-menus
 fi

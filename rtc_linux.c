@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/rtc_linux.c,v 1.13 1998/07/27 21:23:50 richard Exp $
+  $Header: /cvs/src/chrony/rtc_linux.c,v 1.21 2000/06/17 22:31:04 richard Exp $
 
   =======================================================================
 
@@ -19,11 +19,6 @@
 
 #if defined LINUX
 
-  /* 
-  Added by JGH Mon May 17 22:45:39 CDT 1999 at the suggestion of
-  bmc@visi.net to permit the package to build on SPARC.
-  */
-
 #ifdef sparc
 #define __KERNEL__
 #endif
@@ -34,7 +29,13 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
+/* typedef int spinlock_t;	 Was to enable "extern spinlock_t rtc_lock;" in next. No longer needed? JGH */
+#if defined(__i386__) /* || defined(__sparc__) */
 #include <linux/mc146818rtc.h>
+#else
+#include <linux/rtc.h>
+#define RTC_UIE 0x10		/* update-finished interrupt enable */
+#endif
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -175,8 +176,12 @@ discard_samples(int new_first)
 {
   int n_to_save;
 
-  assert(new_first < n_samples);
-  assert(new_first >= 0);
+  if (!(new_first < n_samples)) {
+    CROAK("new_first should be < n_samples");
+  }
+  if (!(new_first >= 0)) {
+    CROAK("new_first should be non-negative");
+  }
 
   n_to_save = n_samples - new_first;
 
@@ -294,7 +299,7 @@ slew_samples
   for (i=0; i<n_samples; i++) {
     UTI_DiffTimevalsToDouble(&elapsed, cooked, system_times + i);
 
-    delta_time = elapsed * dfreq - doffset;
+    delta_time = -(elapsed * dfreq) - doffset;
 
     UTI_AddDoubleToTimeval(system_times + i, delta_time, system_times + i);
 
@@ -427,17 +432,79 @@ read_coefs_from_file(void)
                    &file_ref_offset,
                    &file_rate_ppm) == 4) {
         } else {
-          LOG(LOGS_WARN, LOGF_RtcLinux, "Could not parse coefficients line from %s\n", coefs_file_name);
+          LOG(LOGS_WARN, LOGF_RtcLinux, "Could not parse coefficients line from RTC file %s\n",
+              coefs_file_name);
         }
       } else {
-        LOG(LOGS_WARN, LOGF_RtcLinux, "Could not read first line from %s\n", coefs_file_name);
+        LOG(LOGS_WARN, LOGF_RtcLinux, "Could not read first line from RTC file %s\n",
+            coefs_file_name);
       }
       fclose(in);
     } else {
-      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not open %s\n", coefs_file_name);
+      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not open RTC file %s for reading\n",
+          coefs_file_name);
     }
   }
 }
+
+/* ================================================== */
+/* Write the coefficients to the file where they will be read
+   the next time the program is run. */
+
+static int
+write_coefs_to_file(int valid,time_t ref_time,double offset,double rate)
+{
+  struct stat buf;
+  char *temp_coefs_file_name;
+  FILE *out;
+
+  /* Create a temporary file with a '.tmp' extension. */
+
+  temp_coefs_file_name = (char*) Malloc(strlen(coefs_file_name)+8);
+
+  if(!temp_coefs_file_name) {
+    return RTC_ST_BADFILE;
+  }
+
+  strcpy(temp_coefs_file_name,coefs_file_name);
+  strcat(temp_coefs_file_name,".tmp");
+
+  out = fopen(temp_coefs_file_name, "w");
+  if (!out) {
+    Free(temp_coefs_file_name);
+    LOG(LOGS_WARN, LOGF_RtcLinux, "Could not open temporary RTC file %s.tmp for writing\n",
+        coefs_file_name);
+    return RTC_ST_BADFILE;
+  }
+
+  /* Gain rate is written out in ppm */
+  fprintf(out, "%1d %ld %.6f %.3f\n",
+          valid,ref_time, offset, 1.0e6 * rate);
+
+  fclose(out);
+
+  /* Clone the file attributes from the existing file if there is one. */
+
+  if (!stat(coefs_file_name,&buf)) {
+    chown(temp_coefs_file_name,buf.st_uid,buf.st_gid);
+    chmod(temp_coefs_file_name,buf.st_mode&0777);
+  }
+
+  /* Rename the temporary file to the correct location (see rename(2) for details). */
+
+  if (rename(temp_coefs_file_name,coefs_file_name)) {
+    unlink(temp_coefs_file_name);
+    Free(temp_coefs_file_name);
+    LOG(LOGS_WARN, LOGF_RtcLinux, "Could not replace old RTC file %s.tmp with new one %s\n",
+        coefs_file_name, coefs_file_name);
+    return RTC_ST_BADFILE;
+  }
+
+  Free(temp_coefs_file_name);
+
+  return RTC_ST_OK;
+}
+
 
 /* ================================================== */
 /* file_name is the name of the file where we save the RTC params
@@ -447,7 +514,6 @@ read_coefs_from_file(void)
 int
 RTC_Linux_Initialise(void)
 {
-
   int major, minor, patch;
   char *direc;
 
@@ -492,6 +558,7 @@ RTC_Linux_Initialise(void)
         return 0;
         break;
       case 2:
+      case 3:
         break; /* OK for all patch levels */
     } 
   }
@@ -633,8 +700,6 @@ static void
 handle_initial_trim(void)
 {
   double rate;
-  int valid;
-  char line[1024];
   long delta_time;
   double rtc_error_now, sys_error_now;
 
@@ -685,17 +750,11 @@ handle_relock_after_trim(void)
   int valid;
   time_t ref;
   double fast, slope;
-  FILE *out;
 
   run_regression(1, &valid, &ref, &fast, &slope);
 
   if (valid) {
-    out = fopen(coefs_file_name, "w");
-    if (out) {
-      fprintf(out, "1 %ld %.6f %.3f\n",
-              ref, fast, 1.0e6 * saved_coef_gain_rate);
-      fclose(out);
-    }
+    write_coefs_to_file(1,ref,fast,saved_coef_gain_rate);
   } else {
     LOG(LOGS_WARN, LOGF_RtcLinux, "Could not do regression after trim\n");
   }
@@ -738,7 +797,7 @@ process_reading(time_t rtc_time, struct timeval *system_time)
       }
       break;
     default:
-      assert(0);
+      CROAK("Impossible");
       break;
   }  
 
@@ -870,7 +929,7 @@ turn_off_interrupt:
 
       break;
     default:
-      assert(0);
+      CROAK("Impossible");
       break;
   }
 
@@ -904,31 +963,21 @@ RTC_Linux_StartMeasurements(void)
 int
 RTC_Linux_WriteParameters(void)
 {
-  FILE *out;
+  int retval;
 
   if (fd < 0) {
     return RTC_ST_NODRV;
   }
   
-  out = fopen(coefs_file_name, "w");
-  if (!out) {
-    return RTC_ST_BADFILE;
-  }
-
   if (coefs_valid) {
-    /* Gain rate is written out in ppm */
-    fprintf(out, "1 %ld %.6f %.3f\n",
-            coef_ref_time, coef_seconds_fast, 1.0e6 * coef_gain_rate);
-
-
+    retval = write_coefs_to_file(1,coef_ref_time, coef_seconds_fast, coef_gain_rate);
   } else {
-    fprintf(out, "0 0 0.0 0.0\n");
+   /* Don't change the existing file, it may not be 100% valid but is our
+      current best guess. */
+    retval = RTC_ST_OK; /*write_coefs_to_file(0,0,0.0,0.0); */
   }
 
-
-  fclose(out);
-  return RTC_ST_OK;
-
+  return(retval);
 }
 
 /* ================================================== */
@@ -945,7 +994,7 @@ RTC_Linux_TimePreInit(void)
   struct tm rtc_tm;
   time_t rtc_t, estimated_correct_rtc_t;
   long interval;
-  double accumulated_error;
+  double accumulated_error = 0.0;
   struct timeval new_sys_time;
 
   coefs_file_name = CNF_GetRtcFile();

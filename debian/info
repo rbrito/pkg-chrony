@@ -11,5 +11,5 @@ SECTION_MATCH="General Commamds"
 # The file referred to from the Info directory
 FILE=chrony.info
 
-# Optional. The files to be copied to /usr/info
+# Optional. The files to be copied to /usr/share/info
 FILES=chrony.info-*

@@ -1,10 +1,8 @@
 <HTML>
 <HEAD>
-<!-- This HTML file has been created by texi2html 1.54
-     from chrony.texi on 11 November 1998 -->
+<!-- Created by texi2html 1.56k from chrony.texi on 19 November 2000 -->
 
 <TITLE>User guide for the chrony suite</TITLE>
-
 </HEAD>
 <BODY>
 <H1>The chrony suite</H1>
@@ -24,7 +22,7 @@
 Chrony is a software package for maintaining the accuracy of computer
 system clocks.  It consists of a pair of programs :
 
-</P>
+
 
 <UL>
 <LI><CODE>chronyd</CODE>.  This is a daemon which runs in background on the
@@ -51,7 +49,7 @@ The <CODE>chrony</CODE> suite makes use of the algorithm known as <EM>RSA
 Data Security, Inc. MD5 Message-Digest Algorithm</EM> for authenticating
 messages between different machines on the network.
 
-</P>
+
 <P>
 In writing the <CODE>chronyd</CODE> program, extensive use has been made of
 RFC1305, written by David Mills.  I have occasionally referred to the
@@ -59,7 +57,7 @@ RFC1305, written by David Mills.  I have occasionally referred to the
 the RFC did not make absolutely clear.  The core algorithms in
 <CODE>chronyd</CODE> are all completely distinct from <CODE>xntp</CODE>, however.
 
-</P>
+
 
 
 <H2><A NAME="SEC4" HREF="chrony_toc.html#TOC4">Availability</A></H2>
@@ -68,10 +66,10 @@ the RFC did not make absolutely clear.  The core algorithms in
 
 <H3><A NAME="SEC5" HREF="chrony_toc.html#TOC5">Getting the software</A></H3>
 <P>
-Links on <A HREF="http://www.curnow.demon.co.uk/chrony/index.html"><TT>the
-chrony home page</TT></A> describe how to obtain the software.
+Links on <A HREF="http://www.rrbcurnow.freeuk.com/chrony/index.html">the
+chrony home page</A> describe how to obtain the software.
 
-</P>
+
 
 
 <H3><A NAME="SEC6" HREF="chrony_toc.html#TOC6">Platforms</A></H3>
@@ -84,7 +82,7 @@ different operating systems may provide different function calls to
 achieve this, and even where the same function is used it may have
 different quirks in its behaviour.
 
-</P>
+
 <P>
 So far, the software is able to run in the following environments:
 
@@ -106,13 +104,13 @@ this was, v2.1 kernels are limited to patchlevels prior to 51.
 <P>
 Closely related systems may work too, but they have not been tested.
 
-</P>
+
 <P>
 Porting the software to other system (particularly to those supporting
 an <CODE>adjtime</CODE> system call) should not be difficult, however it
 requires access to such systems to test out the driver.
 
-</P>
+
 
 
 <H2><A NAME="SEC7" HREF="chrony_toc.html#TOC7">Relationship to other software packages</A></H2>
@@ -123,20 +121,20 @@ requires access to such systems to test out the driver.
 <P>
 The `reference' implementation of the Network Time Protocol is the
 program <CODE>xntpd</CODE>, available via
-<A HREF="http://www.eecis.udel.edu/~ntp"><TT>The NTP home page</TT></A>.
+<A HREF="http://www.eecis.udel.edu/~ntp">The NTP home page</A>.
 
-</P>
+
 <P>
 <CODE>xntpd</CODE> is designed to support all the operating modes defined by
 RFC1305, and has driver support for a large number of reference clocks
 (such as GPS receivers) that can be connected directly to a computer,
 thereby providing a so-called 'stratum 1' server.
 
-</P>
+
 <P>
 Things <CODE>chronyd</CODE> can do that <CODE>xntpd</CODE> can't:
 
-</P>
+
 
 <UL>
 <LI>
@@ -181,7 +179,7 @@ integrated into <CODE>chronyd</CODE>.
 <P>
 Things <CODE>xntpd</CODE> can do that <CODE>chronyd</CODE> can't:
 
-</P>
+
 
 <UL>
 <LI>
@@ -220,11 +218,11 @@ subnet.  The machines elect a master which periodically measures the
 system clock offsets of the other computers using ICMP timestamps.
 Corrections are sent to each member as a result of this process.
 
-</P>
+
 <P>
 Problems that may arise with <CODE>timed</CODE> are :
 
-</P>
+
 
 <UL>
 <LI>
@@ -259,7 +257,7 @@ defective clock, the whole set of computers will tend to slip relative
 to real time (but they <EM>will</EM> stay accurate relative to one
 another).
 
-</P>
+
 
 
 <H2><A NAME="SEC10" HREF="chrony_toc.html#TOC10">Distribution rights and (lack of) warranty</A></H2>
@@ -267,7 +265,7 @@ another).
 <P>
 {@tensf
 
-</P>
+
 <P>
 This is the licence for the programs "chronyd" and "chronyc".  Their
 source code files which reference this licence, object files /
@@ -275,32 +273,32 @@ programs (binary form) built from such source code, and the supporting
 documentation are collectively referred to in this licence as "the
 Software".
 
-</P>
+
 <P>
 Certain source code files required for the construction of the Software
 may be included under different licensing arrangements; you should refer
 to such source code files directly for further information.  Any such
 files are outside the scope of this licence.
 
-</P>
+
 <P>
 Person(s) and/or organisation(s) holding the copyright to any part of
 the source code to which this licence applies are referred to in this
 licence as "the Copyright Holder(s)".
 
-</P>
+
 <P>
 Copying and use of this licence itself, with or without modification,
 are permitted for any purpose subject only to condition 6 below.
 
-</P>
+
 <P>
 Copying, use and redistribution of the Software in source and/or binary
 forms, with or without modification, and use of any part of the Software
 in the creation of another work, are permitted without fee subject to
 the following conditions 1 through 8 and the disclaimer below :
 
-</P>
+
 
 <OL>
 <LI>
@@ -412,7 +410,7 @@ the Software without their express permission obtained in advance.
    
 == Start of disclaimer ==
 
-</P>
+
 <P>
 BECAUSE THE SOFTWARE IS PROVIDED FREE OF CHARGE, THERE IS NO WARRANTY
 FOR IT, TO THE MAXIMUM EXTENT THAT APPLICABLE LAW ALLOWS.  UNLESS
@@ -425,7 +423,7 @@ ENTIRE RISK AS TO THE QUALITY, ACCURACY AND PERFORMANCE OF THE
 SOFTWARE AND THE COST OF ANY NECESSARY SERVICING, REPAIR OR CORRECTION
 IN THE EVENT THAT THE SOFTWARE SHOULD PROVE DEFECTIVE.
 
-</P>
+
 <P>
 IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
 WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
@@ -438,31 +436,30 @@ OR THIRD PARTIES OR A FAILURE OF THE SOFTWARE TO OPERATE WITH ANY
 OTHER SOFTWARE), EVEN IF SUCH COPYRIGHT HOLDER OR OTHER PARTY HAS BEEN
 ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-</P>
+
 <P>
 == End of disclaimer ==
 
-</P>
+
 <P>
 }
 
-</P>
+
 
 
 <H1><A NAME="SEC11" HREF="chrony_toc.html#TOC11">Installation</A></H1>
 
 <P>
-The software is distributed as source code which has to be compiled
-unless you have installed the Debian package, in which case it is
-already compiled and installed with a default configuration.  The source
-code is supplied in the form of a gzipped tar file, which unpacks to a
-subdirectory identifying the name and version of the program.
+The software is distributed as source code which has to be compiled.
+The source code is supplied in the form of a gzipped tar file, which
+unpacks to a subdirectory identifying the name and version of the
+program.
 
-</P>
+
 <P>
 After unpacking the source code, change directory into it, and type
 
-</P>
+
 
 <PRE>
 ./configure
@@ -473,7 +470,7 @@ This is a shell script that automatically determines the system type.
 There is a single optional parameter, <CODE>--prefix</CODE> which indicates
 the directory tree where the software should be installed.  For example,
 
-</P>
+
 
 <PRE>
 ./configure --prefix=/opt/free
@@ -484,17 +481,17 @@ will install the <CODE>chronyd</CODE> daemon into /opt/free/sbin and the
 chronyc control program into /opt/free/bin.  The default value for the
 prefix is /usr/local.
 
-</P>
+
 <P>
 If the software cannot (yet) be built on your system, an error message
 will be shown.  Otherwise, the files <TT>`options.h'</TT> and
 <TT>`Makefile'</TT> will be generated.
 
-</P>
+
 <P>
 Now type
 
-</P>
+
 
 <PRE>
 make
@@ -503,14 +500,14 @@ make
 <P>
 to build the programs.
 
-</P>
+
 <P>
 Once the programs have been successfully compiled, they need to be
 installed in their target locations.  This step normally needs to be
 performed by the superuser, and requires the following command to be
 entered.
 
-</P>
+
 
 <PRE>
 make install
@@ -524,7 +521,7 @@ a simple configuration file suitable for a dial-up pc.  You should edit
 it to suit your situation.  Typical scenarios are described in the
 following section of the document.
 
-</P>
+
 
 
 <H1><A NAME="SEC12" HREF="chrony_toc.html#TOC12">Typical operating scenarios</A></H1>
@@ -538,13 +535,13 @@ have permanent connections to the internet (or to any network
 containing true NTP servers which ultimately derive their time from a
 reference clock).
 
-</P>
+
 <P>
 To operate in this mode, you will need to know the names of the NTP
 server machines you wish to use.  You may be able to find names of
 suitable servers by one of the following methods:
 
-</P>
+
 
 <UL>
 <LI>Your institution may already operate servers on its network.
@@ -570,7 +567,7 @@ configuration files are in the directory <TT>`/etc/chrony'</TT>.  Assuming
 that your ntp servers are called <CODE>a.b.c</CODE> and <CODE>d.e.f</CODE>, your
 <TT>`chrony.conf'</TT> file could contain as a minimum
 
-</P>
+
 
 <PRE>
 server a.b.c
@@ -584,7 +581,7 @@ described later.  The following directives will be particularly useful :
 <CODE>driftfile</CODE>, <CODE>commandkey</CODE>, <CODE>keyfile</CODE>.  The smallest
 useful configuration file would look something like
 
-</P>
+
 
 <PRE>
 server a.b.c
@@ -602,7 +599,6 @@ driftfile /etc/chrony.drift
 In this section we discuss how to configure chrony for computers that
 have occasional connections to the internet.
 
-</P>
 
 
 
@@ -611,20 +607,20 @@ have occasional connections to the internet.
 As in the previous section, you will need access to NTP servers on the
 internet.  The same remarks apply for how to find them.
 
-</P>
+
 <P>
 In this case, you will need some additional configuration to tell
 <CODE>chronyd</CODE> when the connection to the internet goes up and down.
 This saves the program from continuously trying to poll the servers when
 they are inaccessible.
 
-</P>
+
 <P>
 Again, assuming that your ntp servers are called <CODE>a.b.c</CODE> and
 <CODE>d.e.f</CODE>, your <TT>`chrony.conf'</TT> file would need to contain
 something like
 
-</P>
+
 
 <PRE>
 server a.b.c
@@ -635,7 +631,7 @@ server g.h.i
 <P>
 However, the following issues need to be addressed:
 
-</P>
+
 
 <OL>
 <LI>
@@ -654,7 +650,7 @@ keep getting established.
 For this reason, it would be better to specify this part of your
 configuration file in the following way:
 
-</P>
+
 
 <PRE>
 server 1.2.3.4 offline
@@ -668,7 +664,7 @@ overcome.  The <CODE>offline</CODE> keyword indicates that the servers start
 in an offline state, and that they should not be contacted until <CODE>chronyd</CODE>
 receives notification that the link to the internet is present.
 
-</P>
+
 <P>
 In order to notify <CODE>chronyd</CODE> of the presence of the link, you will
 need to be able to log in to it with the program chronyc.  To do this,
@@ -677,7 +673,7 @@ The Debian package puts a default key in <TT>`/etc/chrony/chrony.keys'</TT>.
 You should change it.  To set up an administrator password, you can
 create a file <TT>`/etc/chrony.keys'</TT> containing a single line
 
-</P>
+
 
 <PRE>
 1 xyzzy
@@ -687,7 +683,7 @@ create a file <TT>`/etc/chrony.keys'</TT> containing a single line
 and add the following line to <TT>`/etc/chrony.conf'</TT> (the order of the
 lines does not matter)
 
-</P>
+
 
 <PRE>
 commandkey 1
@@ -696,7 +692,7 @@ commandkey 1
 <P>
 The smallest useful configuration file would look something like
 
-</P>
+
 
 <PRE>
 server 1.2.3.4 offline
@@ -711,7 +707,7 @@ driftfile /etc/chrony.drift
 The next section describes how to tell <CODE>chronyd</CODE> when the internet link
 goes up and down.
 
-</P>
+
 
 
 <H3><A NAME="SEC16" HREF="chrony_toc.html#TOC16">How to tell chronyd when the internet link is available.</A></H3>
@@ -720,7 +716,7 @@ To use this option, you will need to configure a command key in
 <CODE>chronyd's</CODE> configuration file <TT>`/etc/chrony.conf'</TT>, as described in
 the previous section.
 
-</P>
+
 <P>
 To tell <CODE>chronyd</CODE> when to start and finish sampling the servers, the
 <CODE>online</CODE> and <CODE>offline</CODE> commands of chronyc need to be used.
@@ -730,11 +726,11 @@ installed at its default location <TT>`/usr/local/bin/chronyc'</TT>.  We
 also assume that the command key has been set up as described in the
 previous section.
 
-</P>
+
 <P>
 In the file <TT>`/etc/ppp/ip-up'</TT> we add the command sequence
 
-</P>
+
 
 <PRE>
 cat &#60;&#60;EOF | /usr/local/bin/chronyc
@@ -746,7 +742,7 @@ EOF
 <P>
 and in the file <TT>`/etc/ppp/ip-down'</TT> we add the sequence
 
-</P>
+
 
 <PRE>
 cat &#60;&#60;EOF | /usr/local/bin/chronyc
@@ -759,12 +755,12 @@ EOF
 The Debian package puts scripts similar to those above in the
 directories <TT>`/etc/ppp/ip-up.d'</TT> and <TT>`/etc/ppp/ip-down.d'</TT>.
 
-</P>
+
 <P>
 <CODE>chronyd's</CODE> polling of the servers will now only occur whilst the
 machine is actually connected to the Internet.
 
-</P>
+
 
 
 <H2><A NAME="SEC17" HREF="chrony_toc.html#TOC17">Isolated networks</A></H2>
@@ -773,13 +769,13 @@ In this section we discuss how to configure chrony for computers that
 never have network conectivity to any computer which ultimately derives
 its time from a reference clock.
 
-</P>
+
 <P>
 In this situation, one computer is selected to be the master timeserver.
 The other computers are either direct clients of the master, or clients
 of clients.
 
-</P>
+
 <P>
 The rate value in the master's drift file needs to be set to the average
 rate at which the master gains or loses time.  <CODE>chronyd</CODE> includes
@@ -787,7 +783,7 @@ support for this, in the form of the <CODE>manual</CODE> directive in the
 configuration file and the <CODE>settime</CODE> command in the <CODE>chronyc</CODE>
 program.
 
-</P>
+
 <P>
 If the master is rebooted, <CODE>chronyd</CODE> can re-read the drift rate
 from the drift file.  However, the master has no accurate estimate of
@@ -796,13 +792,13 @@ that the master can initially set itself to a `majority-vote' of
 selected clients' times; this allows the clients to `flywheel' the
 master across its outage.
 
-</P>
+
 <P>
 A typical configuration file for the master (called <CODE>master</CODE>) might
 be (assuming the clients are in the 192.168.165.x subnet and that the
 master's address is 192.168.169.170)
 
-</P>
+
 
 <PRE>
 driftfile /etc/chrony.drift
@@ -818,7 +814,7 @@ allow 192.168.165
 For the clients that have to resynchronise the master when it restarts,
 the configuration file might be
 
-</P>
+
 
 <PRE>
 server master
@@ -836,7 +832,7 @@ allow 192.168.169.170
 The rest of the clients would be the same, except that the <CODE>local</CODE>
 and <CODE>allow</CODE> directives are not required.
 
-</P>
+
 
 
 <H2><A NAME="SEC18" HREF="chrony_toc.html#TOC18">The home PC with a dial-up connection</A></H2>
@@ -850,19 +846,19 @@ It assumes that Linux is run exclusively on the computer.  Dual-boot
 systems may work; it depends what (if anything) the other system does to
 the system's real-time clock.
 
-</P>
+
 <P>
 Much of the configuration for this case is discussed earlier
 (see section <A HREF="chrony.html#SEC14">Infrequent connection to true NTP servers</A>).  This section addresses specifically
 the case of a computer which is turned off between 'sessions'.
 
-</P>
+
 <P>
 In this case, <CODE>chronyd</CODE> relies on the computer's real-time clock
 (RTC) to maintain the time between the periods when it is powered up.
 The arrangement is shown in the figure below.
 
-</P>
+
 
 <PRE>
             trim if required                          PSTN
@@ -889,13 +885,13 @@ measurements from.  These measurements are saved, and straight-line fits
 are performed on them to provide an estimate of the computer's time
 error and rate of gaining/losing time.
 
-</P>
+
 <P>
 When the computer is taken offline from the Internet, the best estimate
 of the gain/loss rate is used to free-run the computer until it next
 goes online.
 
-</P>
+
 <P>
 Whilst the computer is running, <CODE>chronyd</CODE> makes measurements of the
 real-time clock (RTC) (via the <TT>`/dev/rtc'</TT> interface, which must be
@@ -903,7 +899,7 @@ compiled into the kernel).  An estimate is made of the RTC error at a
 particular RTC second, and the rate at which the RTC gains or loses time
 relative to true time.
 
-</P>
+
 <P>
 For kernels in the 2.0 series prior to 2.0.32, the kernel was set up to
 trim the RTC every 11 minutes.  This would be disasterous for
@@ -912,7 +908,7 @@ trimming. For this reason, <CODE>chronyd</CODE> only supports the RTC in 2.0
 kernels from v2.0.32 onwards.  (I don't know anything about the kernel's
 RTC behaviour in other kernel series).
 
-</P>
+
 <P>
 When the computer is powered down, the measurement histories for all the
 NTP servers are saved to files (if the <CODE>dumponexit</CODE> directive is
@@ -922,7 +918,7 @@ specified).  These pieces of information are also saved if the
 <CODE>dump</CODE> and <CODE>writertc</CODE> commands respectively are issued through
 <CODE>chronyc</CODE>.
 
-</P>
+
 <P>
 When the computer is rebooted, <CODE>chronyd</CODE> reads the current RTC time
 and the RTC information saved at the last shutdown.  This information is
@@ -930,13 +926,13 @@ used to set the system clock to the best estimate of what its time would
 have been now, had it been left running continuously.  The measurement
 histories for the servers are then reloaded.
 
-</P>
+
 <P>
 The next time the computer goes online, the previous sessions'
 measurements can contribute to the line-fitting process, which gives a
 much better estimate of the computer's gain/loss rate.
 
-</P>
+
 <P>
 One problem with saving the measurements and RTC data when the machine
 is shut down is what happens if there is a power failure; the most
@@ -947,7 +943,7 @@ arises if the RTC has been changed during the session, with the
 <CODE>trimrtc</CODE> will make sure that a meaningful RTC file is saved out
 after the change is completed).
 
-</P>
+
 <P>
 The easiest protection against power failure is to put the <CODE>dump</CODE>
 and <CODE>writertc</CODE> commands in the same place as the <CODE>offline</CODE>
@@ -956,7 +952,7 @@ free-runs between online sessions, no parameters will change
 significantly between going offline from the Internet and any power
 failure.
 
-</P>
+
 <P>
 A final point regards home computers which are left running for extended
 periods and where it is desired to spin down the hard disc when it is
@@ -968,7 +964,7 @@ sequence.  The only other facility that will generate periodic writes to
 the disc is the <CODE>log rtc</CODE> facility in the configuration file; this
 option should not be used if you want your disc to spin down.
 
-</P>
+
 
 
 <H3><A NAME="SEC20" HREF="chrony_toc.html#TOC20">Typical configuration files.</A></H3>
@@ -977,14 +973,14 @@ option should not be used if you want your disc to spin down.
 To illustrate how a dial-up home computer might be configured, example
 configuration files are shown in this section.
 
-</P>
+
 <P>
 For the <TT>`/etc/chrony.conf'</TT> file, the following can be used as an
 example.  <EM>NOTE : The <CODE>server</CODE> directives are only applicable
 to customers of Demon Internet; users of other ISPs will need to use
 their own ISP's NTP servers or public NTP servers.</EM>
 
-</P>
+
 
 <PRE>
 server 158.152.1.65 minpoll 5 maxpoll 10 maxdelay 0.4 offline
@@ -1002,16 +998,27 @@ rtcfile /etc/chrony.rtc
 </PRE>
 
 <P>
+With Freeserve as the ISP, I use the following server lines :
+
+
+
+<PRE>
+server 194.152.64.68 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+server 194.152.64.35 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+server 194.152.64.34 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+</PRE>
+
+<P>
 I use <CODE>pppd</CODE> for connecting to my ISP.  This runs two scripts
 <TT>`/etc/ppp/ip-up'</TT> and <TT>`/etc/ppp/ip-down'</TT> when the link goes
 online and offline respectively.
 
-</P>
+
 <P>
 The relevant part of the <TT>`/etc/ppp/ip-up'</TT> file is (with a dummy
 password)
 
-</P>
+
 
 <PRE>
 cat &#60;&#60;EOF | /usr/local/bin/chronyc
@@ -1023,7 +1030,7 @@ EOF
 <P>
 and the relevant part of the <TT>`/etc/ppp/ip-down'</TT> script is
 
-</P>
+
 
 <PRE>
 cat &#60;&#60;EOF | /usr/local/bin/chronyc
@@ -1039,12 +1046,12 @@ EOF
 desirable to make the files readable only by root on a multiuser
 machine).
 
-</P>
+
 <P>
 To start <CODE>chronyd</CODE> during the boot sequence, I have the following
 in <TT>`/etc/rc.d/rc.local'</TT> (this is a Slackware system)
 
-</P>
+
 
 <PRE>
 if [ -f /usr/local/sbin/chronyd -a -f /etc/chrony.conf ]; then
@@ -1057,7 +1064,7 @@ fi
 The Debian package puts a script which handles this and shutdown in
 <TT>`/etc/init.d/chrony'</TT>.
 
-</P>
+
 <P>
 The placement of this command may be important on some systems.  In
 particular, <CODE>chronyd</CODE> may need to be started several seconds (about
@@ -1065,7 +1072,7 @@ particular, <CODE>chronyd</CODE> may need to be started several seconds (about
 not jumping or moving backwards, depending on the directives in
 <CODE>chronyd's</CODE> configuration file.
 
-</P>
+
 <P>
 For the system shutdown, <CODE>chronyd</CODE> should receive a SIGTERM several
 seconds before the final SIGKILL; the SIGTERM causes the measurement
@@ -1074,7 +1081,7 @@ to add anything to the shutdown sequence, unless (as my system had)
 there is no pause between the SIGTERM and SIGKILL being delivered to the
 remaining processes.  So if you find something like
 
-</P>
+
 
 <PRE>
 killall5 -15 
@@ -1084,7 +1091,7 @@ killall5 -9
 <P>
 in your <CODE>/etc/rc.d/rc.0</CODE> script, you will need to insert a sleep, e.g.
 
-</P>
+
 
 <PRE>
 killall5 -15 
@@ -1097,7 +1104,7 @@ Otherwise, <CODE>chronyd</CODE> will not always save information on shutdown,
 which could be a problem if you don't use <CODE>dump</CODE> and
 <CODE>writertc</CODE> when you go offline.
 
-</P>
+
 
 
 <H2><A NAME="SEC21" HREF="chrony_toc.html#TOC21">Other important configuration options</A></H2>
@@ -1112,7 +1119,7 @@ acceptable degree of accuracy.  Therefore, it would be bad if
 because the system clock would not run so accurately whilst the
 determination is taking place.
 
-</P>
+
 <P>
 To avoid this problem, <CODE>chronyd</CODE> allows the gain or loss rate to be
 stored in a file, which can be read back in when the program is
@@ -1120,7 +1127,7 @@ restarted.  This file is called the drift file, and might typically be
 stored in <TT>`/etc/chrony.drift'</TT>.  By specifying an option like the
 following
 
-</P>
+
 
 <PRE>
 driftfile /etc/chrony.drift
@@ -1130,7 +1137,7 @@ driftfile /etc/chrony.drift
 in the configuration file (<TT>`/etc/chrony.conf'</TT>), the drift file
 facility will be activated.
 
-</P>
+
 
 
 <H1><A NAME="SEC22" HREF="chrony_toc.html#TOC22">Usage reference</A></H1>
@@ -1143,7 +1150,7 @@ If <CODE>chronyd</CODE> has been installed to its default location
 <TT>`/usr/local/sbin/chronyd'</TT>, starting it is simply a matter of
 entering the command
 
-</P>
+
 
 <PRE>
 /usr/local/sbin/chronyd
@@ -1152,15 +1159,15 @@ entering the command
 <P>
 The Debian package uses <TT>`/usr/sbin/chronyd'</TT>.
 
-</P>
+
 <P>
 Information messages and warnings will be logged to syslog.
 
-</P>
+
 <P>
 The command line options supported are as follows:
 
-</P>
+
 <DL COMPACT>
 
 <DT><CODE>-d</CODE>
@@ -1191,7 +1198,7 @@ clock.  This is analogous to supplying the `-s' flag to the
 <TT>`/sbin/clock'</TT> program during the Linux boot sequence.
 
 Support for real-time clocks is limited at present - the criteria are
-described in the section on the <CODE>rtcfile</CODE> directive (see section <A HREF="chrony.html#SEC45">rtcfile</A>).
+described in the section on the <CODE>rtcfile</CODE> directive (see section <A HREF="chrony.html#SEC49">rtcfile</A>).
 
 If <CODE>chronyd</CODE> cannot support the real time clock on your computer,
 this option cannot be used and a warning message will be logged to the
@@ -1216,13 +1223,13 @@ exits.
 On systems that support an <TT>`/etc/rc.local'</TT> file for starting
 programs at boot time, <CODE>chronyd</CODE> can be started from there.
 
-</P>
+
 <P>
 On systems with a System V style initialisation (e.g. Solaris), a
 suitable start/stop script might be as shown below.  This might be
 placed in the file <TT>`/etc/rc2.d/S83chrony'</TT>.
 
-</P>
+
 
 <PRE>
 #!/bin/sh
@@ -1260,7 +1267,7 @@ ordering carefully.  However, <CODE>chronyd</CODE> will need to start after
 daemons providing services that it may require, e.g. the domain name
 service.)
 
-</P>
+
 
 
 <H2><A NAME="SEC24" HREF="chrony_toc.html#TOC24">The chronyd configuration file</A></H2>
@@ -1269,13 +1276,12 @@ The configuration file is normally called <TT>`/etc/chrony.conf'</TT>; in
 fact, this is the compiled-in default. However, other locations can be
 specified with a command line option.
 
-</P>
+
 <P>
 Each command in the configuration file is placed on a separate line.
 The following sections describe each of the commands in turn.  The
 directives can occur in any order in the file.
 
-</P>
 
 
 
@@ -1284,18 +1290,18 @@ directives can occur in any order in the file.
 The <CODE>allow</CODE> command is used to designate a particular subnet from
 which NTP clients are allowed to access the computer as an NTP server.
 
-</P>
+
 <P>
 The default is that no clients are allowed access, i.e. <CODE>chronyd</CODE>
 operates purely as an NTP client.  If the <CODE>allow</CODE> directive is
 used, <CODE>chronyd</CODE> will be both a client of its servers, and a server
 to other clients.
 
-</P>
+
 <P>
 Examples of use of the command are as follows:
 
-</P>
+
 
 <PRE>
 allow foo.bar.com
@@ -1312,13 +1318,13 @@ computer.  Likewise, the third command allows any host with an IP
 address of the form 3.4.5.x to have client NTP access.  The fourth form
 allows access by any node on the entire Internet.
 
-</P>
+
 <P>
 A second form of the directive, <CODE>allow all</CODE>, has a greater effect,
 depending on the ordering of directives in the configuration file.  To
 illustrate the effect, consider the two examples
 
-</P>
+
 
 <PRE>
 allow 1.2.3.4
@@ -1329,7 +1335,7 @@ allow 1.2
 <P>
 and 
 
-</P>
+
 
 <PRE>
 allow 1.2.3.4
@@ -1343,35 +1349,68 @@ three directives are given in.  So the 1.2.x.y subnet is allowed access,
 except for the 1.2.3.x subnet, which is denied access, however the host
 1.2.3.4 is allowed access.
 
-</P>
+
 <P>
 In the second example, the <CODE>allow all 1.2</CODE> directives overrides the
 effect of <EM>any</EM> previous directive relating to a subnet within the
 specified subnet.  Within a configuration file this capability is
 probably rather moot; however, it is of greater use for reconfiguration
-at run-time via <CODE>chronyc</CODE> (see section <A HREF="chrony.html#SEC57">allow all</A>).
+at run-time via <CODE>chronyc</CODE> (see section <A HREF="chrony.html#SEC61">allow all</A>).
 
-</P>
+
 <P>
-Note, if the <CODE>initstepslew</CODE> directive (see section <A HREF="chrony.html#SEC32">initstepslew</A>) is used in the configuration file, each of the computers
+Note, if the <CODE>initstepslew</CODE> directive (see section <A HREF="chrony.html#SEC33">initstepslew</A>) is used in the configuration file, each of the computers
 listed in that directive must allow client access by this computer for
 it to work.
 
-</P>
 
 
-<H3><A NAME="SEC26" HREF="chrony_toc.html#TOC26">commandkey</A></H3>
+
+<H3><A NAME="SEC26" HREF="chrony_toc.html#TOC26">bindaddress</A></H3>
+<P>
+The bindaddress allows you to restrict the network interface to which
+chronyd will listen for packets.  This provides an additional level of
+access restriction above that available through the 'deny' mechanism.
+
+
+<P>
+Suppose you have a local ethernet with addresses in the 192.168.1.0
+subnet together with a dial-up connection.  The ethernet interface's IP
+address is 192.168.1.1.  Suppose (for some reason) you want to block all
+access through the dialup connection (note, this will even block replies
+from servers on the dialup side, so you will not be able to synchronise
+to an external source).  You could add the line
+
+
+
+<PRE>
+bindaddress 192.168.1.1
+</PRE>
+
+<P>
+to the configuration file.
+
+
+<P>
+This directive affects both NTP (UDP port 123) packets <B>and</B>
+chronyc/chronyd command and monitoring packets (UDP port 323 by
+default).
+
+
+
+
+<H3><A NAME="SEC27" HREF="chrony_toc.html#TOC27">commandkey</A></H3>
 <P>
 The commandkey command is used to set the key number used for
 authenticating user commands via the chronyc program at run time.
 This allows certain actions of the chronyc program to be restricted to
 administrators.
 
-</P>
+
 <P>
 An example of the commandkey command is
 
-</P>
+
 
 <PRE>
 commandkey 20
@@ -1381,7 +1420,7 @@ commandkey 20
 In the key file (see the keyfile command) there should be a line of
 the form
 
-</P>
+
 
 <PRE>
 20 foobar
@@ -1391,7 +1430,7 @@ the form
 When running the chronyc program to perform run-time configuration,
 the command
 
-</P>
+
 
 <PRE>
 password foobar
@@ -1401,21 +1440,21 @@ password foobar
 must be entered before any commands affecting the operation of the
 daemon can be entered.
 
-</P>
 
 
-<H3><A NAME="SEC27" HREF="chrony_toc.html#TOC27">cmdport</A></H3>
+
+<H3><A NAME="SEC28" HREF="chrony_toc.html#TOC28">cmdport</A></H3>
 
 <P>
 The <CODE>cmdport</CODE> directive allows the port that is used for run-time
 command and monitoring (via the program <CODE>chronyc</CODE>) to be altered
 from its default (323/udp).
 
-</P>
+
 <P>
 An example shows the syntax
 
-</P>
+
 
 <PRE>
 cmdport 257
@@ -1426,36 +1465,35 @@ This would make <CODE>chronyd</CODE> use 257/udp as its command port.
 (<CODE>chronyc</CODE> would need to be run with the <CODE>-p 257</CODE> switch to
 inter-operate correctly).
 
-</P>
 
 
 
-<H3><A NAME="SEC28" HREF="chrony_toc.html#TOC28">deny</A></H3>
+<H3><A NAME="SEC29" HREF="chrony_toc.html#TOC29">deny</A></H3>
 
 <P>
 This is similar to the <CODE>allow</CODE> directive (see section <A HREF="chrony.html#SEC25">allow</A>),
 except that it denies NTP client access to a particular subnet or host,
 rather than allowing it.
 
-</P>
+
 <P>
 The syntax is identical.
 
-</P>
+
 <P>
 There is also a <CODE>deny all</CODE> directive with similar behaviour to the
 <CODE>allow all</CODE> directive.
 
-</P>
 
 
-<H3><A NAME="SEC29" HREF="chrony_toc.html#TOC29">driftfile</A></H3>
+
+<H3><A NAME="SEC30" HREF="chrony_toc.html#TOC30">driftfile</A></H3>
 <P>
 One of the main activities of the <CODE>chronyd</CODE> program is to work out
 the rate at which the system clock gains or loses time relative to real
 time.
 
-</P>
+
 <P>
 Whenever <CODE>chronyd</CODE> computes a new value of the gain/loss rate, it
 is desirable to record it somewhere.  This allows <CODE>chronyd</CODE> to
@@ -1464,7 +1502,7 @@ restarted, even before it has had a chance to obtain an equally good
 estimate of the rate during the new run.  (This process may take many
 minutes, at least).
 
-</P>
+
 <P>
 The driftfile command allows a file to be specified into which
 <CODE>chronyd</CODE> can store the rate information.  Two parameters are
@@ -1476,11 +1514,11 @@ reality (so the true time has only advanced by 999900 microseconds).
 The second is an estimate of the error bound around the first value in
 which the true rate actually lies.
 
-</P>
+
 <P>
 An example of the driftfile command is
 
-</P>
+
 
 <PRE>
 driftfile /etc/chrony.drift
@@ -1488,12 +1526,12 @@ driftfile /etc/chrony.drift
 
 
 
-<H3><A NAME="SEC30" HREF="chrony_toc.html#TOC30">dumpdir</A></H3>
+<H3><A NAME="SEC31" HREF="chrony_toc.html#TOC31">dumpdir</A></H3>
 <P>
 To compute the rate of gain or loss of time, <CODE>chronyd</CODE> has to store
 a measurement history for each of the time sources it uses.
 
-</P>
+
 <P>
 Certain systems (so far only Linux) have operating system support for
 setting the rate of gain or loss to compensate for known errors.  (On
@@ -1502,7 +1540,7 @@ periodically slewing the system clock forwards or backwards by a
 suitable amount to compensate for the error built up since the previous
 slew).
 
-</P>
+
 <P>
 For such systems, it is possible to save the measurement history across
 restarts of <CODE>chronyd</CODE> (assuming no changes are made to the system
@@ -1511,11 +1549,11 @@ used (via the dumponexit command in the configuration file, or the dump
 command in chronyc), the dumpdir command should be used to define the
 directory where the measurement histories are saved.
 
-</P>
+
 <P>
 An example of the command is
 
-</P>
+
 
 <PRE>
 dumpdir /var/log/chrony
@@ -1525,19 +1563,19 @@ dumpdir /var/log/chrony
 A source whose IP address is 1.2.3.4 would have its measurement
 history saved in the file <TT>`/var/log/chrony/1.2.3.4.dat'</TT>.
 
-</P>
 
 
-<H3><A NAME="SEC31" HREF="chrony_toc.html#TOC31">dumponexit</A></H3>
+
+<H3><A NAME="SEC32" HREF="chrony_toc.html#TOC32">dumponexit</A></H3>
 <P>
 If this command is present, it indicates that <CODE>chronyd</CODE> should save
 the measurement history for each of its time sources recorded whenever
 the program exits.  (See the dumpdir command above).
 
-</P>
 
 
-<H3><A NAME="SEC32" HREF="chrony_toc.html#TOC32">initstepslew</A></H3>
+
+<H3><A NAME="SEC33" HREF="chrony_toc.html#TOC33">initstepslew</A></H3>
 <P>
 In normal operation, <CODE>chronyd</CODE> always slews the time when it needs to
 adjust the system clock.  For example, to correct a system clock which
@@ -1547,19 +1585,19 @@ removed.  (Actually, this is done by calling the <CODE>adjtime()</CODE> or
 similar system function which does it for us.)  Note that at no time
 does time run backwards with this method.
 
-</P>
+
 <P>
 On most Unix systems it is not desirable to step the system clock,
 because many programs rely on time advancing monotonically forwards.
 
-</P>
+
 <P>
 When the <CODE>chronyd</CODE> daemon is initially started, it is possible that the
 system clock is considerably in error.  Attempting to correct such an
 error by slewing may not be sensible, since it may take several hours
 to correct the error by this means.
 
-</P>
+
 <P>
 The purpose of the <CODE>initstepslew</CODE> directive is to allow <CODE>chronyd</CODE> to
 make a rapid measurement of the system clock error at boot time, and to
@@ -1568,13 +1606,13 @@ Since this would normally be performed only at an appropriate point in
 the system boot sequence, no other software should be adversely affected
 by the step.
 
-</P>
+
 <P>
 If the correction required is less than a specified threshold, a slew is
 used instead.  This makes it easier to restart <CODE>chronyd</CODE> whilst the
 system is in normal operation.
 
-</P>
+
 <P>
 The <CODE>initstepslew</CODE> directive takes a threshold and a list of NTP
 servers as arguments.  A maximum of 8 will be used.  Each of the servers
@@ -1584,11 +1622,11 @@ step (or slew) is applied to the system clock to correct this error.
 <CODE>chronyd</CODE> then enters its normal operating mode (where only slews are
 used).
 
-</P>
+
 <P>
 An example of use of the command is
 
-</P>
+
 
 <PRE>
 initstepslew 30 foo.bar.com baz.quz.com
@@ -1600,7 +1638,7 @@ indicates that if the system's error is found to be 30 seconds or less,
 a slew will be used to correct it; if the error is above 30 seconds, a
 step will be used.
 
-</P>
+
 <P>
 The <CODE>initstepslew</CODE> directive can also be used in an isolated LAN
 environment, where the clocks are set manually.  The most stable
@@ -1611,15 +1649,15 @@ which references some or all of the slaves.  Then, if the master machine
 has to be rebooted, the slaves can be relied on to 'flywheel' the time
 for the master.
 
-</P>
 
 
-<H3><A NAME="SEC33" HREF="chrony_toc.html#TOC33">keyfile</A></H3>
+
+<H3><A NAME="SEC34" HREF="chrony_toc.html#TOC34">keyfile</A></H3>
 <P>
 This command is used to specify the location of the file containing
 ID/key pairs for the following 2 uses:
 
-</P>
+
 
 <UL>
 <LI>Authentication of NTP packets.
@@ -1631,7 +1669,7 @@ ID/key pairs for the following 2 uses:
 <P>
 The format of the command is shown in the example below
 
-</P>
+
 
 <PRE>
 keyfile /etc/chrony.keys
@@ -1641,7 +1679,7 @@ keyfile /etc/chrony.keys
 The argument is simply the name of the file containing the ID/key
 pairs.  The format of the file is shown below
 
-</P>
+
 
 <PRE>
 10 tulip
@@ -1656,38 +1694,38 @@ Each line consists of an ID and a password.  The ID can be any
 unsigned integer in the range 0 through 2**32-1.  The password can be
 any string of characters not containing a space.
 
-</P>
+
 <P>
 For NTP use, the MD5 authentication scheme is always used.  This must be
 borne in mind if <CODE>chronyd</CODE> is to inter-operate in authenticated
 mode with <CODE>xntpd</CODE> running on other computers.
 
-</P>
+
 <P>
 The ID for the chronyc authentication key is specified with the
 commandkey command (see earlier).
 
-</P>
 
 
-<H3><A NAME="SEC34" HREF="chrony_toc.html#TOC34">local</A></H3>
+
+<H3><A NAME="SEC35" HREF="chrony_toc.html#TOC35">local</A></H3>
 <P>
 The local keyword is used to allow <CODE>chronyd</CODE> to appear synchronised
 to real time (from the viewpoint of clients polling it), even if it has
 no current synchronisation source.
 
-</P>
+
 <P>
 This option is normally used on computers in an isolated network,
 where several computers are required to synchronise to one other, this
 being the "master" which is kept vaguely in line with real time by
 manual input.
 
-</P>
+
 <P>
 An example of the command is 
 
-</P>
+
 
 <PRE>
 local stratum 10
@@ -1701,7 +1739,7 @@ reference directly connected to it (e.g. GPS, atomic clock etc)
 Stratum 2 computers are those which have a stratum 1 server; stratum 3
 computers have a stratum 2 server and so on.
 
-</P>
+
 <P>
 A large value of 10 indicates that the clock is so many hops away from
 a reference clock that its time is fairly unreliable.  Put another
@@ -1712,14 +1750,14 @@ like 10 for the local command prevents the machine's own time from
 ever being confused with real time, were it ever to leak out to
 clients that have visibility of real servers.
 
-</P>
 
 
-<H3><A NAME="SEC35" HREF="chrony_toc.html#TOC35">log</A></H3>
+
+<H3><A NAME="SEC36" HREF="chrony_toc.html#TOC36">log</A></H3>
 <P>
 The log command indicates that certain information is to be logged.
 
-</P>
+
 <DL COMPACT>
 
 <DT><CODE>measurements</CODE>
@@ -1746,11 +1784,11 @@ This option logs information about the system's real-time clock.
 The files are written to the directory specified by the logdir
 command.
 
-</P>
+
 <P>
 An example of the command is
 
-</P>
+
 
 <PRE>
 log measurements statistics tracking
@@ -1758,13 +1796,13 @@ log measurements statistics tracking
 
 
 
-<H4><A NAME="SEC36" HREF="chrony_toc.html#TOC36">Measurements log file format</A></H4>
+<H4><A NAME="SEC37" HREF="chrony_toc.html#TOC37">Measurements log file format</A></H4>
 
 <P>
 An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
-</P>
+
 
 <PRE>
 22Jul98 05:40:50 158.152.1.76    N  8 1111 11 1111 10 10  1 \
@@ -1775,7 +1813,7 @@ from the measurements log file is shown below.
 The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-</P>
+
 
 <OL>
 <LI>
@@ -1839,16 +1877,16 @@ The root dispersion (`E' in RFC1305). [7.446e-03]
 A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-</P>
 
 
-<H4><A NAME="SEC37" HREF="chrony_toc.html#TOC37">Statistics log file format</A></H4>
+
+<H4><A NAME="SEC38" HREF="chrony_toc.html#TOC38">Statistics log file format</A></H4>
 
 <P>
 An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
-</P>
+
 
 <PRE>
 22Jul98 05:40:50 158.152.1.76     6.261e-03 -3.247e-03 \
@@ -1859,7 +1897,7 @@ from the measurements log file is shown below.
 The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-</P>
+
 
 <OL>
 <LI>
@@ -1923,16 +1961,16 @@ the number of samples are expected. [8]
 A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-</P>
 
 
-<H4><A NAME="SEC38" HREF="chrony_toc.html#TOC38">Tracking log file format</A></H4>
+
+<H4><A NAME="SEC39" HREF="chrony_toc.html#TOC39">Tracking log file format</A></H4>
 
 <P>
 An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
-</P>
+
 
 <PRE>
 22Jul98 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03
@@ -1942,7 +1980,7 @@ from the measurements log file is shown below.
 The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-</P>
+
 
 <OL>
 <LI>
@@ -1977,16 +2015,16 @@ system is fast of UTC). [1.046e-3]
 A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-</P>
 
 
-<H4><A NAME="SEC39" HREF="chrony_toc.html#TOC39">Real-time clock log file format</A></H4>
+
+<H4><A NAME="SEC40" HREF="chrony_toc.html#TOC40">Real-time clock log file format</A></H4>
 
 <P>
 An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
-</P>
+
 
 <PRE>
 22Jul98 05:40:50     -0.037360 1       -0.037434\
@@ -1997,7 +2035,7 @@ from the measurements log file is shown below.
 The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-</P>
+
 
 <OL>
 <LI>
@@ -2045,19 +2083,50 @@ seconds). [120]
 A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-</P>
 
 
-<H3><A NAME="SEC40" HREF="chrony_toc.html#TOC40">logdir</A></H3>
+
+<H3><A NAME="SEC41" HREF="chrony_toc.html#TOC41">logchange</A></H3>
 <P>
-This command allows the directory where log files are written to be
+This directive forces <CODE>chronyd</CODE> to send a message to syslog if it
+makes a system clock adjustment larger than a threshold value.  An
+example of use is
+
+
+
+<PRE>
+logchange 0.5
+</PRE>
+
+<P>
+which would cause a syslog message to be generated a system clock error
+of over 0.5 seconds starts to be compensated.
+
+
+<P>
+Clock errors detected either via NTP packets or via timestamps entered
+via the <CODE>settime</CODE> command of <CODE>chronyc</CODE> are logged.
+
+
+<P>
+This directive assumes that syslog messages are appearing where somebody
+can see them.  This allows that person to see if a large error has
+arisen, e.g. because of a fault, or because of faulty timezone handling,
+for example when summer time (daylight saving) starts or ends.
+
+
+
+
+<H3><A NAME="SEC42" HREF="chrony_toc.html#TOC42">logdir</A></H3>
+<P>
+This directive allows the directory where log files are written to be
 specified.
 
-</P>
-<P>
-An example of the use of this command is
 
-</P>
+<P>
+An example of the use of this directive is
+
+
 
 <PRE>
 logdir /var/log/chrony
@@ -2065,46 +2134,69 @@ logdir /var/log/chrony
 
 
 
-<H3><A NAME="SEC41" HREF="chrony_toc.html#TOC41">manual</A></H3>
+<H3><A NAME="SEC43" HREF="chrony_toc.html#TOC43">mailonchange</A></H3>
+<P>
+This directive defines an email address to which mail should be sent if
+chronyd applies a correction exceeding a particular threshold to the
+system clock.
+
+
+<P>
+An example of use of this directive is
+
+
+
+<PRE>
+mailonchange root@localhost 0.5
+</PRE>
+
+<P>
+This would send a mail message to root if a change of more than 0.5
+seconds were applied to the system clock.
+
+
+
+
+<H3><A NAME="SEC44" HREF="chrony_toc.html#TOC44">manual</A></H3>
 <P>
 The <CODE>manual</CODE> directive enables support at run-time for the
-<CODE>settime</CODE> command in chronyc (see section <A HREF="chrony.html#SEC83">settime</A>).  If no
+<CODE>settime</CODE> command in chronyc (see section <A HREF="chrony.html#SEC89">settime</A>).  If no
 <CODE>manual</CODE> directive is included, any attempt to use the
 <CODE>settime</CODE> command in chronyc will be met with an error message.
 
-</P>
+
 <P>
 Note that the <CODE>settime</CODE> command can be enabled at run-time using
-the <CODE>manual</CODE> command in chronyc (see section <A HREF="chrony.html#SEC72">manual</A>).  (The
+the <CODE>manual</CODE> command in chronyc (see section <A HREF="chrony.html#SEC78">manual</A>).  (The
 idea of the two commands is that the <CODE>manual</CODE> command controls the
 manual clock driver's behaviour, whereas the <CODE>settime</CODE> command
 allows samples of manually entered time to be provided).
 
-</P>
 
 
-<H3><A NAME="SEC42" HREF="chrony_toc.html#TOC42">maxupdateskew</A></H3>
+
+<H3><A NAME="SEC45" HREF="chrony_toc.html#TOC45">maxupdateskew</A></H3>
 <P>
 One of <CODE>chronyd's</CODE> tasks is to work out how fast or slow the computer's
 clock runs relative to its reference sources.  In addition, it computes
 an estimate of the error bounds around the estimated value.
 
-</P>
+
 <P>
 If the range of error is too large, it probably indicates that the
 measurements have not settled down yet, and that the estimated gain or
 loss rate is not very reliable.
 
-</P>
+
 <P>
 The <CODE>maxupdateskew</CODE> parameter allows the threshold for determining
 whether an estimate may be so unreliable that it should not be used.
 
-</P>
+
 <P>
 The syntax is
 
-</P>
+
 
 <PRE>
 maxupdateskew &#60;skew-in-ppm&#62;
@@ -2114,7 +2206,7 @@ maxupdateskew &#60;skew-in-ppm&#62;
 Typical values for &#60;skew-in-ppm&#62; might be 100 for a dial-up connection
 to servers over a phone line, and 5 or 10 for a computer on a LAN.
 
-</P>
+
 <P>
 It should be noted that this is not the only means of protection against
 using unreliable estimates.  At all times, <CODE>chronyd</CODE> keeps track of
@@ -2126,35 +2218,44 @@ highly-reliable master estimate and a new estimate is generated which
 has large error bounds, the existing master estimate will dominate in
 the new master estimate.
 
-</P>
 
 
-<H3><A NAME="SEC43" HREF="chrony_toc.html#TOC43">peer</A></H3>
+
+<H3><A NAME="SEC46" HREF="chrony_toc.html#TOC46">noclientlog</A></H3>
+<P>
+This directive, which takes no arguments, specifies that client accesses
+are not to be logged.  Normally they are logged, allowing statistics to
+be reported using the <CODE>clients</CODE> command in <CODE>chronyc</CODE>.
+
+
+
+
+<H3><A NAME="SEC47" HREF="chrony_toc.html#TOC47">peer</A></H3>
 <P>
 The syntax of this directive is identical to that for the <CODE>server</CODE>
-directive (see section <A HREF="chrony.html#SEC47">server</A>), except that it is used to specify
+directive (see section <A HREF="chrony.html#SEC51">server</A>), except that it is used to specify
 an NTP peer rather than an NTP server.
 
-</P>
 
 
-<H3><A NAME="SEC44" HREF="chrony_toc.html#TOC44">port</A></H3>
+
+<H3><A NAME="SEC48" HREF="chrony_toc.html#TOC48">port</A></H3>
 <P>
 This option allows you to configure the port used for the NTP service
 on your machine.
 
-</P>
+
 <P>
 The compiled in default is udp/123, the standard NTP port.  It is
 unlikely that you would ever need to change this value.  A possible
 exception would be if you wanted to operate strictly in client-only
 mode and never be available as a server to xntpd clients.
 
-</P>
+
 <P>
 An example of the port command is
 
-</P>
+
 
 <PRE>
 port 11123
@@ -2164,20 +2265,20 @@ port 11123
 This would change the NTP port served by chronyd on the computer to
 udp/11123.
 
-</P>
 
 
-<H3><A NAME="SEC45" HREF="chrony_toc.html#TOC45">rtcfile</A></H3>
+
+<H3><A NAME="SEC49" HREF="chrony_toc.html#TOC49">rtcfile</A></H3>
 <P>
 The <CODE>rtcfile</CODE> directive defines the name of the file in which
 <CODE>chronyd</CODE> can save parameters associated with tracking the accuracy
 of the system's real-time clock (RTC).
 
-</P>
+
 <P>
 The syntax is illustrated in the following example
 
-</P>
+
 
 <PRE>
 rtcfile /etc/chrony.rtc
@@ -2189,7 +2290,7 @@ rtcfile /etc/chrony.rtc
 saved is the RTC's error at some epoch, that epoch (in seconds since
 January 1 1970), and the rate at which the RTC gains or loses time.
 
-</P>
+
 <P>
 So far, the support for real-time clocks is limited - their code is even
 more system-specific than the rest of the software.  You can only use
@@ -2197,7 +2298,7 @@ the real time clock facilities (the <CODE>rtcfile</CODE> directive and the
 <CODE>-s</CODE> command line option to <CODE>chronyd</CODE>) if the following three
 conditions apply:
 
-</P>
+
 
 <OL>
 <LI>
@@ -2218,41 +2319,50 @@ You don't have other applications that need to make use of
 
 
 
-<H3><A NAME="SEC46" HREF="chrony_toc.html#TOC46">rtconutc</A></H3>
+<H3><A NAME="SEC50" HREF="chrony_toc.html#TOC50">rtconutc</A></H3>
 
 <P>
 <CODE>chronyd</CODE> assumes by default that the real time clock (RTC) keeps
 local time (including any daylight saving changes).  This is convenient
 on PCs running Linux which are dual-booted with DOS or Windows.
 
-</P>
+
+<P>
+NOTE : IF YOU KEEP THE REAL TIME CLOCK ON LOCAL TIME AND YOUR COMPUTER
+IS OFF WHEN DAYLIGHT SAVING (SUMMER TIME) STARTS OR ENDS, THE COMPUTER'S
+SYSTEM TIME WILL BE ONE HOUR IN ERROR WHEN YOU NEXT BOOT AND START
+CHRONYD.
+
+
 <P>
 An alternative is for the RTC to keep Universal Coordinated Time (UTC).
+This does not suffer from the 1 hour problem when daylight saving starts
+or ends.
 
-</P>
+
 <P>
 If the <CODE>rtconutc</CODE> directive appears, it means the RTC is required
 to keep UTC.  The directive takes no arguments.  It is equivalent to
 specifying the <CODE>-u</CODE> switch to the Linux <TT>`/sbin/clock'</TT> program.
 
-</P>
 
 
-<H3><A NAME="SEC47" HREF="chrony_toc.html#TOC47">server</A></H3>
+
+<H3><A NAME="SEC51" HREF="chrony_toc.html#TOC51">server</A></H3>
 <P>
 The <CODE>server</CODE> directive allows NTP servers to be specified.  The
 client/server relationship is strictly hierarchical : a client may
 synchronise its system time to that of the server, but the server's
 system time will never be influenced by that of a client.
 
-</P>
+
 <P>
 The <CODE>server</CODE> directive is immediately followed by either the name
 of the server, or its IP address in dotted-quad notation.  The server
 command also supports a number of subfields (which may be defined in any
 order):
 
-</P>
+
 <DL COMPACT>
 
 <DT><CODE>port</CODE>
@@ -2355,22 +2465,21 @@ the server until it is enabled to do so (by using the online option of
 
 
 
-<H2><A NAME="SEC48" HREF="chrony_toc.html#TOC48">Running chronyc</A></H2>
+<H2><A NAME="SEC52" HREF="chrony_toc.html#TOC52">Running chronyc</A></H2>
 
 <P>
 Chronyc is the program that can be used to reconfigure options within
 the <CODE>chronyd</CODE> program whilst it is running.  Chronyc can also be
 used to generate status reports about the operation of <CODE>chronyd</CODE>.
 
-</P>
 
 
 
-<H3><A NAME="SEC49" HREF="chrony_toc.html#TOC49">Basic use</A></H3>
+<H3><A NAME="SEC53" HREF="chrony_toc.html#TOC53">Basic use</A></H3>
 <P>
 The program chronyc is run by entering
 
-</P>
+
 
 <PRE>
 chronyc
@@ -2382,20 +2491,20 @@ chronyc is expecting input from the user, when it is being run from a
 terminal.  If chronyc's input or output are redirected from/to a file,
 the prompt is ow shown.
 
-</P>
+
 <P>
 When you are finished entering commands, the commands <CODE>exit</CODE> or
 <CODE>quit</CODE> will terminate the program.  (Entering <KBD>Control-D</KBD> will
 also terminate the program.)
 
-</P>
 
 
-<H3><A NAME="SEC50" HREF="chrony_toc.html#TOC50">Command line options</A></H3>
+
+<H3><A NAME="SEC54" HREF="chrony_toc.html#TOC54">Command line options</A></H3>
 <P>
 Chronyc supports the following command line options.
 
-</P>
+
 <DL COMPACT>
 
 <DT><CODE>-v</CODE>
@@ -2420,7 +2529,7 @@ to change this.
 
 
 
-<H3><A NAME="SEC51" HREF="chrony_toc.html#TOC51">Security with chronyc</A></H3>
+<H3><A NAME="SEC55" HREF="chrony_toc.html#TOC55">Security with chronyc</A></H3>
 <P>
 Many of the commands available through chronyc have a fair amount of
 power to reconfigure the run-time behaviour of <CODE>chronyd</CODE>.  Consequently,
@@ -2429,18 +2538,18 @@ system's clock performance.  Having access to <CODE>chronyd</CODE> via chronyc i
 more or less equivalent to being able to modify <CODE>chronyd's</CODE> configuration
 file (typically <TT>`/etc/chrony.conf'</TT>) and to restart <CODE>chronyd</CODE>.
 
-</P>
+
 <P>
 Chronyc also provides a number of monitoring (as opposed to commanding)
 commands, which will not affect the behaviour of <CODE>chronyd</CODE>.  However, you
 may still want to restrict access to these commands.
 
-</P>
+
 <P>
 In view of this, access to some of the capabilities of chronyc will
 usually be tightly controlled.  There are two mechanisms supported:
 
-</P>
+
 
 <OL>
 <LI>
@@ -2452,16 +2561,16 @@ host that <CODE>chronyd</CODE> is running on.
 
 Any command that actually reconfigures some aspect of <CODE>chronyd's</CODE>
 behaviour requires the user of chronyc to know a password.  This
-password is specified in <CODE>chronyd's</CODE> keys file (see section <A HREF="chrony.html#SEC33">keyfile</A>)
+password is specified in <CODE>chronyd's</CODE> keys file (see section <A HREF="chrony.html#SEC34">keyfile</A>)
 and specified via the commandkey option in its configuration file
-(see section <A HREF="chrony.html#SEC26">commandkey</A>).
+(see section <A HREF="chrony.html#SEC27">commandkey</A>).
 </OL>
 
 <P>
 Only the following commands can be used <EM>without</EM> providing a
 password:
 
-</P>
+
 
 <UL>
 <LI><CODE>exit</CODE>
@@ -2486,30 +2595,29 @@ password:
 All other commands require a password to have been specified previously,
 because they affect <CODE>chronyd's</CODE> operation.
 
-</P>
 
 
-<H3><A NAME="SEC52" HREF="chrony_toc.html#TOC52">Command reference</A></H3>
+
+<H3><A NAME="SEC56" HREF="chrony_toc.html#TOC56">Command reference</A></H3>
 <P>
 This section describes each of the commands available within the chronyc
 program.  Chronyc offers the user a simple command-line driven
 interface.
 
-</P>
 
 
 
-<H4><A NAME="SEC53" HREF="chrony_toc.html#TOC53">accheck</A></H4>
+<H4><A NAME="SEC57" HREF="chrony_toc.html#TOC57">accheck</A></H4>
 <P>
 This command allows you to check whether client NTP access is allowed
 from a particular host.
 
-</P>
+
 <P>
 Examples of use, showing a named host and a numeric IP address, are as
 follows:
 
-</P>
+
 
 <PRE>
 accheck a.b.c
@@ -2521,25 +2629,25 @@ This command can be used to examine the effect of a series of
 <CODE>allow</CODE>, <CODE>allow all</CODE>, <CODE>deny</CODE> and <CODE>deny all</CODE> commands
 specified either via chronyc, or in <CODE>chronyd's</CODE> configuration file.
 
-</P>
 
 
-<H4><A NAME="SEC54" HREF="chrony_toc.html#TOC54">add peer</A></H4>
+
+<H4><A NAME="SEC58" HREF="chrony_toc.html#TOC58">add peer</A></H4>
 <P>
 The <CODE>add peer</CODE> command allows a new NTP peer to be added whilst
 <CODE>chronyd</CODE> is running.
 
-</P>
+
 <P>
 Following the words <CODE>add peer</CODE>, the syntax of the following
 parameters and options is identical to that for the <CODE>peer</CODE>
-directive in the configuration file (see section <A HREF="chrony.html#SEC43">peer</A>).
+directive in the configuration file (see section <A HREF="chrony.html#SEC47">peer</A>).
 
-</P>
+
 <P>
 An example of using this command is shown below.
 
-</P>
+
 
 <PRE>
 add peer foo.bar.com minpoll 6 maxpoll 10 authkey 25
@@ -2547,22 +2655,22 @@ add peer foo.bar.com minpoll 6 maxpoll 10 authkey 25
 
 
 
-<H4><A NAME="SEC55" HREF="chrony_toc.html#TOC55">add server</A></H4>
+<H4><A NAME="SEC59" HREF="chrony_toc.html#TOC59">add server</A></H4>
 <P>
 The <CODE>add server</CODE> command allows a new NTP server to be added whilst
 <CODE>chronyd</CODE> is running.
 
-</P>
+
 <P>
 Following the words <CODE>add server</CODE>, the syntax of the following
 parameters and options is identical to that for the <CODE>server</CODE>
-directive in the configuration file (see section <A HREF="chrony.html#SEC47">server</A>).
+directive in the configuration file (see section <A HREF="chrony.html#SEC51">server</A>).
 
-</P>
+
 <P>
 An example of using this command is shown below.
 
-</P>
+
 
 <PRE>
 add server foo.bar.com minpoll 6 maxpoll 10 authkey 25
@@ -2570,16 +2678,16 @@ add server foo.bar.com minpoll 6 maxpoll 10 authkey 25
 
 
 
-<H4><A NAME="SEC56" HREF="chrony_toc.html#TOC56">allow</A></H4>
+<H4><A NAME="SEC60" HREF="chrony_toc.html#TOC60">allow</A></H4>
 <P>
 The effect of the allow command is identical to the <CODE>allow</CODE> directive in
 the configuration file (see section <A HREF="chrony.html#SEC25">allow</A>).
 
-</P>
+
 <P>
 The syntax is illustrated in the following examples:
 
-</P>
+
 
 <PRE>
 allow foo.bar.com
@@ -2589,15 +2697,15 @@ allow 3.4.5
 
 
 
-<H4><A NAME="SEC57" HREF="chrony_toc.html#TOC57">allow all</A></H4>
+<H4><A NAME="SEC61" HREF="chrony_toc.html#TOC61">allow all</A></H4>
 <P>
 The effect of the allow command is identical to the <CODE>allow all</CODE>
 directive in the configuration file (see section <A HREF="chrony.html#SEC25">allow</A>).
 
-</P>
 
 
-<H4><A NAME="SEC58" HREF="chrony_toc.html#TOC58">burst</A></H4>
+
+<H4><A NAME="SEC62" HREF="chrony_toc.html#TOC62">burst</A></H4>
 <P>
 The <CODE>burst</CODE> command tells <CODE>chronyd</CODE> to make a set of measurements to
 each of its sources over a short duration (rather than the usual
@@ -2606,13 +2714,13 @@ revert to the previous state for each source.  This might be either
 online, if the source was being periodically measured in the normal way,
 or offline, if the source had been indicated as being offline.
 (Switching a source between the online and offline states is described
-in section <A HREF="chrony.html#SEC79">online</A>, section <A HREF="chrony.html#SEC78">offline</A>).
+in section <A HREF="chrony.html#SEC85">online</A>, section <A HREF="chrony.html#SEC84">offline</A>).
 
-</P>
+
 <P>
 The syntax of the burst command is as follows
 
-</P>
+
 
 <PRE>
 burst &#60;n-good-measurements&#62;/&#60;max-measurements&#62; [&#60;mask&#62;/&#60;masked-address&#62;]
@@ -2622,11 +2730,11 @@ burst &#60;n-good-measurements&#62;/&#60;max-measurements&#62; [&#60;mask&#62;/&
 The mask and masked-address arguments are optional, in which case
 <CODE>chronyd</CODE> will initiate a burst for all of its currently defined sources.
 
-</P>
+
 <P>
 The arguments have the following meaning and format.
 
-</P>
+
 <DL COMPACT>
 
 <DT><CODE>n-good-measurements</CODE>
@@ -2660,11 +2768,11 @@ If no mask or masked address arguments are provided, the default is
 <CODE>0.0.0.0</CODE> and <CODE>0.0.0.0</CODE> respectively, which will match every
 source.
 
-</P>
+
 <P>
 An example of the two-argument form of the command is 
 
-</P>
+
 
 <PRE>
 burst 2/10
@@ -2675,11 +2783,11 @@ This will cause <CODE>chronyd</CODE> to attempt to get two good measurements fro
 each source, stopping after two have been obtained, but in no event will
 it try more than ten probes to the source.
 
-</P>
+
 <P>
 An example of the four-argument form of the command is
 
-</P>
+
 
 <PRE>
 burst 2/10 255.255.0.0/1.2.0.0
@@ -2690,19 +2798,89 @@ In this case, the two out of ten sampling will only be applied to
 sources whose IP addresses are of the form <CODE>1.2.x.y</CODE>, where x and y
 are arbitrary.
 
-</P>
 
 
-<H4><A NAME="SEC59" HREF="chrony_toc.html#TOC59">cmdaccheck</A></H4>
+
+<H4><A NAME="SEC63" HREF="chrony_toc.html#TOC63">clients</A></H4>
+<P>
+This command shows a list of all clients that have accessed the server,
+through either the NTP or command/monitoring ports.  There are no arguments.
+
+
+<P>
+An example of the output is
+
+
+<P>
+Hostname                   Client    Peer CmdAuth CmdNorm  CmdBad  LstN  LstC
+=========================  ======  ======  ======  ======  ======  ====  ====
+localhost                       0       0      15       1       0   29y     0
+aardvark.xxx                    4       0       0       0       0    49   29y
+badger.xxx                      4       0       0       0       0     6   29y
+
+
+<P>
+Each row shows the data for a single host.  Only hosts that have passed
+the host access checks (set with the <CODE>allow</CODE>, <CODE>deny</CODE>,
+<CODE>cmdallow</CODE> and <CODE>cmddeny</CODE> commands or configuration file
+directives) are logged.
+
+
+<P>
+The columns are as follows:
+
+
+
+<OL>
+<LI>
+
+The hostname of the client
+<LI>
+
+The number of times the client has accessed the server using an NTP
+client mode packet.
+<LI>
+
+The number of times the client has accessed the server using an NTP
+symmetric active mode packet.
+<LI>
+
+The number of authenticated command packets that have been processed
+from the client (i.e. those following a successful <CODE>password</CODE>
+command).
+<LI>
+
+The number of unauthenticated command packets that have been processed
+from the client.
+<LI>
+
+The number of bad command packets received from the client (not all
+forms of bad packet are logged).
+<LI>
+
+Time since the last NTP packet was received
+<LI>
+
+Time since the last command packet was received
+</OL>
+
+<P>
+The last two entries will be shown as the time since 1970 if no packet
+of that type has ever been received.
+
+
+
+
+<H4><A NAME="SEC64" HREF="chrony_toc.html#TOC64">cmdaccheck</A></H4>
 <P>
 This command is similar to the <CODE>accheck</CODE> command, except that it is
 used to check whether command access is permitted from a named host.
 
-</P>
+
 <P>
 Examples of use are as follows:
 
-</P>
+
 
 <PRE>
 cmdaccheck a.b.c
@@ -2711,49 +2889,49 @@ cmdaccheck 1.2.3.4
 
 
 
-<H4><A NAME="SEC60" HREF="chrony_toc.html#TOC60">cmdallow</A></H4>
+<H4><A NAME="SEC65" HREF="chrony_toc.html#TOC65">cmdallow</A></H4>
 <P>
 This is similar to the <CODE>allow</CODE> command, except that it is used to
 allow particular hosts or subnets to use the chronyc program to interact
 with <CODE>chronyd</CODE> on the current host.
 
-</P>
 
 
-<H4><A NAME="SEC61" HREF="chrony_toc.html#TOC61">cmdallow all</A></H4>
+
+<H4><A NAME="SEC66" HREF="chrony_toc.html#TOC66">cmdallow all</A></H4>
 <P>
 This is similar to the <CODE>allow all</CODE> command, except that it is used to
 allow particular hosts or subnets to use the chronyc program to interact
 with <CODE>chronyd</CODE> on the current host.
 
-</P>
 
 
-<H4><A NAME="SEC62" HREF="chrony_toc.html#TOC62">cmddeny</A></H4>
+
+<H4><A NAME="SEC67" HREF="chrony_toc.html#TOC67">cmddeny</A></H4>
 <P>
 This is similar to the <CODE>deny</CODE> command, except that it is used to
 allow particular hosts or subnets to use the chronyc program to interact
 with <CODE>chronyd</CODE> on the current host.
 
-</P>
 
 
-<H4><A NAME="SEC63" HREF="chrony_toc.html#TOC63">cmddeny all</A></H4>
+
+<H4><A NAME="SEC68" HREF="chrony_toc.html#TOC68">cmddeny all</A></H4>
 <P>
 This is similar to the <CODE>deny all</CODE> command, except that it is used
 to allow particular hosts or subnets to use the chronyc program to
 interact with <CODE>chronyd</CODE> on the current host.
 
-</P>
 
 
-<H4><A NAME="SEC64" HREF="chrony_toc.html#TOC64">cyclelogs</A></H4>
+
+<H4><A NAME="SEC69" HREF="chrony_toc.html#TOC69">cyclelogs</A></H4>
 <P>
 The <CODE>cyclelogs</CODE> command causes all of <CODE>chronyd's</CODE> open log
 files to be closed and re-opened.  This allows them to be renamed so
 that they can be periodically purged.  An example of how to do this is shown below.
 
-</P>
+
 
 <PRE>
 % mv /var/log/chrony/measurements.log /var/log/chrony/measurements1.log
@@ -2770,16 +2948,16 @@ chronyc&#62; exit
 
 
 
-<H4><A NAME="SEC65" HREF="chrony_toc.html#TOC65">delete</A></H4>
+<H4><A NAME="SEC70" HREF="chrony_toc.html#TOC70">delete</A></H4>
 <P>
 The <CODE>delete</CODE> command allows an NTP server or peer to be removed
 from the current set of sources.
 
-</P>
+
 <P>
 The syntax is illustrated in the examples below.
 
-</P>
+
 
 <PRE>
 delete foo.bar.com
@@ -2790,19 +2968,19 @@ delete 1.2.3.4
 There is one parameter, the name or IP address of the server or peer to
 be deleted.
 
-</P>
 
 
-<H4><A NAME="SEC66" HREF="chrony_toc.html#TOC66">deny</A></H4>
+
+<H4><A NAME="SEC71" HREF="chrony_toc.html#TOC71">deny</A></H4>
 <P>
 The effect of the allow command is identical to the <CODE>deny</CODE>
-directive in the configuration file (see section <A HREF="chrony.html#SEC28">deny</A>).
+directive in the configuration file (see section <A HREF="chrony.html#SEC29">deny</A>).
 
-</P>
+
 <P>
 The syntax is illustrated in the following examples:
 
-</P>
+
 
 <PRE>
 deny foo.bar.com
@@ -2812,63 +2990,63 @@ deny 3.4.5
 
 
 
-<H4><A NAME="SEC67" HREF="chrony_toc.html#TOC67">deny all</A></H4>
+<H4><A NAME="SEC72" HREF="chrony_toc.html#TOC72">deny all</A></H4>
 <P>
 The effect of the allow command is identical to the <CODE>deny all</CODE>
-directive in the configuration file (see section <A HREF="chrony.html#SEC28">deny</A>).
-
-</P>
+directive in the configuration file (see section <A HREF="chrony.html#SEC29">deny</A>).
 
 
-<H4><A NAME="SEC68" HREF="chrony_toc.html#TOC68">dump</A></H4>
+
+
+<H4><A NAME="SEC73" HREF="chrony_toc.html#TOC73">dump</A></H4>
 <P>
 The <CODE>dump</CODE> command causes <CODE>chronyd</CODE> to write its current history of
 measurements for each of its sources to dump files, either for
 inspection or to support the <CODE>-r</CODE> option when <CODE>chronyd</CODE> is restarted.
 
-</P>
+
 <P>
 The <CODE>dump</CODE> command is somewhat equivalent to the <CODE>dumponexit</CODE>
-directive in the chrony configuration file.  See section <A HREF="chrony.html#SEC31">dumponexit</A>.
+directive in the chrony configuration file.  See section <A HREF="chrony.html#SEC32">dumponexit</A>.
 
-</P>
+
 <P>
 To use the <CODE>dump</CODE>, you probably want to configure the name of the
 directory into which the dump files will be written.  This can only be
-done in the configuration file, see section <A HREF="chrony.html#SEC30">dumpdir</A>.
-
-</P>
+done in the configuration file, see section <A HREF="chrony.html#SEC31">dumpdir</A>.
 
 
-<H4><A NAME="SEC69" HREF="chrony_toc.html#TOC69">exit</A></H4>
+
+
+<H4><A NAME="SEC74" HREF="chrony_toc.html#TOC74">exit</A></H4>
 <P>
 The exit command exits from chronyc and returns the user to the shell
 (same as the quit command).
 
-</P>
 
 
-<H4><A NAME="SEC70" HREF="chrony_toc.html#TOC70">help</A></H4>
+
+<H4><A NAME="SEC75" HREF="chrony_toc.html#TOC75">help</A></H4>
 <P>
 The help command displays a summary of the commands and their arguments.
 
-</P>
 
 
-<H4><A NAME="SEC71" HREF="chrony_toc.html#TOC71">local</A></H4>
+
+<H4><A NAME="SEC76" HREF="chrony_toc.html#TOC76">local</A></H4>
 <P>
 The <CODE>local</CODE> command allows <CODE>chronyd</CODE> to be told that it is to appear
 as a reference source, even if it is not itself properly synchronised to
 an external source.  (This can be used on isolated networks, to allow
 one computer to be a master time server with the other computers slaving
 to it.)  The <CODE>local</CODE> command is somewhat equivalent to the
-<CODE>local</CODE> directive in the configuration file, see section <A HREF="chrony.html#SEC34">local</A>.
+<CODE>local</CODE> directive in the configuration file, see section <A HREF="chrony.html#SEC35">local</A>.
 
-</P>
+
 <P>
 The syntax is as shown in the following examples.
 
-</P>
+
 
 <PRE>
 local stratum 10
@@ -2879,66 +3057,139 @@ local off
 The first example enables the local reference mode on the host, and sets
 the stratum at which it should claim to be synchronised.
 
-</P>
+
 <P>
 The second example disables the local reference mode.
 
-</P>
 
 
-<H4><A NAME="SEC72" HREF="chrony_toc.html#TOC72">manual</A></H4>
+
+<H4><A NAME="SEC77" HREF="chrony_toc.html#TOC77">makestep</A></H4>
+<P>
+Normally chronyd will cause the system to gradually correct any time
+offset, by slowing down or speeding up the clock as required.  In
+certain situations, the system clock may be so far adrift that this
+slewing process would take a very long time to correct the system clock.
+
+
+<P>
+The <CODE>makestep</CODE> command can be used in this situation.  It cancels
+any remaining correction that was being slewed, and jumps the system
+clock by the equivalent amount, making it correct immediately.
+
+
+<P>
+BE WARNED - certain software will be seriously affected by such jumps to
+the system time.  (That is the reason why chronyd uses slewing
+normally.)
+
+
+<P>
+The <CODE>makestep</CODE> command is currently only available on the Linux
+version of chrony.
+
+
+
+
+<H4><A NAME="SEC78" HREF="chrony_toc.html#TOC78">manual</A></H4>
 <P>
 The manual command enables and disables use of the <CODE>settime</CODE>
-command (see section <A HREF="chrony.html#SEC83">settime</A>), and is used to modify the behaviour
+command (see section <A HREF="chrony.html#SEC89">settime</A>), and is used to modify the behaviour
 of the manual clock driver.
 
-</P>
+
 <P>
 Examples of the command are shown below.
 
-</P>
+
 
 <PRE>
 manual on
 manual off
+manual delete 1
+manual list
 manual reset
 </PRE>
 
 <P>
-The first form of the command enables use of the <CODE>settime</CODE> command.
-
-</P>
-<P>
-The second form of the command disables use of the <CODE>settime</CODE>
+The <CODE>on</CODE> form of the command enables use of the <CODE>settime</CODE>
 command.
 
-</P>
+
 <P>
-When a time is entered with the <CODE>settime</CODE> command, the current time
-and machine clock error are stored within <CODE>chronyd</CODE>.  When another time is
-entered later, the rate of gain or loss of the machine clock is computed
-and used to adjust the running speed of the machine clock.
+The <CODE>off</CODE> form of the command disables use of the <CODE>settime</CODE>
+command.
 
-</P>
+
 <P>
-If you want to correct the machine time without this rate compensation
-being performed, use the third form of the <CODE>manual</CODE> command first.
-This will purge any previous measurements stored within <CODE>chronyd</CODE>.
-
-</P>
+The <CODE>list</CODE> form of the command lists all the samples currently
+stored in <CODE>chronyd</CODE>.  The output is illustrated below.
 
 
-<H4><A NAME="SEC73" HREF="chrony_toc.html#TOC73">maxdelay</A></H4>
+
+<PRE>
+210 n_samples = 1
+#    Date  Time(UTC)    Slewed   Original   Residual
+====================================================
+ 0 27Jan99 22:09:20       0.00       0.97       0.00
+</PRE>
+
+<P>
+The columns as as follows :
+
+
+
+<OL>
+<LI>
+
+The sample index (used for the <CODE>manual delet</CODE>e command)
+<LI>
+
+The date and time of the sample
+<LI>
+
+The system clock error when the timestamp was entered, adjusted to allow
+for changes made to the system clock since.
+<LI>
+
+The system clock error when the timestamp was entered, as it originally
+was (without allowing for changes to the system clock since).
+<LI>
+
+The regression residual at this point, in seconds.  This allows
+'outliers' to be easily spotted, so that they can be deleted using the
+<CODE>manual delete</CODE> command.
+</OL>
+
+<P>
+The <CODE>delete</CODE> form of the command deletes a single sample.  The
+parameter is the index of the sample, as shown in the first column of
+the output from <CODE>manual list</CODE>.  Following deletion of the data
+point, the current error and drift rate are re-estimated from the
+remaining data points and the system clock trimmed if necessary.  This
+option is intended to allow 'outliers' to be discarded, i.e. samples
+where the administrator realises he/she has entered a very poor
+timestamp.
+
+
+<P>
+The <CODE>reset</CODE> form of the command deletes all samples at once.  The
+system clock is left running as it was before the command was entered.
+
+
+
+
+<H4><A NAME="SEC79" HREF="chrony_toc.html#TOC79">maxdelay</A></H4>
 <P>
 This allows the <CODE>maxdelay</CODE> option for one of the sources to be
 modified, in the same way as specifying the <CODE>maxdelay</CODE> option for
-the <CODE>server</CODE> directive in the configuration file (see section <A HREF="chrony.html#SEC47">server</A>).
+the <CODE>server</CODE> directive in the configuration file (see section <A HREF="chrony.html#SEC51">server</A>).
 
-</P>
+
 <P>
 The following examples illustrate the syntax
 
-</P>
+
 
 <PRE>
 maxdelay foo.bar.com 0.3
@@ -2951,25 +3202,25 @@ measurement to the host <CODE>foo.bar.com</CODE> to 0.3 seconds.  The second
 example sets the maximum network delay for a measurement to the host
 with IP address <CODE>1.2.3.4</CODE> to 1.5 milliseconds.
 
-</P>
+
 <P>
 (Any measurement whose network delay exceeds the specified value is
 discarded.)
 
-</P>
 
 
-<H4><A NAME="SEC74" HREF="chrony_toc.html#TOC74">maxdelayratio</A></H4>
+
+<H4><A NAME="SEC80" HREF="chrony_toc.html#TOC80">maxdelayratio</A></H4>
 <P>
 This allows the <CODE>maxdelayratio</CODE> option for one of the sources to be
 modified, in the same way as specifying the <CODE>maxdelayratio</CODE> option
-for the <CODE>server</CODE> directive in the configuration file (see section <A HREF="chrony.html#SEC47">server</A>).
+for the <CODE>server</CODE> directive in the configuration file (see section <A HREF="chrony.html#SEC51">server</A>).
 
-</P>
+
 <P>
 The following examples illustrate the syntax
 
-</P>
+
 
 <PRE>
 maxdelayratio foo.bar.com 1.5
@@ -2983,26 +3234,26 @@ amongst the previous measurements that have been retained.  The second
 example sets the maximum network delay for a measurement to the host
 with IP address <CODE>1.2.3.4</CODE> to be double the retained minimum.
 
-</P>
+
 <P>
 As for <CODE>maxdelay</CODE>, any measurement whose network delay is too large
 will be discarded.
 
-</P>
 
 
-<H4><A NAME="SEC75" HREF="chrony_toc.html#TOC75">maxpoll</A></H4>
+
+<H4><A NAME="SEC81" HREF="chrony_toc.html#TOC81">maxpoll</A></H4>
 <P>
 The <CODE>maxpoll</CODE> command is used to modify the minimum polling
 interval for one of the current set of sources.  It is equivalent to the
 <CODE>maxpoll</CODE> option in the <CODE>server</CODE> directive in the
-configuration file (see section <A HREF="chrony.html#SEC47">server</A>).
+configuration file (see section <A HREF="chrony.html#SEC51">server</A>).
 
-</P>
+
 <P>
 The syntax is as follows
 
-</P>
+
 
 <PRE>
 maxpoll &#60;host&#62; &#60;new-maxpoll&#62;
@@ -3014,11 +3265,11 @@ IP address.  The new minimum poll is specified as a base-2 logarithm of
 the number of seconds between polls (e.g. specify 6 for 64 second
 sampling).
 
-</P>
+
 <P>
 An example is 
 
-</P>
+
 
 <PRE>
 maxpoll foo.bar.com 10
@@ -3028,34 +3279,34 @@ maxpoll foo.bar.com 10
 which sets the maximum polling interval for the host <CODE>foo.bar.com</CODE>
 to 1024 seconds.
 
-</P>
+
 <P>
 Note that the new maximum polling interval only takes effect after the
 next measurement has been made.
 
-</P>
 
 
-<H4><A NAME="SEC76" HREF="chrony_toc.html#TOC76">maxupdateskew</A></H4>
+
+<H4><A NAME="SEC82" HREF="chrony_toc.html#TOC82">maxupdateskew</A></H4>
 <P>
 This command has the same effect as the <CODE>maxupdateskew</CODE> directive
-in the configuration file, see section <A HREF="chrony.html#SEC42">maxupdateskew</A>.
-
-</P>
+in the configuration file, see section <A HREF="chrony.html#SEC45">maxupdateskew</A>.
 
 
-<H4><A NAME="SEC77" HREF="chrony_toc.html#TOC77">minpoll</A></H4>
+
+
+<H4><A NAME="SEC83" HREF="chrony_toc.html#TOC83">minpoll</A></H4>
 <P>
 The <CODE>minpoll</CODE> command is used to modify the minimum polling
 interval for one of the current set of sources.  It is equivalent to the
 <CODE>minpoll</CODE> option in the <CODE>server</CODE> directive in the
-configuration file (see section <A HREF="chrony.html#SEC47">server</A>).
+configuration file (see section <A HREF="chrony.html#SEC51">server</A>).
 
-</P>
+
 <P>
 The syntax is as follows
 
-</P>
+
 
 <PRE>
 minpoll &#60;host&#62; &#60;new-minpoll&#62;
@@ -3067,11 +3318,11 @@ IP address.  The new minimum poll is specified as a base-2 logarithm of
 the number of seconds between polls (e.g. specify 6 for 64 second
 sampling).
 
-</P>
+
 <P>
 An example is 
 
-</P>
+
 
 <PRE>
 minpoll foo.bar.com 5
@@ -3081,27 +3332,27 @@ minpoll foo.bar.com 5
 which sets the minimum polling interval for the host <CODE>foo.bar.com</CODE>
 to 32 seconds.
 
-</P>
+
 <P>
 Note that the new minimum polling interval only takes effect after the
 next measurement has been made.
 
-</P>
 
 
-<H4><A NAME="SEC78" HREF="chrony_toc.html#TOC78">offline</A></H4>
+
+<H4><A NAME="SEC84" HREF="chrony_toc.html#TOC84">offline</A></H4>
 <P>
 The <CODE>offline</CODE> command is used to warn <CODE>chronyd</CODE> that the network
 connection to a particular host or hosts is about to be lost.  It should
 be used on computers with a dial-up or similar connection to their time
 sources, to warn <CODE>chronyd</CODE> that the connection is about to be broken.
 
-</P>
+
 <P>
 An example of how to use <CODE>offline</CODE> in this case is shown in
 section <A HREF="chrony.html#SEC16">How to tell chronyd when the internet link is available.</A>.
 
-</P>
+
 <P>
 Another case where <CODE>offline</CODE> could be used is where a computer
 serves time to a local group of computers, and has a permanant
@@ -3113,7 +3364,7 @@ the quiet periods and let the whole network coast through the loaded
 periods.  The <CODE>offline</CODE> and <CODE>online</CODE> commands can be used to
 achieve this.  The situation is shown in the figure below.
 
-</P>
+
 
 <PRE>
           +----------+
@@ -3141,13 +3392,13 @@ the <CODE>offline</CODE> command being used, <CODE>chronyd</CODE> would assume t
 source had failed and would attempt to pick another synchronisation
 source.
 
-</P>
+
 <P>
 There are two forms of the <CODE>offline</CODE> command.  The first form is a
 wildcard, meaning all sources.  The second form allows a IP address mask
 and a masked address to be specified.  These forms are illustrated below.
 
-</P>
+
 
 <PRE>
 offline
@@ -3160,11 +3411,11 @@ to any source whose IP address is in the 1.2.3 subnet.  (The host's
 address is logically and-ed with the mask, and if the result matches the
 masked-address the host is processed).
 
-</P>
+
 <P>
 The wildcard form of the address is actually equivalent to
 
-</P>
+
 
 <PRE>
 offline 0.0.0.0/0.0.0.0
@@ -3172,28 +3423,28 @@ offline 0.0.0.0/0.0.0.0
 
 
 
-<H4><A NAME="SEC79" HREF="chrony_toc.html#TOC79">online</A></H4>
+<H4><A NAME="SEC85" HREF="chrony_toc.html#TOC85">online</A></H4>
 <P>
 The <CODE>online</CODE> command is opposite in function to the <CODE>offline</CODE>
 command.  It is used to advise <CODE>chronyd</CODE> that network connectivity to a
 particular source or sources has been restored.
 
-</P>
+
 <P>
 The syntax is identical to that of the <CODE>offline</CODE> command, see
-section <A HREF="chrony.html#SEC78">offline</A>.
-
-</P>
+section <A HREF="chrony.html#SEC84">offline</A>.
 
 
-<H4><A NAME="SEC80" HREF="chrony_toc.html#TOC80">password</A></H4>
+
+
+<H4><A NAME="SEC86" HREF="chrony_toc.html#TOC86">password</A></H4>
 <P>
 The password command is used to allow chronyc to send privileged
 commands to <CODE>chronyd</CODE>.  The password can either be entered on the command
 line, or can be entered without echoing.  The syntax for entering the
 password on the command line is as follows
 
-</P>
+
 
 <PRE>
 password xyzzy
@@ -3202,7 +3453,7 @@ password xyzzy
 <P>
 To enter the password without it being echoed, enter
 
-</P>
+
 
 <PRE>
 password
@@ -3214,31 +3465,31 @@ should enter the password and press return.  (Note that the no-echo mode
 is limited to 8 characters on SunOS 4.1 due to limitations in the system
 library.  Other systems do not have this restriction.)
 
-</P>
+
 <P>
 The password is any string of characters not containing whitespace.  It
-has to match <CODE>chronyd's</CODE> currently defined command key (see section <A HREF="chrony.html#SEC26">commandkey</A>).
-
-</P>
+has to match <CODE>chronyd's</CODE> currently defined command key (see section <A HREF="chrony.html#SEC27">commandkey</A>).
 
 
-<H4><A NAME="SEC81" HREF="chrony_toc.html#TOC81">quit</A></H4>
+
+
+<H4><A NAME="SEC87" HREF="chrony_toc.html#TOC87">quit</A></H4>
 <P>
 The quit command exits from chronyc and returns the user to the shell
 (same as the exit command).
 
-</P>
 
 
-<H4><A NAME="SEC82" HREF="chrony_toc.html#TOC82">rtcdata</A></H4>
+
+<H4><A NAME="SEC88" HREF="chrony_toc.html#TOC88">rtcdata</A></H4>
 <P>
 The <CODE>rtcdata</CODE> command displays the current real time clock RTC parameters.
 
-</P>
+
 <P>
 An example output is shown below.
 
-</P>
+
 
 <PRE>
 RTC ref time (GMT) : Sat May 30 07:25:56 1998
@@ -3252,7 +3503,7 @@ RTC gains time at  :  -107.623 ppm
 <P>
 The fields have the following meaning
 
-</P>
+
 <DL COMPACT>
 
 <DT><CODE>RTC ref time (GMT)</CODE>
@@ -3293,15 +3544,15 @@ microsecond fast when it crosses its next second boundary.
 
 
 
-<H4><A NAME="SEC83" HREF="chrony_toc.html#TOC83">settime</A></H4>
+<H4><A NAME="SEC89" HREF="chrony_toc.html#TOC89">settime</A></H4>
 <P>
 The <CODE>settime</CODE> command allows the current time to be entered
 manually, if this option has been configured into <CODE>chronyd</CODE>.  (It may be
 configured either with the <CODE>manual</CODE> directive in the configuration
-file (see section <A HREF="chrony.html#SEC41">manual</A>), or with the <CODE>manual</CODE> command of
-chronyc (see section <A HREF="chrony.html#SEC72">manual</A>).
+file (see section <A HREF="chrony.html#SEC44">manual</A>), or with the <CODE>manual</CODE> command of
+chronyc (see section <A HREF="chrony.html#SEC78">manual</A>).
 
-</P>
+
 <P>
 It should be noted that the computer's sense of time will only be as
 accurate as the reference you use for providing this input (e.g. your
@@ -3309,33 +3560,38 @@ watch), as well as how well you can time the press of the return key.
 When inputting time to an isolated network, I have a battery operated
 alarm clock that is synchronised to the Rugby MSF time signal in the UK.
 
-</P>
+
 <P>
 Providing your computer's time zone is set up properly, you will be able
 to enter a local time (rather than UTC).
 
-</P>
+
 <P>
 The response to a successful <CODE>settime</CODE> command indicates the amount
 that the computer's clock was wrong.  It should be apparent from this if
 you have entered the time wrongly, e.g. with the wrong time zone.
 
-</P>
-<P>
-The software always allows you to enter the time again, replacing the
-measurement you just entered, for example if you realise that it was
-wrong.  You are given a 5 minute period for doing this.
 
-</P>
+<P>
+The rate of drift of the system clock is estimated by a regression
+process using the entered measurement and all previous measurements
+entered during the present run of <CODE>chronyd</CODE>.  However, the entered
+measurement is used for adjusting the current clock offset (rather than
+the estimated intercept from the regression, which is ignored).
+Contrast what happens with the <CODE>manual delete</CODE> command, where the
+intercept is used to set the current offset (since there is no
+measurement that has just been typed in in that case).
+
+
 <P>
 The time is parsed by the public domain <TT>`getdate'</TT> algorithm.
 Consequently, you can only specify time to the nearest second.
 
-</P>
+
 <P>
 Examples of inputs that are valid are shown below.
 
-</P>
+
 
 <PRE>
 settime 16:30
@@ -3347,15 +3603,15 @@ settime Nov 21, 1997 16:30:05
 For a full description of <CODE>getdate</CODE>, get hold of the getdate
 documentation (bundled, for example, with the source for GNU tar).
 
-</P>
 
 
-<H4><A NAME="SEC84" HREF="chrony_toc.html#TOC84">sources</A></H4>
+
+<H4><A NAME="SEC90" HREF="chrony_toc.html#TOC90">sources</A></H4>
 <P>
 This command displays information about the current time sources that
 <CODE>chronyd</CODE> is accessing.  It takes no arguments.
 
-</P>
+
 
 <PRE>
 210 Number of sources = 3
@@ -3369,7 +3625,7 @@ MS Name/IP address      Str  Poll LastRx        Last sample
 <P>
 The columns are as follows:
 
-</P>
+
 <DL COMPACT>
 
 <DT><CODE>M</CODE>
@@ -3433,18 +3689,18 @@ Positive offsets indicate that the local clock is fast of the source.
 
 
 
-<H4><A NAME="SEC85" HREF="chrony_toc.html#TOC85">sourcestats</A></H4>
+<H4><A NAME="SEC91" HREF="chrony_toc.html#TOC91">sourcestats</A></H4>
 
 <P>
 The <CODE>sourcestats</CODE> command displays information about the drift rate
 and offset estimatation process for each of the sources currently being
 examined by <CODE>chronyd</CODE>.
 
-</P>
+
 <P>
 An example report is
 
-</P>
+
 
 <PRE>
 210 Number of sources = 1
@@ -3456,7 +3712,7 @@ abc.def.ghi      11    5   46m      -0.001       0.045        25
 <P>
 The columns are as follows
 
-</P>
+
 <DL COMPACT>
 
 <DT><CODE>Name/IP</CODE>
@@ -3504,12 +3760,12 @@ This is the estimated sample variance in microseconds.
 
 
 
-<H4><A NAME="SEC86" HREF="chrony_toc.html#TOC86">tracking</A></H4>
+<H4><A NAME="SEC92" HREF="chrony_toc.html#TOC92">tracking</A></H4>
 <P>
 The <CODE>tracking</CODE> command displays parameters about the system's clock
 performance.  An example of the output is shown below.
 
-</P>
+
 
 <PRE>
 Reference ID    : 1.2.3.4 (a.b.c)
@@ -3526,7 +3782,7 @@ Root dispersion : 0.024780 seconds
 <P>
 The fields are explained as follows.
 
-</P>
+
 <DL COMPACT>
 
 <DT><CODE>Reference ID</CODE>
@@ -3535,8 +3791,8 @@ This is the IP address, and name if available, of the server to which
 the computer is currently synchronised.  If this is <CODE>127.127.1.1</CODE>
 it means the computer is not synchronised to any external source and
 that you have the `local' mode operating (via the <CODE>local</CODE> command
-in <CODE>chronyc</CODE> (see section <A HREF="chrony.html#SEC71">local</A>), or the <CODE>local</CODE> directive
-in the <TT>`/etc/chrony.conf'</TT> file (see section <A HREF="chrony.html#SEC34">local</A>)).
+in <CODE>chronyc</CODE> (see section <A HREF="chrony.html#SEC76">local</A>), or the <CODE>local</CODE> directive
+in the <TT>`/etc/chrony.conf'</TT> file (see section <A HREF="chrony.html#SEC35">local</A>)).
 
 <DT><CODE>Stratum</CODE>
 <DD>
@@ -3635,19 +3891,19 @@ clock_error &#60;= root_dispersion + (0.5 * |root_delay|)
 
 
 
-<H4><A NAME="SEC87" HREF="chrony_toc.html#TOC87">trimrtc</A></H4>
+<H4><A NAME="SEC93" HREF="chrony_toc.html#TOC93">trimrtc</A></H4>
 <P>
 The <CODE>trimrtc</CODE> command is used to correct the system's real time
 clock (RTC) to the main system clock.  It has no effect if the error
 between the two clocks is currently estimated at less than a second (the
 resolution of the RTC is only 1 second).
 
-</P>
+
 <P>
 The command takes no arguments.  It performs the following steps (if the
 RTC is more than 1 second away from the system clock):
 
-</P>
+
 
 <OL>
 <LI>
@@ -3665,7 +3921,7 @@ error)
 <LI>
 
 Save the RTC parameters to the RTC file (specified with the
-<CODE>rtcfile</CODE> directive in the configuration file (see section <A HREF="chrony.html#SEC45">rtcfile</A>).
+<CODE>rtcfile</CODE> directive in the configuration file (see section <A HREF="chrony.html#SEC49">rtcfile</A>).
 </OL>
 
 <P>
@@ -3673,7 +3929,7 @@ The last step is done as a precaution against the computer suffering a
 power failure before either the daemon exits or the <CODE>writertc</CODE>
 command is issued.
 
-</P>
+
 <P>
 <CODE>chronyd</CODE> will still work perfectly well both whilst operating and
 across machine reboots even if the <CODE>trimrtc</CODE> command is never used
@@ -3682,40 +3938,39 @@ across machine reboots even if the <CODE>trimrtc</CODE> command is never used
 corrected, in a manner compatible with <CODE>chronyd</CODE> using it to
 maintain accurate time across machine reboots.
 
-</P>
 
 
-<H4><A NAME="SEC88" HREF="chrony_toc.html#TOC88">writertc</A></H4>
+
+<H4><A NAME="SEC94" HREF="chrony_toc.html#TOC94">writertc</A></H4>
 <P>
 The <CODE>writertc</CODE> command writes the currently estimated error and
 gain/loss rate parameters for the RTC to the RTC file (specified with
-the <CODE>rtcfile</CODE> directive (see section <A HREF="chrony.html#SEC45">rtcfile</A>)).  This
+the <CODE>rtcfile</CODE> directive (see section <A HREF="chrony.html#SEC49">rtcfile</A>)).  This
 information is also written automatically when <CODE>chronyd</CODE> is killed
 (with SIGHUP, SIGINT, SIGQUIT or SIGTERM).
 
-</P>
 
 
-<H1><A NAME="SEC89" HREF="chrony_toc.html#TOC89">Porting guide</A></H1>
+
+<H1><A NAME="SEC95" HREF="chrony_toc.html#TOC95">Porting guide</A></H1>
 <P>
 This appendix discusses issues that have arisen in writing the
 system-specific parts of the existing ports.  This will provide useful
 information for those attempting to write ports to other systems.
 
-</P>
 
 
 
-<H2><A NAME="SEC90" HREF="chrony_toc.html#TOC90">System driver files</A></H2>
+<H2><A NAME="SEC96" HREF="chrony_toc.html#TOC96">System driver files</A></H2>
 <P>
 The system specific parts of the software are contained in files with
 names like <CODE>sys_linux.c</CODE>.
 
-</P>
+
 <P>
 The following functions are required in a system driver file:
 
-</P>
+
 
 <OL>
 <LI>
@@ -3739,27 +3994,26 @@ follow it in a 'sawtooth' fashion).
 </OL>
 
 <P>
-The <STRONG>frequency</STRONG> is the rate at which the system gains or loses time,
+The <EM>frequency</EM> is the rate at which the system gains or loses time,
 measured relative to the system when running uncompensated.
 
-</P>
 
 
-<H2><A NAME="SEC91" HREF="chrony_toc.html#TOC91">Quirks of particular systems</A></H2>
+
+<H2><A NAME="SEC97" HREF="chrony_toc.html#TOC97">Quirks of particular systems</A></H2>
 
 <P>
 These sections describe quirks in each system type that needed to be
 investigated to port the software to each system type.
 
-</P>
 
 
 
-<H3><A NAME="SEC92" HREF="chrony_toc.html#TOC92">Linux</A></H3>
+<H3><A NAME="SEC98" HREF="chrony_toc.html#TOC98">Linux</A></H3>
 <P>
 The following quirks have been found in developing the Linux port.
 
-</P>
+
 
 <OL>
 <LI>
@@ -3783,12 +4037,12 @@ changed in order to get the old offset returned (similar to
 
 
 
-<H3><A NAME="SEC93" HREF="chrony_toc.html#TOC93">Solaris 2.5</A></H3>
+<H3><A NAME="SEC99" HREF="chrony_toc.html#TOC99">Solaris 2.5</A></H3>
 
 <P>
 The following quirks have been found in developing the Solaris port.
 
-</P>
+
 
 <OL>
 <LI>
@@ -3809,11 +4063,11 @@ the system clock is periodically reset to the real-time clock.
 
 
 
-<H3><A NAME="SEC94" HREF="chrony_toc.html#TOC94">SunOS 4.1.4</A></H3>
+<H3><A NAME="SEC100" HREF="chrony_toc.html#TOC100">SunOS 4.1.4</A></H3>
 <P>
 The following quirks have been found in developing the SunOS port.
 
-</P>
+
 
 <OL>
 <LI>
@@ -3828,8 +4082,7 @@ the system clock is periodically reset to the real-time clock.
 </OL>
 
 <P><HR><P>
-This document was generated on 11 November 1998 using the
-<A HREF="http://wwwcn.cern.ch/dci/texi2html/">texi2html</A>
-translator version 1.51a.</P>
+This document was generated on 19 November 2000 using
+<A HREF="http://wwwinfo.cern.ch/dis/texi2html/">texi2html</A>&nbsp;1.56k.
 </BODY>
 </HTML>
