@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/reference.c,v 1.34 1999/09/21 21:04:12 richard Exp $
+  $Header: /cvs/src/chrony/reference.c,v 1.42 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -108,16 +121,16 @@ REF_Initialise(void)
           our_frequency_ppm = file_freq_ppm;
           our_skew = 1.0e-6 * file_skew_ppm;
         } else {
-          LOG(LOGS_WARN, LOGF_Reference, "Could not parse valid frequency and skew from driftfile %s\n",
+          LOG(LOGS_WARN, LOGF_Reference, "Could not parse valid frequency and skew from driftfile %s",
               drift_file);
         }
       } else {
-        LOG(LOGS_WARN, LOGF_Reference, "Could not read valid frequency and skew from driftfile %s\n",
+        LOG(LOGS_WARN, LOGF_Reference, "Could not read valid frequency and skew from driftfile %s",
             drift_file);
       }
       fclose(in);
     } else {
-      LOG(LOGS_WARN, LOGF_Reference, "Could not open driftfile %s for reading\n",
+      LOG(LOGS_WARN, LOGF_Reference, "Could not open driftfile %s for reading",
           drift_file);
     }
 
@@ -129,7 +142,7 @@ REF_Initialise(void)
   if (CNF_GetLogTracking()) {
     direc = CNF_GetLogDir();
     if (!mkdir_and_parents(direc)) {
-      LOG(LOGS_ERR, LOGF_Reference, "Could not create directory %s\n", direc);
+      LOG(LOGS_ERR, LOGF_Reference, "Could not create directory %s", direc);
       logfile = NULL;
     } else {
       logfilename = MallocArray(char, 2 + strlen(direc) + strlen(TRACKING_LOG));
@@ -138,7 +151,7 @@ REF_Initialise(void)
       strcat(logfilename, TRACKING_LOG);
       logfile = fopen(logfilename, "a");
       if (!logfile) {
-        LOG(LOGS_WARN, LOGF_Reference, "Couldn't open logfile %s for update\n", logfilename);
+        LOG(LOGS_WARN, LOGF_Reference, "Couldn't open logfile %s for update", logfilename);
       }
     }
   }
@@ -212,7 +225,7 @@ update_drift_file(double freq_ppm, double skew)
   out = fopen(temp_drift_file, "w");
   if (!out) {
     Free(temp_drift_file);
-    LOG(LOGS_WARN, LOGF_Reference, "Could not open temporary driftfile %s.tmp for writing\n",
+    LOG(LOGS_WARN, LOGF_Reference, "Could not open temporary driftfile %s.tmp for writing",
         drift_file);
     return;
   }
@@ -234,7 +247,7 @@ update_drift_file(double freq_ppm, double skew)
   if (rename(temp_drift_file,drift_file)) {
     unlink(temp_drift_file);
     Free(temp_drift_file);
-    LOG(LOGS_WARN, LOGF_Reference, "Could not replace old driftfile %s with new one %s.tmp (%d)\n",
+    LOG(LOGS_WARN, LOGF_Reference, "Could not replace old driftfile %s with new one %s.tmp (%d)",
         drift_file,drift_file);
     return;
   }
@@ -244,12 +257,15 @@ update_drift_file(double freq_ppm, double skew)
 
 /* ================================================== */
 
+#define BUFLEN 255
+#define S_MAX_USER_LEN "128"
+
 static void
 maybe_log_offset(double offset)
 {
   double abs_offset;
   FILE *p;
-  char buffer[256], host[256];
+  char buffer[BUFLEN], host[BUFLEN];
   time_t now;
   struct tm stm;
 
@@ -258,13 +274,13 @@ maybe_log_offset(double offset)
   if (do_log_change &&
       (abs_offset > log_change_threshold)) {
     LOG(LOGS_WARN, LOGF_Reference,
-        "System clock changed by %.6f seconds",
+        "System clock wrong by %.6f seconds, adjustment started",
         -offset);
   }
 
   if (do_mail_change &&
       (abs_offset > mail_change_threshold)) {
-    snprintf(buffer, 256, "%s %s", MAIL_PROGRAM, mail_change_user); /* Was sprintf JGH 19 Nov 2000 */
+    snprintf(buffer, sizeof(buffer), "%s %." S_MAX_USER_LEN "s", MAIL_PROGRAM, mail_change_user);
     p = popen(buffer, "w");
     if (p) {
       if (gethostname(host, sizeof(host)) < 0) {
@@ -280,7 +296,7 @@ maybe_log_offset(double offset)
          positive change to it to bring it into line, hence the
          negation of 'offset' in the next statement (and earlier) */
       fprintf(p,
-              "\n\nchronyd applied an adjustment of %.3f seconds to it,\n"
+              "\n\nchronyd started to apply an adjustment of %.3f seconds to it,\n"
               "  which exceeded the reporting threshold of %.3f seconds\n\n",
               -offset, mail_change_threshold);
       pclose(p);
@@ -386,7 +402,7 @@ REF_SetReference(int stratum,
   } else {
 
 #if 0    
-    LOG(LOGS_INFO, LOGF_Reference, "Skew %f too large to track, offset=%f\n", skew, our_offset);
+    LOG(LOGS_INFO, LOGF_Reference, "Skew %f too large to track, offset=%f", skew, our_offset);
 #endif
     maybe_log_offset(our_offset);
     LCL_AccumulateOffset(our_offset);
@@ -400,9 +416,9 @@ REF_SetReference(int stratum,
 
     if (((logwrites++) % 32) == 0) {
       fprintf(logfile,
-              "====================================================================\n"
-              " Date (UTC) Time    IP Address   St   Freq ppm   Skew ppm     Offset\n"
-              "====================================================================\n");
+              "=======================================================================\n"
+              "   Date (UTC) Time     IP Address   St   Freq ppm   Skew ppm     Offset\n"
+              "=======================================================================\n");
     }
           
     fprintf(logfile, "%s %-15s %2d %10.3f %10.3f %10.3e\n",
@@ -597,7 +613,7 @@ REF_ModifyMaxupdateskew(double new_max_update_skew)
 {
   max_update_skew = new_max_update_skew * 1.0e-6;
 #if 0
-  LOG(LOGS_INFO, LOGF_Reference, "New max update skew = %.3fppm\n", new_max_update_skew);
+  LOG(LOGS_INFO, LOGF_Reference, "New max update skew = %.3fppm", new_max_update_skew);
 #endif
 }
 
@@ -684,7 +700,7 @@ REF_CycleLogFile(void)
     fclose(logfile);
     logfile = fopen(logfilename, "a");
     if (!logfile) {
-      LOG(LOGS_WARN, LOGF_Reference, "Could not reopen logfile %s\n", logfilename);
+      LOG(LOGS_WARN, LOGF_Reference, "Could not reopen logfile %s", logfilename);
     }
     logwrites = 0;
   }

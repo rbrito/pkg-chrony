@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/ntp.h,v 1.6 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/ntp.h,v 1.12 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -18,12 +31,18 @@
 #ifndef GOT_NTP_H
 #define GOT_NTP_H
 
+#ifdef HAS_STDINT_H
+#include <stdint.h>
+#elif defined(HAS_INTTYPES_H)
+#include <inttypes.h>
+#endif
+
 typedef struct {
-  unsigned long hi;
-  unsigned long lo;
+  uint32_t hi;
+  uint32_t lo;
 } NTP_int64;
 
-typedef unsigned long NTP_int32;
+typedef uint32_t NTP_int32;
 
 #define AUTH_DATA_LEN 16 
 
@@ -45,10 +64,10 @@ typedef enum {
 } NTP_Mode;
 
 typedef struct {
-  unsigned char lvm;
-  unsigned char stratum;
-  signed char poll;
-  signed char precision;
+  uint8_t lvm;
+  uint8_t stratum;
+  int8_t poll;
+  int8_t precision;
   NTP_int32 root_delay;
   NTP_int32 root_dispersion;
   NTP_int32 reference_id;
@@ -57,7 +76,7 @@ typedef struct {
   NTP_int64 receive_ts;
   NTP_int64 transmit_ts;
   NTP_int32 auth_keyid;
-  unsigned char auth_data[AUTH_DATA_LEN];
+  uint8_t auth_data[AUTH_DATA_LEN];
 } NTP_Packet;
 
 /* We have to declare a buffer type to hold a datagram read from the
@@ -71,9 +90,27 @@ typedef struct {
 
 typedef union {
   NTP_Packet ntp_pkt;
-  unsigned char arbitrary[MAX_NTP_MESSAGE_SIZE];
+  uint8_t arbitrary[MAX_NTP_MESSAGE_SIZE];
 } ReceiveBuffer;
 
 #define NTP_NORMAL_PACKET_SIZE (sizeof(NTP_Packet) - (sizeof(NTP_int32) + AUTH_DATA_LEN))
+
+/* ================================================== */
+
+inline static double
+int32_to_double(NTP_int32 x)
+{
+  return (double) ntohl(x) / 65536.0;
+}
+
+/* ================================================== */
+
+inline static NTP_int32
+double_to_int32(double x)
+{
+  return htonl((NTP_int32)(0.5 + 65536.0 * x));
+}
+
+/* ================================================== */
 
 #endif /* GOT_NTP_H */

@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/util.h,v 1.9 1999/08/17 21:30:22 richard Exp $
+  $Header: /cvs/src/chrony/util.h,v 1.15 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -67,9 +80,19 @@ extern char *UTI_TimeToLogForm(time_t t);
 /* Adjust time following a frequency/offset change */
 extern void UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *new_tv, double dfreq, double doffset);
 
+
+extern void UTI_TimevalToInt64(struct timeval *src, NTP_int64 *dest);
+
+extern void UTI_Int64ToTimeval(NTP_int64 *src, struct timeval *dest);
+
 /* Like assert(0) */
-extern int croak(char *file, int line, char *msg);
+
+#if defined(LINUX) && defined(__alpha__)
+#define CROAK(message) assert(0) /* Added JGH Feb 24 2001  FIXME */
+#else
+extern int croak(const char *file, int line, const char *msg);
 #define CROAK(message) croak(__FILE__, __LINE__, message);
+#endif
 
 #if defined (INLINE_UTILITIES)
 #define INLINE_STATIC inline static

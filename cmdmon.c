@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/cmdmon.c,v 1.46 2000/07/24 21:44:44 richard Exp $
+  $Header: /cvs/src/chrony/cmdmon.c,v 1.55 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -131,7 +144,8 @@ static int permissions[] = {
   PERMIT_OPEN, /* CLIENT_ACCESSES_BY_INDEX */
   PERMIT_OPEN, /* MANUAL_LIST */
   PERMIT_AUTH, /* MANUAL_DELETE */
-  PERMIT_AUTH  /* MAKESTEP */
+  PERMIT_AUTH, /* MAKESTEP */
+  PERMIT_OPEN  /* ACTIVITY */
 };
 
 /* ================================================== */
@@ -180,11 +194,11 @@ CAM_Initialise(void)
 
   sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock_fd < 0) {
-    LOG_FATAL(LOGF_CmdMon, "Could not open socket : %s\n", strerror(errno));
+    LOG_FATAL(LOGF_CmdMon, "Could not open socket : %s", strerror(errno));
   }
 
   /* Allow reuse of port number */
-  if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &on_off, sizeof(on_off)) < 0) {
+  if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (char *) &on_off, sizeof(on_off)) < 0) {
     LOG(LOGS_ERR, LOGF_CmdMon, "Could not set socket options");
     /* Don't quit - we might survive anyway */
   }
@@ -192,7 +206,7 @@ CAM_Initialise(void)
   my_addr.sin_family = AF_INET;
   my_addr.sin_port = htons((unsigned short) port_number);
 
-  CNF_GetBindAddress(&bind_address);
+  CNF_GetBindCommandAddress(&bind_address);
 
   if (bind_address != 0UL) {
     my_addr.sin_addr.s_addr = htonl(bind_address);
@@ -201,7 +215,7 @@ CAM_Initialise(void)
   }
 
   if (bind(sock_fd, (struct sockaddr *) &my_addr, sizeof(my_addr)) < 0) {
-    LOG_FATAL(LOGF_CmdMon, "Could not bind socket : %s\n", strerror(errno));
+    LOG_FATAL(LOGF_CmdMon, "Could not bind socket : %s", strerror(errno));
   }
 
   /* Register handler for read events on the socket */
@@ -643,7 +657,7 @@ transmit_reply(CMD_Reply *msg, struct sockaddr_in *where_to)
   if (status < 0) {
     remote_ip = ntohl(where_to->sin_addr.s_addr);
     remote_port = ntohs(where_to->sin_port);
-    LOG(LOGS_WARN, LOGF_CmdMon, "Could not send response to %s:%hu\n", UTI_IPToDottedQuad(remote_ip), remote_port);
+    LOG(LOGS_WARN, LOGF_CmdMon, "Could not send response to %s:%hu", UTI_IPToDottedQuad(remote_ip), remote_port);
   }
 
   return;
@@ -1088,6 +1102,7 @@ handle_add_server(CMD_Request *rx_message, CMD_Reply *tx_message)
   params.presend_minpoll = ntohl(rx_message->data.ntp_source.presend_minpoll);
   params.authkey = ntohl(rx_message->data.ntp_source.authkey);
   params.online  = ntohl(rx_message->data.ntp_source.online);
+  params.auto_offline = ntohl(rx_message->data.ntp_source.auto_offline);
   params.max_delay = WIRE2REAL(rx_message->data.ntp_source.max_delay);
   params.max_delay_ratio = WIRE2REAL(rx_message->data.ntp_source.max_delay_ratio);
   status = NSR_AddServer(&rem_addr, &params);
@@ -1194,7 +1209,7 @@ handle_dfreq(CMD_Request *rx_message, CMD_Reply *tx_message)
   double dfreq;
   dfreq = WIRE2REAL(rx_message->data.dfreq.dfreq);
   LCL_AccumulateDeltaFrequency(dfreq * 1.0e-6);
-  LOG(LOGS_INFO, LOGF_CmdMon, "Accumulated delta freq of %.3fppm\n", dfreq);
+  LOG(LOGS_INFO, LOGF_CmdMon, "Accumulated delta freq of %.3fppm", dfreq);
 }
 
 /* ================================================== */
@@ -1207,7 +1222,7 @@ handle_doffset(CMD_Request *rx_message, CMD_Reply *tx_message)
   sec = (long)(ntohl(rx_message->data.doffset.sec));
   usec = (long)(ntohl(rx_message->data.doffset.usec));
   doffset = (double) sec + 1.0e-6 * (double) usec;
-  LOG(LOGS_INFO, LOGF_CmdMon, "Accumulated delta offset of %.6f seconds\n", doffset);
+  LOG(LOGS_INFO, LOGF_CmdMon, "Accumulated delta offset of %.6f seconds", doffset);
   LCL_AccumulateOffset(doffset);
 }
 
@@ -1266,6 +1281,12 @@ handle_rtcreport(CMD_Request *rx_message, CMD_Reply *tx_message)
 {
   int status;
   RPT_RTC_Report report;
+
+#ifdef ALPHA
+  tx_message->status = htons(STT_NORTC);
+  return;
+#endif
+
   status = RTC_GetReport(&report);
   if (status) {
     tx_message->status = htons(STT_SUCCESS);
@@ -1288,6 +1309,12 @@ static void
 handle_trimrtc(CMD_Request *rx_message, CMD_Reply *tx_message)
 {
   int status;
+
+#ifdef ALPHA
+  tx_message->status = htons(STT_NORTC);
+  return;
+#endif
+
   status = RTC_Trim();
   if (status) {
     tx_message->status = htons(STT_SUCCESS);
@@ -1380,7 +1407,7 @@ handle_client_accesses(CMD_Request *rx_message, CMD_Reply *tx_message)
   tx_message->reply = htons(RPY_CLIENT_ACCESSES);
   tx_message->data.client_accesses.n_clients = htonl(nc);
 
-  printf("%d %d\n", sizeof (RPY_ClientAccesses_Client), offsetof(CMD_Reply, data.client_accesses.clients));
+  printf("%d %d\n", (int)sizeof(RPY_ClientAccesses_Client), (int)offsetof(CMD_Reply, data.client_accesses.clients));
 
   for (i=0; i<nc; i++) {
     ip = ntohl(rx_message->data.client_accesses.client_ips[i]);
@@ -1528,6 +1555,21 @@ handle_make_step(CMD_Request *rx_message, CMD_Reply *tx_message)
 
 /* ================================================== */
 
+static void
+handle_activity(CMD_Request *rx_message, CMD_Reply *tx_message)
+{
+  RPT_ActivityReport report;
+  NSR_GetActivityReport(&report);
+  tx_message->data.activity.online = htonl(report.online);
+  tx_message->data.activity.offline = htonl(report.offline);
+  tx_message->data.activity.burst_online = htonl(report.burst_online);
+  tx_message->data.activity.burst_offline = htonl(report.burst_offline);
+  tx_message->status = htons(STT_SUCCESS);
+  tx_message->reply = htons(RPY_ACTIVITY);
+}
+
+/* ================================================== */
+
 #if 0
 /* ================================================== */
 
@@ -1576,11 +1618,11 @@ read_from_cmd_socket(void *anything)
   rx_message_length = sizeof(rx_message);
   from_length = sizeof(where_from);
 
-  status = recvfrom(sock_fd, &rx_message, rx_message_length, flags,
+  status = recvfrom(sock_fd, (char *)&rx_message, rx_message_length, flags,
                     (struct sockaddr *)&where_from, &from_length);
 
   if (status < 0) {
-    LOG(LOGS_WARN, LOGF_CmdMon, "Error [%s] reading from control socket (IP=%s port=%d)\n",
+    LOG(LOGS_WARN, LOGF_CmdMon, "Error [%s] reading from control socket (IP=%s port=%d)",
         strerror(errno),
         UTI_IPToDottedQuad(ntohl(where_from.sin_addr.s_addr)),
         ntohs(where_from.sin_port));
@@ -1623,7 +1665,7 @@ read_from_cmd_socket(void *anything)
        here against the host because an adversary can just keep
        hitting us with bad packets until our log file(s) fill up. */
 
-    LOG(LOGS_WARN, LOGF_CmdMon, "Command packet received from unauthorised host %s port %d\n",
+    LOG(LOGS_WARN, LOGF_CmdMon, "Command packet received from unauthorised host %s port %d",
         UTI_IPToDottedQuad(remote_ip),
         remote_port);
 
@@ -1635,7 +1677,7 @@ read_from_cmd_socket(void *anything)
 
 
   if (read_length != expected_length) {
-    LOG(LOGS_WARN, LOGF_CmdMon, "Read incorrectly sized packet from %s:%hu\n", UTI_IPToDottedQuad(remote_ip), remote_port);
+    LOG(LOGS_WARN, LOGF_CmdMon, "Read incorrectly sized packet from %s:%hu", UTI_IPToDottedQuad(remote_ip), remote_port);
     CLG_LogCommandAccess(remote_ip, CLG_CMD_BAD_PKT, cooked_now.tv_sec);
     /* For now, just ignore the packet.  We may want to send a reply
        back eventually */
@@ -1730,7 +1772,7 @@ read_from_cmd_socket(void *anything)
       status = sendto(sock_fd, (void *) prev_tx_message, tx_message_length, 0,
                       (struct sockaddr *) &where_from, sizeof(where_from));
       if (status < 0) {
-        LOG(LOGS_WARN, LOGF_CmdMon, "Could not send response to %s:%hu\n", UTI_IPToDottedQuad(remote_ip), remote_port);
+        LOG(LOGS_WARN, LOGF_CmdMon, "Could not send response to %s:%hu", UTI_IPToDottedQuad(remote_ip), remote_port);
       }
       return;
     }
@@ -1999,6 +2041,10 @@ read_from_cmd_socket(void *anything)
 
         case REQ_MAKESTEP:
           handle_make_step(&rx_message, &tx_message);
+          break;
+
+        case REQ_ACTIVITY:
+          handle_activity(&rx_message, &tx_message);
           break;
 
         default:

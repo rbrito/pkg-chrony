@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/manual.c,v 1.17 1999/04/19 20:23:46 richard Exp $
+  $Header: /cvs/src/chrony/manual.c,v 1.21 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -152,7 +165,7 @@ estimate_and_set_system(struct timeval *now, int offset_provided, double offset,
                            slew_by,
                            freq, skew);
   } else {
-    LOG(LOGS_INFO, LOGF_Manual, "Making a slew of %.6f\n", slew_by);
+    LOG(LOGS_INFO, LOGF_Manual, "Making a slew of %.6f", slew_by);
     REF_SetManualReference(now,
                            slew_by,
                            0.0, skew);

@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/sources.c,v 1.24 1999/08/17 21:30:57 richard Exp $
+  $Header: /cvs/src/chrony/sources.c,v 1.33 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -265,8 +278,8 @@ void SRC_AccumulateSample
 
   inst->leap_status = leap_status;
 
-#if 0
-  LOG(LOGS_INFO, LOGF_Sources, "ip=[%s] t=%s ofs=%f del=%f disp=%f str=%d\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_Sources, "ip=[%s] t=%s ofs=%f del=%f disp=%f str=%d",
       UTI_IPToDottedQuad(inst->ref_id), UTI_TimevalToString(sample_time), -offset, root_delay, root_dispersion, stratum);
 #endif
 
@@ -287,8 +300,8 @@ SRC_SetReachable(SRC_Instance inst)
 {
   inst->reachable = 1;
 
-#if 0
-  LOG(LOGS_INFO, LOGF_Sources, "%s\n", UTI_IPToDottedQuad(inst->ref_id));
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_Sources, "%s", UTI_IPToDottedQuad(inst->ref_id));
 #endif
 
   /* Don't do selection at this point, though - that will come about
@@ -302,8 +315,8 @@ SRC_UnsetReachable(SRC_Instance inst)
 {
   inst->reachable = 0;
 
-#if 0
-  LOG(LOGS_INFO, LOGF_Sources, "%s%s\n", UTI_IPToDottedQuad(inst->ref_id),
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_Sources, "%s%s", UTI_IPToDottedQuad(inst->ref_id),
       (inst->index == selected_source_index) ? "(REF)":"");
 #endif
 
@@ -367,7 +380,10 @@ SRC_SelectSource(unsigned long match_addr)
 
   if (n_sources == 0) {
     /* In this case, we clearly cannot synchronise to anything */
-    LOG(LOGS_INFO, LOGF_Sources, "No sources\n");
+    if (selected_source_index != INVALID_SOURCE) {
+      LOG(LOGS_INFO, LOGF_Sources, "Can't synchronise: no sources");
+    }
+    selected_source_index = INVALID_SOURCE;
     REF_SetUnsynchronised();
     return;
   }
@@ -401,7 +417,7 @@ SRC_SelectSource(unsigned long match_addr)
       si->hi_limit = si->best_offset + si->root_distance;
 
 #if 0
-      LOG(LOGS_INFO, LOGF_Sources, "%s off=%f dist=%f lo=%f hi=%f\n",
+      LOG(LOGS_INFO, LOGF_Sources, "%s off=%f dist=%f lo=%f hi=%f",
           UTI_IPToDottedQuad(sources[i]->ref_id),
           si->best_offset, si->root_distance,
           si->lo_limit, si->hi_limit);
@@ -437,7 +453,7 @@ SRC_SelectSource(unsigned long match_addr)
   }
 
 #if 0
-  LOG(LOGS_INFO, LOGF_Sources, "n_endpoints=%d\n", n_endpoints);
+  LOG(LOGS_INFO, LOGF_Sources, "n_endpoints=%d", n_endpoints);
 #endif
 
   /* Now sort the endpoint list */
@@ -474,7 +490,7 @@ SRC_SelectSource(unsigned long match_addr)
 
     for (i=0; i<n_endpoints; i++) {
 #if 0
-      LOG(LOGS_INFO, LOGF_Sources, "i=%d t=%f tag=%d addr=%s\n", i, sort_list[i].offset, sort_list[i].tag,
+      LOG(LOGS_INFO, LOGF_Sources, "i=%d t=%f tag=%d addr=%s", i, sort_list[i].offset, sort_list[i].tag,
           UTI_IPToDottedQuad(sources[sort_list[i].index]->ref_id));
 #endif
       switch(sort_list[i].tag) {
@@ -501,7 +517,7 @@ SRC_SelectSource(unsigned long match_addr)
     }
 
 #if 0
-    LOG(LOGS_INFO, LOGF_Sources, "best_depth=%d best_lo=%f best_hi=%f\n",
+    LOG(LOGS_INFO, LOGF_Sources, "best_depth=%d best_lo=%f best_hi=%f",
         best_depth, best_lo, best_hi);
 #endif
 
@@ -517,6 +533,9 @@ SRC_SelectSource(unsigned long match_addr)
 
            */
 
+      if (selected_source_index != INVALID_SOURCE) {
+        LOG(LOGS_INFO, LOGF_Sources, "Can't synchronise: no majority");
+      }
       selected_source_index = INVALID_SOURCE;
       REF_SetUnsynchronised();
 
@@ -546,12 +565,12 @@ SRC_SelectSource(unsigned long match_addr)
 
             sel_sources[n_sel_sources++] = i;
 #if 0
-            LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s is valid\n", i, UTI_IPToDottedQuad(sources[i]->ref_id));
+            LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s is valid", i, UTI_IPToDottedQuad(sources[i]->ref_id));
 #endif
           } else {
             sources[i]->status = SRC_FALSETICKER;
 #if 0
-            LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s is a falseticker\n", i, UTI_IPToDottedQuad(sources[i]->ref_id));
+            LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s is a falseticker", i, UTI_IPToDottedQuad(sources[i]->ref_id));
 #endif
           }
         }
@@ -573,7 +592,7 @@ SRC_SelectSource(unsigned long match_addr)
       }
 
 #if 0
-      LOG(LOGS_INFO, LOGF_Sources, "min_distance=%f\n", min_distance);
+      LOG(LOGS_INFO, LOGF_Sources, "min_distance=%f", min_distance);
 #endif
 
       /* Now go through and prune any sources that have excessive
@@ -584,7 +603,7 @@ SRC_SelectSource(unsigned long match_addr)
           sel_sources[i] = INVALID_SOURCE;
           sources[index]->status = SRC_JITTERY;
 #if 0
-          LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s has too much variance\n", i, UTI_IPToDottedQuad(sources[i]->ref_id));
+          LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s has too much variance", i, UTI_IPToDottedQuad(sources[i]->ref_id));
 #endif
         }
       }
@@ -614,7 +633,7 @@ SRC_SelectSource(unsigned long match_addr)
         }
 
 #if 0
-        LOG(LOGS_INFO, LOGF_Sources, "min_stratum=%d\n", min_stratum);
+        LOG(LOGS_INFO, LOGF_Sources, "min_stratum=%d", min_stratum);
 #endif
 
         /* Does the current source have this stratum and is it still a
@@ -638,17 +657,17 @@ SRC_SelectSource(unsigned long match_addr)
           }
 
           selected_source_index = min_distance_index;
-          LOG(LOGS_INFO, LOGF_Sources, "Selected source %s\n",
+          LOG(LOGS_INFO, LOGF_Sources, "Selected source %s",
               UTI_IPToDottedQuad(sources[selected_source_index]->ref_id));
                                  
 
 #if 0
-          LOG(LOGS_INFO, LOGF_Sources, "new_sel_index=%d\n", min_distance_index);
+          LOG(LOGS_INFO, LOGF_Sources, "new_sel_index=%d", min_distance_index);
 #endif
         } else {
           /* We retain the existing sync source, see p40 of RFC1305b.ps */
 #if 0
-          LOG(LOGS_INFO, LOGF_Sources, "existing reference retained\n", min_distance_index);
+          LOG(LOGS_INFO, LOGF_Sources, "existing reference retained", min_distance_index);
 #endif
           
         }
@@ -682,6 +701,9 @@ SRC_SelectSource(unsigned long match_addr)
         }
 
       } else {
+        if (selected_source_index != INVALID_SOURCE) {
+          LOG(LOGS_INFO, LOGF_Sources, "Can't synchronise: no selectable sources");
+        }
         selected_source_index = INVALID_SOURCE;
         REF_SetUnsynchronised();
 
@@ -692,10 +714,12 @@ SRC_SelectSource(unsigned long match_addr)
 
   } else {
     /* No sources provided valid endpoints */
+    if (selected_source_index != INVALID_SOURCE) {
+      LOG(LOGS_INFO, LOGF_Sources, "Can't synchronise: no reachable sources");
+    }
     selected_source_index = INVALID_SOURCE;
     REF_SetUnsynchronised();
   }
-
 
 }
 
@@ -746,12 +770,16 @@ void
 SRC_DumpSources(void)
 {
   FILE *out;
-  char filename[1024];
+  int direc_len, file_len;
+  char *filename;
   unsigned int a, b, c, d;
   int i;
   char *direc;
 
   direc = CNF_GetDumpDir();
+  direc_len = strlen(direc);
+  file_len = direc_len + 24;
+  filename = MallocArray(char, file_len); /* a bit of slack */
   if (mkdir_and_parents(direc)) {
     for (i=0; i<n_sources; i++) {
       a = (sources[i]->ref_id) >> 24;
@@ -759,20 +787,20 @@ SRC_DumpSources(void)
       c = ((sources[i]->ref_id) >> 8) & 0xff;
       d = ((sources[i]->ref_id)) & 0xff;
       
-      snprintf(filename, 1024, "%s/%d.%d.%d.%d.dat", direc, a, b, c, d); /* was sprintf JGH 19 Nov 2000 */
+      snprintf(filename, file_len-1, "%s/%d.%d.%d.%d.dat", direc, a, b, c, d);
       out = fopen(filename, "w");
       if (!out) {
-        LOG(LOGS_WARN, LOGF_Sources, "Could not open dump file %s\n", filename);
+        LOG(LOGS_WARN, LOGF_Sources, "Could not open dump file %s", filename);
       } else {
         SST_SaveToFile(sources[i]->stats, out);
         fclose(out);
       }
     }
   } else {
-    LOG(LOGS_ERR, LOGF_Sources, "Could not create directory %s\n", direc);
+    LOG(LOGS_ERR, LOGF_Sources, "Could not create directory %s", direc);
   }
+  Free(filename);
 }
-
 
 /* ================================================== */
 
@@ -780,9 +808,11 @@ void
 SRC_ReloadSources(void)
 {
   FILE *in;
-  char filename[1024];
+  char *filename;
   unsigned int a, b, c, d;
   int i;
+  char *dumpdir;
+  int dumpdirlen, filelen;
 
   for (i=0; i<n_sources; i++) {
     a = (sources[i]->ref_id) >> 24;
@@ -790,22 +820,26 @@ SRC_ReloadSources(void)
     c = ((sources[i]->ref_id) >> 8) & 0xff;
     d = ((sources[i]->ref_id)) & 0xff;
 
-    snprintf(filename, 1024, "%s/%d.%d.%d.%d.dat", CNF_GetDumpDir(), a, b, c, d); /* was sprintf JGH 19 Nov 2000 */
+    dumpdir = CNF_GetDumpDir();
+    dumpdirlen = strlen(dumpdir);
+    filelen = dumpdirlen + 24;
+    filename = MallocArray(char, filelen);
+    snprintf(filename, filelen-1, "%s/%d.%d.%d.%d.dat", dumpdir, a, b, c, d);
     in = fopen(filename, "r");
     if (!in) {
-      LOG(LOGS_WARN, LOGF_Sources, "Could not open dump file %s\n", filename);
+      LOG(LOGS_WARN, LOGF_Sources, "Could not open dump file %s", filename);
     } else {
       if (SST_LoadFromFile(sources[i]->stats, in)) {
         /* We might want to use SST_DoUpdateRegression here, but we
            need to check it has the same functionality */
         SST_DoNewRegression(sources[i]->stats);
       } else {
-        LOG(LOGS_WARN, LOGF_Sources, "Problem loading from file %s\n", filename);
+        LOG(LOGS_WARN, LOGF_Sources, "Problem loading from file %s", filename);
       }
       fclose(in);
     }
+    Free(filename);
   }
-
 }
 
 /* ================================================== */

@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/client.c,v 1.51 2000/06/17 21:51:10 richard Exp $
+  $Header: /cvs/src/chrony/client.c,v 1.68 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -26,6 +39,11 @@
 #include "cmdparse.h"
 #include "pktlength.h"
 #include "memory.h"
+
+#ifdef FEAT_READLINE
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif
 
 /* ================================================== */
 
@@ -52,13 +70,14 @@ time_to_log_form(time_t t)
 {
   struct tm stm;
   static char buffer[64];
-  static char *months[] = {"Jan", "Feb", "Mar", "Apr",
-                           "May", "Jun", "Jul", "Aug",
-                           "Sep", "Oct", "Nov", "Dec"};
+  static const char *months[] = {"Jan", "Feb", "Mar", "Apr",
+                                 "May", "Jun", "Jul", "Aug",
+                                 "Sep", "Oct", "Nov", "Dec"};
 
 
   stm = *gmtime(&t);
-  snprintf(buffer, 64, "%2d%s%02d %02d:%02d:%02d", /* Was sprintf JGH 19 Nov 2000 */
+  snprintf(buffer, sizeof(buffer),
+          "%2d%s%02d %02d:%02d:%02d",
           stm.tm_mday, months[stm.tm_mon], stm.tm_year % 100,
           stm.tm_hour, stm.tm_min, stm.tm_sec);
 
@@ -76,7 +95,7 @@ UTI_IPToDottedQuad(unsigned long ip)
   b = (ip>>16) & 0xff;
   c = (ip>> 8) & 0xff;
   d = (ip>> 0) & 0xff;
-  snprintf(result, 64, "%ld.%ld.%ld.%ld", a, b, c, d); /* Was sprintf JGH 19 Nov 2000 */
+  snprintf(result, sizeof(result), "%ld.%ld.%ld.%ld", a, b, c, d);
   return result;
 }
 
@@ -88,8 +107,31 @@ static char *
 read_line(void)
 {
   static char line[2048];
+  static const char *prompt = "chronyc> ";
+
   if (on_terminal) {
-    printf("chronyc> ");
+#ifdef FEAT_READLINE
+    char *cmd;
+
+    /* save line only if not empty */
+    cmd = readline(prompt);
+    if( cmd == NULL ) return( NULL );
+    
+    /* user pressed return */
+    if( *cmd != '\0' ) {
+      strncpy(line, cmd, sizeof(line) - 1);
+      line[sizeof(line) - 1] = '\0';
+      add_history(cmd);
+      /* free the buffer allocated by readline */
+      free(cmd);
+    } else {
+      /* simulate the user has entered an empty line */
+      *line = '\0';
+    }
+    return( line );
+#else
+    printf(prompt);
+#endif
   }
   if (fgets(line, sizeof(line), stdin)) {
     return line;
@@ -102,7 +144,7 @@ read_line(void)
 /* ================================================== */
 
 static unsigned long
-get_address(char *hostname)
+get_address(const char *hostname)
 {
   unsigned char *address0;
   struct hostent *host;
@@ -129,7 +171,7 @@ get_address(char *hostname)
 /* Initialise the socket used to talk to the daemon */
 
 static void
-open_io(char *hostname, int port)
+open_io(const char *hostname, int port)
 {
   struct sockaddr_in my_addr;
 
@@ -178,7 +220,7 @@ read_mask_address(char *line, unsigned long *mask, unsigned long *address)
   char *p;
 
   p = line;
-  while (*p && isspace(*p)) p++;
+  while (*p && isspace((unsigned char)*p)) p++;
   if (!*p) {
     *mask = *address = 0;
     ok = 1;
@@ -251,7 +293,7 @@ read_address_integer(char *line, unsigned long *address, int *value)
   char hostname[2048];
   int ok = 0;
 
-  if (sscanf(line, "%s %d", hostname, value) != 2) {
+  if (sscanf(line, "%2047s %d", hostname, value) != 2) {
     fprintf(stderr, "Invalid syntax for address value\n");
     ok = 0;
   } else {
@@ -277,7 +319,7 @@ read_address_double(char *line, unsigned long *address, double *value)
   char hostname[2048];
   int ok = 0;
 
-  if (sscanf(line, "%s %lf", hostname, value) != 2) {
+  if (sscanf(line, "%2047s %lf", hostname, value) != 2) {
     fprintf(stderr, "Invalid syntax for address value\n");
     ok = 0;
   } else {
@@ -481,7 +523,7 @@ process_cmd_local(CMD_Request *msg, const char *line)
   int stratum;
 
   p = line;
-  while (*p && isspace(*p)) p++;
+  while (*p && isspace((unsigned char)*p)) p++;
   
   if (!*p) {
     return 0;
@@ -507,7 +549,7 @@ process_cmd_manual(CMD_Request *msg, const char *line)
   const char *p;
 
   p = line;
-  while (*p && isspace(*p)) p++;
+  while (*p && isspace((unsigned char)*p)) p++;
 
   if (!*p) {
     return 0;
@@ -540,12 +582,16 @@ parse_allow_deny(CMD_Request *msg, char *line)
   char *p, *q;
   
   p = line;
-  while (*p && isspace(*p)) p++;
+  while (*p && isspace((unsigned char)*p)) p++;
   if (!*p) {
     /* blank line - applies to all addresses */
     msg->data.allow_deny.ip = htonl(0);
     msg->data.allow_deny.subnet_bits = htonl(0);
   } else {
+    char *slashpos;
+    slashpos = strchr(p, '/');
+    if (slashpos) *slashpos = 0;
+    
     n = sscanf(p, "%lu.%lu.%lu.%lu", &a, &b, &c, &d);
 
     if (n == 0) {
@@ -591,6 +637,16 @@ parse_allow_deny(CMD_Request *msg, char *line)
           assert(0);
           
       }
+
+      if (slashpos) {
+        int specified_subnet_bits, n;
+        n = sscanf(slashpos+1, "%d", &specified_subnet_bits);
+        if (n == 1) {
+          msg->data.allow_deny.subnet_bits = htonl(specified_subnet_bits);
+        } else {
+          fprintf(stderr, "Warning: badly formatted subnet size, using %ld\n", (long) ntohl(msg->data.allow_deny.subnet_bits));
+        }
+      } 
     }
   }
   return 1;
@@ -819,6 +875,7 @@ process_cmd_add_server_or_peer(CMD_Request *msg, char *line)
       msg->data.ntp_source.maxpoll = htonl(data.params.maxpoll);
       msg->data.ntp_source.presend_minpoll = htonl(data.params.presend_minpoll);
       msg->data.ntp_source.online = htonl(data.params.online);
+      msg->data.ntp_source.auto_offline = htonl(data.params.auto_offline);
       msg->data.ntp_source.authkey = htonl(data.params.authkey);
       msg->data.ntp_source.max_delay = REAL2WIRE(data.params.max_delay);
       msg->data.ntp_source.max_delay_ratio = REAL2WIRE(data.params.max_delay_ratio);
@@ -886,7 +943,7 @@ process_cmd_delete(CMD_Request *msg, char *line)
 
   msg->command = htons(REQ_DEL_SOURCE);
 
-  if (sscanf(line, "%s", hostname) != 1) {
+  if (sscanf(line, "%2047s", hostname) != 1) {
     fprintf(stderr, "Invalid syntax for address\n");
     ok = 0;
   } else {
@@ -920,12 +977,12 @@ process_cmd_password(CMD_Request *msg, char *line)
   struct timezone tz;
 
   p = line;
-  while (*p && isspace(*p))
+  while (*p && isspace((unsigned char)*p))
     p++;
 
   /* Get rid of trailing newline */
   for (q=p; *q; q++) {
-    if (isspace(*q)) *q = 0;
+    if (isspace((unsigned char)*q)) *q = 0;
   }
 
   if (*p) {
@@ -1009,6 +1066,7 @@ give_help(void)
 {
   printf("205 - Help follows\n");
   printf("accheck <address> : Check whether NTP access is allowed to <address>\n");
+  printf("activity : Check how many NTP sources are online/offline\n");
   printf("allow [<subnet-addr>] : Allow NTP access to that subnet as a default\n");
   printf("allow all [<subnet-addr>] : Allow NTP access to that subnet and all children\n");
   printf("burst <n-good>/<n-max> [<mask>/<masked-address>] : Start a rapid set of measurements\n");
@@ -1039,9 +1097,9 @@ give_help(void)
   printf("password [<new-password>] : Set command authentication password\n");
   printf("quit : Leave the program\n");
   printf("rtcdata : Print current RTC performance parameters\n");
-  printf("settime <date/time in getdate format> : Manually set the daemon time\n");
-  printf("sources : Display information about current sources\n");
-  printf("sourcestats : Display estimation information about current sources\n");
+  printf("settime <date/time (e.g. Nov 21, 1997 16:30:05 or 16:30:05)> : Manually set the daemon time\n");
+  printf("sources [-v] : Display information about current sources\n");
+  printf("sourcestats [-v] : Display estimation information about current sources\n");
   printf("tracking : Display system time information\n");
   printf("trimrtc : Correct RTC relative to system clock\n");
   printf("writertc : Save RTC parameters to file\n");
@@ -1301,6 +1359,20 @@ print_signed_microseconds(long us)
 
 /* ================================================== */
 
+static int
+check_for_verbose_flag(char *line)
+{
+  char *p = line;
+  while (*p && isspace((unsigned char)*p)) p++;
+  if (!strncmp(p, "-v", 2)) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+/* ================================================== */
+
 static void
 process_cmd_sources(char *line)
 {
@@ -1309,6 +1381,7 @@ process_cmd_sources(char *line)
   CMD_Request request;
   CMD_Reply reply;
   int n_sources, i;
+  int verbose = 0;
 
   long orig_latest_meas, latest_meas, est_offset;
   unsigned long ip_addr;
@@ -1321,6 +1394,9 @@ process_cmd_sources(char *line)
   char hostname_buf[32];
   unsigned short status;
 
+  /* Check whether to output verbose headers */
+  verbose = check_for_verbose_flag(line);
+  
   request.command = htons(REQ_N_SOURCES);
   submit_ok = submit_request(&request, &reply, &auth_ok);
 
@@ -1341,8 +1417,23 @@ process_cmd_sources(char *line)
 
     n_sources = ntohl(reply.data.n_sources.n_sources);
     printf("210 Number of sources = %d\n", n_sources);
-    printf("MS Name/IP address           Str  Poll LastRx        Last sample\n");
-    printf("========================================================================\n");
+    if (verbose) {
+      printf("\n");
+      printf("  .-- Source mode  '^' = server, '=' = peer, '#' = local clock.\n");
+      printf(" / .- Source state '*' = current synced, '+' = OK for sync, '?' = unreachable,\n");
+      printf("| /                'x' = time may be in error, '~' = time is too variable.\n");
+      printf("||                                                 .- xxxx [ yyyy ] +/- zzzz\n");
+      printf("||                                                /   xxxx = adjusted offset,\n");
+      printf("||         Log2(Polling interval) -.             |    yyyy = measured offset,\n");
+      printf("||                                  \\            |    zzzz = estimated error.\n");
+      printf("||                                   |           |                         \n");
+    }
+
+    printf("MS Name/IP address           Stratum Poll LastRx Last sample\n");
+    printf("============================================================================\n");
+
+    /*     "MS NNNNNNNNNNNNNNNNNNNNNNNNN    SS    PP   RRRR  SSSSSSS[SSSSSSS] +/- SSSSSS" */
+
     for (i=0; i<n_sources; i++) {
       request.command = htons(REQ_SOURCE_DATA);
       request.data.source_data.index = htonl(i);
@@ -1366,7 +1457,7 @@ process_cmd_sources(char *line)
 
           hostname_buf[25] = 0;
           if (no_dns) {
-            snprintf(hostname_buf, 32, "%s", UTI_IPToDottedQuad(ip_addr)); /* Was sprintf JGH 19 Nov 2000 */
+            snprintf(hostname_buf, sizeof(hostname_buf), "%s", UTI_IPToDottedQuad(ip_addr));
           } else {
             dns_lookup = DNS_IPAddress2Name(ip_addr);
             strncpy(hostname_buf, dns_lookup, 25);
@@ -1393,7 +1484,7 @@ process_cmd_sources(char *line)
               printf("+"); break;
           }
 
-          printf(" %-25s  %2d   %2d  ", hostname_buf, stratum, poll);
+          printf(" %-25s    %2d   %2d   ", hostname_buf, stratum, poll);
           print_seconds(latest_meas_ago);
           printf("  ");
           print_signed_microseconds(latest_meas);
@@ -1422,14 +1513,17 @@ process_cmd_sourcestats(char *line)
   CMD_Request request;
   CMD_Reply reply;
   int n_sources, i;
+  int verbose = 0;
 
   const char *dns_lookup;
-  char hostname_buf[16];
+  char hostname_buf[32];
   unsigned long n_samples, n_runs, span_seconds;
   double resid_freq_ppm, skew_ppm;
   unsigned long sd_us;
   unsigned long ip_addr;
   unsigned short status;
+
+  verbose = check_for_verbose_flag(line);
 
   request.command = htons(REQ_N_SOURCES);
   submit_ok = submit_request(&request, &reply, &auth_ok);
@@ -1451,8 +1545,21 @@ process_cmd_sourcestats(char *line)
 
     n_sources = ntohl(reply.data.n_sources.n_sources);
     printf("210 Number of sources = %d\n", n_sources);
-    printf("Name/IP          NP   NR  Span       Freq      Skew      S.D./us\n");
-    printf("================================================================\n");
+    if (verbose) {
+      printf("                             .- Number of sample points in measurement set.\n");
+      printf("                            /    .- Number of residual runs with same sign.\n");
+      printf("                           |    /    .- Length of measurement set (time).\n");
+      printf("                           |   |    /      .- Est. clock freq error (ppm).\n");
+      printf("                           |   |   |      /            .- Est error in freq.\n");
+      printf("                           |   |   |     |            /            .- On the\n");
+      printf("                           |   |   |     |           |            /   samples.\n");
+      printf("                           |   |   |     |           |           |\n");
+    }
+
+    printf("Name/IP Address            NP  NR  Span  Frequency   Freq Skew   Std Dev\n");
+    printf("========================================================================\n");
+
+    /*      NNNNNNNNNNNNNNNNNNNNNNNNN  NP  NR  SSSS  FFFFFFFFFF  SSSSSSSSSS  SSSSSSS */
 
     for (i=0; i<n_sources; i++) {
       request.command = htons(REQ_SOURCESTATS);
@@ -1470,18 +1577,19 @@ process_cmd_sourcestats(char *line)
           skew_ppm = WIRE2REAL(reply.data.sourcestats.skew_ppm);
           sd_us = ntohl(reply.data.sourcestats.sd_us);
 
-          hostname_buf[15] = 0;
+          hostname_buf[25] = 0;
           if (no_dns) {
-            snprintf(hostname_buf, 32, "%s", UTI_IPToDottedQuad(ip_addr)); /* Was sprintf JGH 19 Nov 2000 */
+            snprintf(hostname_buf, sizeof(hostname_buf), "%s", UTI_IPToDottedQuad(ip_addr));
           } else {
             dns_lookup = DNS_IPAddress2Name(ip_addr);
-            strncpy(hostname_buf, dns_lookup, 15);
+            strncpy(hostname_buf, dns_lookup, 25);
           }
 
-          printf("%-15s  %2lu   %2lu  ", hostname_buf, n_samples, n_runs);
+          printf("%-25s  %2lu  %2lu  ", hostname_buf, n_samples, n_runs);
           print_seconds(span_seconds);
-          printf("  ");
-          printf("%10.3f  %10.3f  %8lu\n", resid_freq_ppm, skew_ppm, sd_us);
+          printf("  %10.3f  %10.3f  ", resid_freq_ppm, skew_ppm);
+          print_microseconds(sd_us);
+          printf("\n");
         }
       }
     }
@@ -1811,7 +1919,8 @@ process_cmd_clients(char *line)
               last_cmd_hit_ago = ntohl(reply.data.client_accesses.clients[j].last_cmd_hit_ago);
 
               if (no_dns) {
-                snprintf(hostname_buf, 32, "%s", UTI_IPToDottedQuad(ip)); /* Was sprintf JGH 19 Nov 2000 */
+                snprintf(hostname_buf, sizeof(hostname_buf), 
+                         "%s", UTI_IPToDottedQuad(ip));
               } else {
                 dns_lookup = DNS_IPAddress2Name(ip);
                 hostname_buf[25] = 0;
@@ -1935,7 +2044,8 @@ process_cmd_clients(char *line)
               last_cmd_hit_ago = ntohl(reply.data.client_accesses_by_index.clients[j].last_cmd_hit_ago);
 
               if (no_dns) {
-                snprintf(hostname_buf, 32, "%s", UTI_IPToDottedQuad(ip)); /* Was sprintf JGH 19 Nov 2000 */
+                snprintf(hostname_buf, sizeof(hostname_buf),
+                         "%s", UTI_IPToDottedQuad(ip));
               } else {
                 dns_lookup = DNS_IPAddress2Name(ip);
                 hostname_buf[25] = 0;
@@ -2156,6 +2266,42 @@ process_cmd_makestep(CMD_Request *msg, char *line)
 
 /* ================================================== */
 
+static void
+process_cmd_activity(const char *line)
+{
+  CMD_Request request;
+  CMD_Reply reply;
+  int submit_ok, status, reply_auth_ok;
+  request.command = htons(REQ_ACTIVITY);
+  submit_ok = submit_request(&request, &reply, &reply_auth_ok);
+  if (submit_ok) {
+    status = ntohs(reply.status);
+    switch (status) {
+      case STT_SUCCESS:
+        printf("200 OK\n"
+               "%ld sources online\n"
+               "%ld sources offline\n"
+               "%ld sources doing burst (return to online)\n"
+               "%ld sources doing burst (return to offline)\n",
+                (long) ntohl(reply.data.activity.online),
+                (long) ntohl(reply.data.activity.offline),
+                (long) ntohl(reply.data.activity.burst_online),
+                (long) ntohl(reply.data.activity.burst_offline));
+        break;
+      default:
+        printf("Unexpected error returned\n");
+        break;
+    }
+    if (!reply_auth_ok) {
+      printf(" --- Reply not authenticated\n");
+    }
+  } else {
+    printf("506 Could not submit activity command\n");
+  }
+}
+
+/* ================================================== */
+
 static int
 process_line(char *line)
 {
@@ -2172,7 +2318,7 @@ process_line(char *line)
 
   /* Check for line being blank */
   p = line;
-  while (*p && isspace(*p)) p++;
+  while (*p && isspace((unsigned char)*p)) p++;
   if (!*p) return quit;
 
   if (!strncmp(p, "offline", 7)) {
@@ -2204,10 +2350,10 @@ process_line(char *line)
     do_normal_submit = process_cmd_manual(&tx_message, p+6);
   } else if (!strncmp(p, "sourcestats", 11)) {
     do_normal_submit = 0;
-    process_cmd_sourcestats(p);
+    process_cmd_sourcestats(p+11);
   } else if (!strncmp(p, "sources", 7)) {
     do_normal_submit = 0;
-    process_cmd_sources(p);
+    process_cmd_sources(p+7);
   } else if (!strncmp(p, "rekey", 5)) {
     process_cmd_rekey(&tx_message, p+5);
   } else if (!strncmp(p, "allow all", 9)) {
@@ -2257,6 +2403,9 @@ process_line(char *line)
     do_normal_submit = 0;
   } else if (!strncmp(p, "makestep", 8)) {
     process_cmd_makestep(&tx_message, p+8);
+  } else if (!strncmp(p, "activity", 8)) {
+    process_cmd_activity(p+8);
+    do_normal_submit = 0;
   } else if (!strncmp(p, "help", 4)) {
     do_normal_submit = 0;
     give_help();
@@ -2364,13 +2513,26 @@ process_args(int argc, char **argv)
 
 /* ================================================== */
 
+static void
+display_gpl(void)
+{
+    printf("chrony version %s, copyright (C) 1997-2002 Richard P. Curnow\n"
+           "chrony comes with ABSOLUTELY NO WARRANTY.\n"
+           "This is free software, and you are welcome to redistribute it\n"
+           "under certain conditions.\n"
+           "See the GNU General Public License version 2 for details.\n\n",
+           PROGRAM_VERSION_STRING);
+}
+
+/* ================================================== */
+
 int
 main(int argc, char **argv)
 {
   char *line;
-  char *progname = argv[0];
-  char *hostname = "localhost";
-  int quit;
+  const char *progname = argv[0];
+  const char *hostname = "localhost";
+  int quit = 0;
   int port = DEFAULT_CANDM_PORT;
 
   /* Parse command line options */
@@ -2402,6 +2564,10 @@ main(int argc, char **argv)
     on_terminal = 1;
   }
 
+  if (on_terminal && (argc == 0)) {
+    display_gpl();
+  }
+  
   open_io(hostname, port);
 
   if (argc > 0) {
@@ -2411,6 +2577,9 @@ main(int argc, char **argv)
       line = read_line();
       if (line) {
         quit = process_line(line);
+      }else {
+	/* supply the final '\n' when user exits via ^D */
+        if( on_terminal ) printf("\n");
       }
     } while (line && !quit);
   }

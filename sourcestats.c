@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/sourcestats.c,v 1.33 1999/08/17 21:30:46 richard Exp $
+  $Header: /cvs/src/chrony/sourcestats.c,v 1.40 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -145,7 +158,7 @@ SST_Initialise(void)
   if (CNF_GetLogStatistics()) {
     direc = CNF_GetLogDir();
     if (!mkdir_and_parents(direc)) {
-      LOG(LOGS_ERR, LOGF_SourceStats, "Could not create directory %s\n", direc);
+      LOG(LOGS_ERR, LOGF_SourceStats, "Could not create directory %s", direc);
       logfile = NULL;
     } else {
       logfilename = MallocArray(char, 2 + strlen(direc) + strlen(STATISTICS_LOG));
@@ -154,7 +167,7 @@ SST_Initialise(void)
       strcat(logfilename, STATISTICS_LOG);
       logfile = fopen(logfilename, "a");
       if (!logfile) {
-        LOG(LOGS_WARN, LOGF_SourceStats, "Couldn't open logfile %s for update\n", logfilename);
+        LOG(LOGS_WARN, LOGF_SourceStats, "Couldn't open logfile %s for update", logfilename);
       }
     }
   }
@@ -317,12 +330,12 @@ find_best_sample_index(SST_Stats inst, double *times_back)
   best_root_distance = inst->root_dispersions[n] + 0.5 * fabs(inst->root_delays[n]);
   best_index = n;
 #if 0
-  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d brd=%f\n", n, best_root_distance);
+  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d brd=%f", n, best_root_distance);
 #endif
   for (i=0; i<n; i++) {
     elapsed = -times_back[i];
 #if 0
-    LOG(LOGS_INFO, LOGF_SourceStats, "n=%d i=%d latest=[%s] doing=[%s] elapsed=%f\n", n, i, 
+    LOG(LOGS_INFO, LOGF_SourceStats, "n=%d i=%d latest=[%s] doing=[%s] elapsed=%f", n, i, 
         UTI_TimevalToString(&(inst->sample_times[n])),
         UTI_TimevalToString(&(inst->sample_times[i])),
         elapsed);
@@ -330,7 +343,13 @@ find_best_sample_index(SST_Stats inst, double *times_back)
 
     /* Because the loop does not consider the most recent sample, this assertion must hold */
     if (elapsed <= 0.0) {
-      CROAK("elapsed should be > 0.0");
+      LOG(LOGS_ERR, LOGF_SourceStats, "Elapsed<0! n=%d i=%d latest=[%s] doing=[%s] elapsed=%f",
+          n, i, 
+          UTI_TimevalToString(&(inst->sample_times[n])),
+          UTI_TimevalToString(&(inst->sample_times[i])),
+          elapsed);
+
+      elapsed = fabs(elapsed);
     }
 
     root_distance = inst->root_dispersions[i] + elapsed * inst->skew + 0.5 * fabs(inst->root_delays[i]);
@@ -343,7 +362,7 @@ find_best_sample_index(SST_Stats inst, double *times_back)
   inst->best_single_sample = best_index;
 
 #if 0
-  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d best_index=%d\n", n, best_index);
+  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d best_index=%d", n, best_index);
 #endif
 
   return;
@@ -411,7 +430,7 @@ SST_DoNewRegression(SST_Stats inst)
 
   /* This is a legacy of when the regression routine found outliers
      for us.  We don't use it anymore. */
-  bzero((void *) bad_points, MAX_SAMPLES * sizeof(int));
+  memset((void *) bad_points, 0, MAX_SAMPLES * sizeof(int));
 
   if (regression_ok) {
 
@@ -444,9 +463,9 @@ SST_DoNewRegression(SST_Stats inst)
 
       if (((logwrites++) % 32) == 0) {
         fprintf(logfile,
-                "===========================================================================================================\n"
-                " Date (UTC) Time    IP Address    Std dev'n Est offset  Offset sd  Diff freq   Est skew  Stress  Ns  Bs  Nr\n"
-                "===========================================================================================================\n");
+                "==============================================================================================================\n"
+                "   Date (UTC) Time     IP Address    Std dev'n Est offset  Offset sd  Diff freq   Est skew  Stress  Ns  Bs  Nr\n"
+                "==============================================================================================================\n");
       }
       
             
@@ -469,7 +488,7 @@ SST_DoNewRegression(SST_Stats inst)
 
   } else {
 #if 0
-    LOG(LOGS_INFO, LOGF_SourceStats, "too few points (%d) for regression\n", inst->n_samples);
+    LOG(LOGS_INFO, LOGF_SourceStats, "too few points (%d) for regression", inst->n_samples);
 #endif
     inst->estimated_frequency = 0.0;
     inst->skew = WORST_CASE_FREQ_BOUND;
@@ -539,8 +558,8 @@ SST_GetReferenceData(SST_Stats inst, struct timeval *now,
   *offset = inst->offsets[n] + elapsed * inst->estimated_frequency;
   *stratum = inst->strata[n];
 
-#if 0
-  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d freq=%f skew=%f del=%f disp=%f ofs=%f str=%d\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d freq=%f skew=%f del=%f disp=%f ofs=%f str=%d",
       n, *frequency, *skew, *root_delay, *root_dispersion, *offset, *stratum);
 #endif
 
@@ -599,8 +618,8 @@ SST_GetSelectionData(SST_Stats inst, struct timeval *now,
     *average_ok = 0;
   }
 
-#if 0
-  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d off=%f del=%f dis=%f var=%f pdist=%f avoff=%f avok=%d\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d off=%f del=%f dis=%f var=%f pdist=%f avoff=%f avok=%d",
       n, *best_offset, *best_root_delay, *best_root_dispersion, *variance,
       peer_distance, average_offset, *average_ok);
 #endif
@@ -633,8 +652,8 @@ SST_GetTrackingData(SST_Stats inst, struct timeval *now,
   UTI_DiffTimevalsToDouble(&elapsed_sample, now, &(inst->sample_times[n]));
   *accrued_dispersion = inst->skew * elapsed_sample;
 
-#if 0
-  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d freq=%f (%.3fppm) skew=%f (%.3fppm) pdist=%f avoff=%f offsd=%f accrdis=%f\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_SourceStats, "n=%d freq=%f (%.3fppm) skew=%f (%.3fppm) pdist=%f avoff=%f offsd=%f accrdis=%f",
       n, *frequency, 1.0e6* *frequency, *skew, 1.0e6* *skew, peer_distance, *average_offset, *offset_sd, *accrued_dispersion);
 #endif
 
@@ -665,8 +684,8 @@ SST_SlewSamples(SST_Stats inst, struct timeval *when, double dfreq, double doffs
     UTI_AddDoubleToTimeval(sample, delta_time, sample);
     prev_offset = inst->offsets[i];
     inst->offsets[i] += delta_time;
-#if 0
-    LOG(LOGS_INFO, LOGF_SourceStats, "i=%d old_st=[%s] new_st=[%s] old_off=%f new_off=%f\n",
+#ifdef TRACEON
+    LOG(LOGS_INFO, LOGF_SourceStats, "i=%d old_st=[%s] new_st=[%s] old_off=%f new_off=%f",
         i, UTI_TimevalToString(&prev), UTI_TimevalToString(sample),
         prev_offset, inst->offsets[i]);
 #endif
@@ -682,8 +701,8 @@ SST_SlewSamples(SST_Stats inst, struct timeval *when, double dfreq, double doffs
   inst->estimated_offset += delta_time;
   inst->estimated_frequency -= dfreq;
 
-#if 0
-  LOG(LOGS_INFO, LOGF_SourceStats, "old_off_time=[%s] new=[%s] old_off=%f new_off=%f old_freq=%.3fppm new_freq=%.3fppm\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_SourceStats, "old_off_time=[%s] new=[%s] old_off=%f new_off=%f old_freq=%.3fppm new_freq=%.3fppm",
       UTI_TimevalToString(&prev), UTI_TimevalToString(&(inst->offset_time)),
       prev_offset, inst->estimated_offset,
       1.0e6*prev_freq, 1.0e6*inst->estimated_frequency);
@@ -791,7 +810,7 @@ SST_LoadFromFile(SST_Stats inst, FILE *in)
 
         /* This is the branch taken if the read FAILED */
 
-        LOG(LOGS_WARN, LOGF_SourceStats, "Failed to read data from line %d of dump file\n", line_number);
+        LOG(LOGS_WARN, LOGF_SourceStats, "Failed to read data from line %d of dump file", line_number);
         inst->n_samples = 0; /* Load abandoned if any sign of corruption */
         return 0;
       } else {
@@ -804,7 +823,7 @@ SST_LoadFromFile(SST_Stats inst, FILE *in)
       }
     }
   } else {
-    LOG(LOGS_WARN, LOGF_SourceStats, "Could not read number of samples from dump file\n");
+    LOG(LOGS_WARN, LOGF_SourceStats, "Could not read number of samples from dump file");
     inst->n_samples = 0; /* Load abandoned if any sign of corruption */
     return 0;
   }
@@ -903,7 +922,7 @@ SST_CycleLogFile(void)
     fclose(logfile);
     logfile = fopen(logfilename, "a");
     if (!logfile) {
-      LOG(LOGS_WARN, LOGF_SourceStats, "Could not reopen logfile %s\n", logfilename);
+      LOG(LOGS_WARN, LOGF_SourceStats, "Could not reopen logfile %s", logfilename);
     }
     logwrites = 0;
   }

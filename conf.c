@@ -1,18 +1,41 @@
 /*
-  $Header: /cvs/src/chrony/conf.c,v 1.30 1999/04/29 20:29:28 richard Exp $
+  $Header: /cvs/src/chrony/conf.c,v 1.45 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
   Module that reads and processes the configuration file.
+
+1999-12-19  Kalle Olavi Niemitalo  <tosi@stekt.oulu.fi>
+
+	* conf.c: Added a new configuration setting "acquisitionport" and
+	a function CNF_GetAcquisitionPort to read its value.
+	(acquisition_port): New variable.
+	(parse_port): Delegate most work to new function parse_some_port.
+	(parse_acquisitionport): New function.
+	(commands): Added "acquisitionport".
+	(CNF_GetAcquisitionPort): New function.
 
   */
 
@@ -28,10 +51,11 @@
 #include "memory.h"
 #include "acquire.h"
 #include "cmdparse.h"
+#include "broadcast.h"
 
 /* ================================================== */
 
-#define DEFAULT_CONF_FILE "/etc/chrony/chrony.conf" /* Was /etc/chrony.conf JGH 20 Nov 2000 */
+#define DEFAULT_CONF_FILE "/etc/chrony/chrony.conf"
 
 /* ================================================== */
 /* Forward prototypes */
@@ -46,6 +70,7 @@ static void parse_log(const char *);
 static void parse_logdir(const char *);
 static void parse_maxupdateskew(const char *);
 static void parse_peer(const char *);
+static void parse_acquisitionport(const char *);
 static void parse_port(const char *);
 static void parse_server(const char *);
 static void parse_local(const char *);
@@ -61,10 +86,18 @@ static void parse_noclientlog(const char *);
 static void parse_logchange(const char *);
 static void parse_mailonchange(const char *);
 static void parse_bindaddress(const char *);
+static void parse_bindcmdaddress(const char *);
+static void parse_rtcdevice(const char *);
+static void parse_pidfile(const char *);
+static void parse_broadcast(const char *);
+static void parse_linux_hz(const char *);
+static void parse_linux_freq_scale(const char *);
 
 /* ================================================== */
 /* Configuration variables */
 
+static char *rtc_device = "/dev/rtc";
+static int acquisition_port = 0; /* 0 means let kernel choose port */
 static int ntp_port = 123;
 static char *keys_file = NULL;
 static char *drift_file = NULL;
@@ -113,14 +146,32 @@ static double mail_change_threshold = 0.0;
    memory */
 static int no_client_log = 0;
 
-/* IP address (host order) for binding to.  0 means INADDR_ANY will be
-   used */
+/* IP address (host order) for binding the NTP socket to.  0 means INADDR_ANY
+   will be used */
 static unsigned long bind_address = 0UL;
+
+/* IP address (host order) for binding the command socket to.  0 means
+   use the value of bind_address */
+static unsigned long bind_cmd_address = 0UL;
+
+/* Filename to use for storing pid of running chronyd, to prevent multiple
+ * chronyds being started. */
+static char *pidfile = "/var/run/chronyd.pid";
+
+/* Boolean for whether the Linux HZ value has been overridden, and the
+ * new value. */
+static int set_linux_hz = 0;
+static int linux_hz;
+
+/* Boolean for whether the Linux frequency scaling value (i.e. the one that's
+ * approx (1<<SHIFT_HZ)/HZ) has been overridden, and the new value. */
+static int set_linux_freq_scale = 0;
+static double linux_freq_scale;
 
 /* ================================================== */
 
 typedef struct {
-  char *keyword;
+  const char *keyword;
   int len;
   void (*handler)(const char *);
 } Command;
@@ -128,6 +179,7 @@ typedef struct {
 static const Command commands[] = {
   {"server", 6, parse_server},
   {"peer", 4, parse_peer},
+  {"acquisitionport", 15, parse_acquisitionport},
   {"port", 4, parse_port},
   {"driftfile", 9, parse_driftfile},
   {"keyfile", 7, parse_keyfile},
@@ -150,7 +202,13 @@ static const Command commands[] = {
   {"noclientlog", 11, parse_noclientlog},
   {"logchange", 9, parse_logchange},
   {"mailonchange", 12, parse_mailonchange},
-  {"bindaddress", 11, parse_bindaddress}
+  {"bindaddress", 11, parse_bindaddress},
+  {"bindcmdaddress", 14, parse_bindcmdaddress},
+  {"rtcdevice", 9, parse_rtcdevice},
+  {"pidfile", 7, parse_pidfile},
+  {"broadcast", 9, parse_broadcast},
+  {"linux_hz", 8, parse_linux_hz},
+  {"linux_freq_scale", 16, parse_linux_freq_scale}
 };
 
 static int n_commands = (sizeof(commands) / sizeof(commands[0]));
@@ -207,7 +265,7 @@ CNF_ReadFile(const char *filename)
 
   in = fopen(filename, "r");
   if (!in) {
-    LOG(LOGS_ERR, LOGF_Configure, "Could not open configuration file [%s]\n", filename);
+    LOG(LOGS_ERR, LOGF_Configure, "Could not open configuration file [%s]", filename);
   } else {
 
     line_number = 0;
@@ -222,7 +280,7 @@ CNF_ReadFile(const char *filename)
 
       /* Discard comment lines, blank lines etc */
       p = line;
-      while(*p && (isspace(*p)))
+      while(*p && (isspace((unsigned char)*p)))
         p++;
 
       if (!*p || (strchr("!;#%", *p) != NULL))
@@ -238,7 +296,7 @@ CNF_ReadFile(const char *filename)
       }      
 
       if (!ok) {
-        LOG(LOGS_WARN, LOGF_Configure, "Line %d in configuration file [%s] contains invalid command\n",
+        LOG(LOGS_WARN, LOGF_Configure, "Line %d in configuration file [%s] contains invalid command",
             line_number, filename);
       }
 
@@ -273,31 +331,31 @@ parse_source(const char *line, NTP_Source_Type type)
 
       break;
     case CPS_BadOption:
-      LOG(LOGS_WARN, LOGF_Configure, "Unrecognized subcommand at line %d\n", line_number);
+      LOG(LOGS_WARN, LOGF_Configure, "Unrecognized subcommand at line %d", line_number);
       break;
     case CPS_BadHost:
-      LOG(LOGS_WARN, LOGF_Configure, "Invalid host/IP address at line %d\n", line_number);
+      LOG(LOGS_WARN, LOGF_Configure, "Invalid host/IP address at line %d", line_number);
       break;
     case CPS_BadPort:
-      LOG(LOGS_WARN, LOGF_Configure, "Unreadable port number at line %d\n", line_number);
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable port number at line %d", line_number);
       break;
     case CPS_BadMinpoll:
-      LOG(LOGS_WARN, LOGF_Configure, "Unreadable minpoll value at line %d\n", line_number);
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable minpoll value at line %d", line_number);
       break;
     case CPS_BadMaxpoll:
-      LOG(LOGS_WARN, LOGF_Configure, "Unreadable maxpoll value at line %d\n", line_number);
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable maxpoll value at line %d", line_number);
       break;
     case CPS_BadPresend:
-      LOG(LOGS_WARN, LOGF_Configure, "Unreadable presend value at line %d\n", line_number);
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable presend value at line %d", line_number);
       break;
     case CPS_BadMaxdelayratio:
-      LOG(LOGS_WARN, LOGF_Configure, "Unreadable max delay ratio value at line %d\n", line_number);
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable max delay ratio value at line %d", line_number);
       break;
     case CPS_BadMaxdelay:
-      LOG(LOGS_WARN, LOGF_Configure, "Unreadable max delay value at line %d\n", line_number);
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable max delay value at line %d", line_number);
       break;
     case CPS_BadKey:
-      LOG(LOGS_WARN, LOGF_Configure, "Unreadable key value at line %d\n", line_number);
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable key value at line %d", line_number);
       break;
   }
 
@@ -324,11 +382,27 @@ parse_peer(const char *line)
 /* ================================================== */
 
 static void
+parse_some_port(const char *line, int *portvar)
+{
+  if (sscanf(line, "%d", portvar) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read port number at line %d in file", line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
+parse_acquisitionport(const char *line)
+{
+  parse_some_port(line, &acquisition_port);
+}
+
+/* ================================================== */
+
+static void
 parse_port(const char *line)
 {
-  if (sscanf(line, "%d", &ntp_port) != 1) {
-    LOG(LOGS_WARN, LOGF_Configure, "Could not read port number at line %d in file\n", line_number);
-  }
+  parse_some_port(line, &ntp_port);
 }
 
 /* ================================================== */
@@ -337,7 +411,7 @@ static void
 parse_maxupdateskew(const char *line)
 {
   if (sscanf(line, "%lf", &max_update_skew) != 1) {
-    LOG(LOGS_WARN, LOGF_Configure, "Could not read max update skew at line %d in file\n", line_number);
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read max update skew at line %d in file", line_number);
   }
 }
 
@@ -360,7 +434,7 @@ strip_trailing_spaces(char *p)
   for (q=p; *q; q++)
     ;
   
-  for (q--; isspace(*q); q--)
+  for (q--; isspace((unsigned char)*q); q--)
     ;
 
   *++q = 0;
@@ -386,6 +460,15 @@ parse_rtcfile(const char *line)
   sscanf(line, "%s", rtc_file);
   strip_trailing_spaces(rtc_file);
 }  
+
+/* ================================================== */
+
+static void
+parse_rtcdevice(const char *line)
+{
+  rtc_device = MallocArray(char, 1 + strlen(line));
+  sscanf(line, "%s", rtc_device);
+}
 
 /* ================================================== */
 
@@ -419,7 +502,7 @@ static void
 parse_log(const char *line)
 {
   do {
-    while (*line && isspace(*line)) line++;
+    while (*line && isspace((unsigned char)*line)) line++;
     if (*line) {
       if (!strncmp(line, "measurements", 12)) {
         do_log_measurements = 1;
@@ -448,7 +531,7 @@ static void
 parse_commandkey(const char *line)
 {
   if (sscanf(line, "%lu", &command_key_id) != 1) {
-    LOG(LOGS_WARN, LOGF_Configure, "Could not read command key ID at line %d\n", line_number);
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read command key ID at line %d", line_number);
   }
 }
 
@@ -472,34 +555,35 @@ static void
 parse_cmdport(const char *line)
 {
   if (sscanf(line, "%d", &cmd_port) != 1) {
-    LOG(LOGS_WARN, LOGF_Configure, "Could not read command port number at line %d\n", line_number);
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read command port number at line %d", line_number);
   }
 }
 
 /* ================================================== */
 
+#define HOSTNAME_LEN 2047
+#define SHOSTNAME_LEN "2047"
+
 static void
 parse_initstepslew(const char *line)
 {
   const char *p;
-  char hostname[2048]; /* Was 256 JGH 18 Nov 2000 */
+  char hostname[HOSTNAME_LEN+1];
   int n;
+  int threshold;
   unsigned long ip_addr;
 
-  do_init_stepslew = 1;
   n_init_srcs = 0;
   p = line;
 
-  if (sscanf(p, "%d%n", &init_slew_threshold, &n) == 1) {
+  if (sscanf(p, "%d%n", &threshold, &n) == 1) {
     p += n;
   } else {
-    LOG(LOGS_WARN, LOGF_Configure, "Could not parse initstepslew threshold at line %d\n", line_number);
-    init_slew_threshold = -1;
+    LOG(LOGS_WARN, LOGF_Configure, "Could not parse initstepslew threshold at line %d", line_number);
     return;
   }
-    
   while (*p) {
-    if (sscanf(p, "%s%n", hostname, &n) == 1) {
+    if (sscanf(p, "%" SHOSTNAME_LEN "s%n", hostname, &n) == 1) {
       ip_addr = DNS_Name2IPAddress(hostname);
       if (ip_addr != DNS_Failed_Address) {
         init_srcs_ip[n_init_srcs] = ip_addr;
@@ -507,17 +591,21 @@ parse_initstepslew(const char *line)
       }
       
       if (n_init_srcs >= MAX_INIT_SRCS) {
-        return;
+        break;
       }
 
     } else {
       /* If we get invalid trailing syntax, forget it ... */
-      return;
+      break;
     }
-
     p += n;
   }
-
+  if (n_init_srcs > 0) {
+    do_init_stepslew = 1;
+    init_slew_threshold = threshold;
+  } else {
+    LOG(LOGS_WARN, LOGF_Configure, "No usable initstepslew servers at line %d\n", line_number);
+  }
 }
 
 /* ================================================== */
@@ -562,11 +650,14 @@ parse_logchange(const char *line)
 
 /* ================================================== */
 
+#define BUFLEN 2047
+#define SBUFLEN "2047"
+
 static void
 parse_mailonchange(const char *line)
 {
-  char buffer[2048]; /* Was 128 JGH 18 Nov 2000 */
-  if (sscanf(line, "%s%lf", buffer, &mail_change_threshold) == 2) {
+  char buffer[BUFLEN+1];
+  if (sscanf(line, "%" SBUFLEN "s%lf", buffer, &mail_change_threshold) == 2) {
     mail_user_on_change = MallocArray(char, strlen(buffer)+1);
     strcpy(mail_user_on_change, buffer);
   } else {
@@ -590,14 +681,14 @@ parse_allow_deny(const char *line, AllowDeny *list, int allow)
 
   p = line;
 
-  while (*p && isspace(*p)) p++;
+  while (*p && isspace((unsigned char)*p)) p++;
 
   if (!strncmp(p, "all", 3)) {
     all = 1;
     p += 3;
   }
 
-  while (*p && isspace(*p)) p++;
+  while (*p && isspace((unsigned char)*p)) p++;
   if (!*p) {
     /* Empty line applies to all addresses */
     new_node = MallocNew(AllowDeny);
@@ -606,6 +697,9 @@ parse_allow_deny(const char *line, AllowDeny *list, int allow)
     new_node->ip = 0UL;
     new_node->subnet_bits = 0;
   } else {
+    char *slashpos;
+    slashpos = strchr(p, '/');
+    if (slashpos) *slashpos = 0;
 
     n = sscanf(p, "%lu.%lu.%lu.%lu", &a, &b, &c, &d);
    
@@ -640,7 +734,17 @@ parse_allow_deny(const char *line, AllowDeny *list, int allow)
           assert(0);
           
       }
-    
+      
+      if (slashpos) {
+        int specified_subnet_bits, n;
+        n = sscanf(slashpos+1, "%d", &specified_subnet_bits);
+        if (n == 1) {
+          new_node->subnet_bits = specified_subnet_bits;
+        } else {
+          LOG(LOGS_WARN, LOGF_Configure, "Could not read subnet size at line %d", line_number);
+        }
+      }
+
     } else {
       ip_addr = DNS_Name2IPAddress(p);
       if (ip_addr != DNS_Failed_Address) {
@@ -650,7 +754,7 @@ parse_allow_deny(const char *line, AllowDeny *list, int allow)
         new_node->ip = ip_addr;
         new_node->subnet_bits = 32;
       } else {
-        LOG(LOGS_WARN, LOGF_Configure, "Could not read address at line %d\n", line_number);
+        LOG(LOGS_WARN, LOGF_Configure, "Could not read address at line %d", line_number);
       }      
     }
   }
@@ -701,18 +805,126 @@ parse_cmddeny(const char *line)
 
 /* ================================================== */
 
-static void
-parse_bindaddress(const char *line)
+static unsigned long
+parse_an_address(const char *line, const char *errmsg)
 {
   unsigned long a, b, c, d;
   int n;
   n = sscanf(line, "%lu.%lu.%lu.%lu", &a, &b, &c, &d);
   if (n == 4) {
-    bind_address = (((a&0xff)<<24) | ((b&0xff)<<16) | 
-                    ((c&0xff)<<8) | (d&0xff));
+    return (((a&0xff)<<24) | ((b&0xff)<<16) | 
+            ((c&0xff)<<8) | (d&0xff));
   } else {
-    LOG(LOGS_WARN, LOGF_Configure, "Could not read bind address at line %d\n", line_number);
+    LOG(LOGS_WARN, LOGF_Configure, errmsg, line_number);
+    return 0UL;
   }    
+}
+
+/* ================================================== */
+
+static void
+parse_bindaddress(const char *line)
+{
+  bind_address = parse_an_address(line, "Could not read bind address at line %d\n");
+}
+
+/* ================================================== */
+
+static void
+parse_bindcmdaddress(const char *line)
+{
+  bind_cmd_address = parse_an_address(line, "Could not read bind command address at line %d\n");
+}
+
+/* ================================================== */
+
+static void
+parse_pidfile(const char *line)
+{
+  pidfile = MallocArray(char, 1 + strlen(line));
+  sscanf(line, "%s", pidfile);
+  strip_trailing_spaces(pidfile);
+}  
+
+/* ================================================== */
+
+typedef struct {
+  /* Both in host (not necessarily network) order */
+  unsigned long addr;
+  unsigned short port;
+  int interval;
+} NTP_Broadcast_Destination;
+
+static NTP_Broadcast_Destination *broadcasts = NULL;
+static int max_broadcasts = 0;
+static int n_broadcasts = 0;
+
+/* ================================================== */
+
+static void
+parse_broadcast(const char *line)
+{
+  /* Syntax : broadcast <interval> <broadcast-IP-addr> [<port>] */
+  int port;
+  unsigned int a, b, c, d;
+  int n;
+  int interval;
+  unsigned long addr;
+  
+  n = sscanf(line, "%d %u.%u.%u.%u %d", &interval, &a, &b, &c, &d, &port);
+  if (n < 5) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not parse broadcast directive at line %d", line_number);
+    return;
+  } else if (n == 5) {
+    /* default port */
+    port = 123;
+  } else if (n > 6) {
+    LOG(LOGS_WARN, LOGF_Configure, "Too many fields in broadcast directive at line %d", line_number);
+  }
+
+  addr = ((unsigned long) a << 24) |
+         ((unsigned long) b << 16) |
+         ((unsigned long) c <<  8) |
+         ((unsigned long) d      );
+    
+  if (max_broadcasts == n_broadcasts) {
+    /* Expand array */
+    max_broadcasts += 8;
+    if (broadcasts) {
+      broadcasts = ReallocArray(NTP_Broadcast_Destination, max_broadcasts, broadcasts);
+    } else {
+      broadcasts = MallocArray(NTP_Broadcast_Destination, max_broadcasts);
+    }
+  }
+
+  broadcasts[n_broadcasts].addr = addr;
+  broadcasts[n_broadcasts].port = port;
+  broadcasts[n_broadcasts].interval = interval;
+  ++n_broadcasts;
+}
+
+/* ================================================== */
+
+static void
+parse_linux_hz(const char *line)
+{
+  if (1 == sscanf(line, "%d", &linux_hz)) {
+    set_linux_hz = 1;
+  } else {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not parse linux_hz directive at line %d", line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
+parse_linux_freq_scale(const char *line)
+{
+  if (1 == sscanf(line, "%lf", &linux_freq_scale)) {
+    set_linux_freq_scale = 1;
+  } else {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not parse linux_freq_scale directive at line %d", line_number);
+  }
 }
 
 /* ================================================== */
@@ -756,10 +968,31 @@ CNF_AddSources(void) {
 
 /* ================================================== */
 
+void
+CNF_AddBroadcasts(void)
+{
+  int i;
+  for (i=0; i<n_broadcasts; i++) {
+    BRD_AddDestination(broadcasts[i].addr,
+                       broadcasts[i].port,
+                       broadcasts[i].interval);
+  }
+}
+
+/* ================================================== */
+
 unsigned short
 CNF_GetNTPPort(void)
 {
   return ntp_port;
+}
+
+/* ================================================== */
+
+unsigned short
+CNF_GetAcquisitionPort(void)
+{
+  return acquisition_port;
 }
 
 /* ================================================== */
@@ -832,6 +1065,14 @@ char *
 CNF_GetRtcFile(void)
 {
   return rtc_file;
+}
+
+/* ================================================== */
+
+char *
+CNF_GetRtcDevice(void)
+{
+  return rtc_device;
 }
 
 /* ================================================== */
@@ -930,14 +1171,14 @@ CNF_SetupAccessRestrictions(void)
   for (node = ntp_auth_list.next; node != &ntp_auth_list; node = node->next) {
     status = NCR_AddAccessRestriction(node->ip, node->subnet_bits, node->allow, node->all);
     if (!status) {
-      LOG(LOGS_WARN, LOGF_Configure, "Bad subnet for %08lx\n", node->ip);
+      LOG(LOGS_WARN, LOGF_Configure, "Bad subnet for %08lx", node->ip);
     }
   }
 
   for (node = cmd_auth_list.next; node != &cmd_auth_list; node = node->next) {
     status = CAM_AddAccessRestriction(node->ip, node->subnet_bits, node->allow, node->all);
     if (!status) {
-      LOG(LOGS_WARN, LOGF_Configure, "Bad subnet for %08lx\n", node->ip);
+      LOG(LOGS_WARN, LOGF_Configure, "Bad subnet for %08lx", node->ip);
     }
   }
 
@@ -958,5 +1199,39 @@ void
 CNF_GetBindAddress(unsigned long *addr)
 {
   *addr = bind_address;
+}
+
+/* ================================================== */
+
+void
+CNF_GetBindCommandAddress(unsigned long *addr)
+{
+  *addr = bind_cmd_address ? bind_cmd_address : bind_address;
+}
+
+/* ================================================== */
+
+char *
+CNF_GetPidFile(void)
+{
+  return pidfile;
+}
+
+/* ================================================== */
+
+void
+CNF_GetLinuxHz(int *set, int *hz)
+{
+  *set = set_linux_hz;
+  *hz = linux_hz;
+}
+
+/* ================================================== */
+
+void
+CNF_GetLinuxFreqScale(int *set, double *freq_scale)
+{
+  *set = set_linux_freq_scale;
+  *freq_scale = linux_freq_scale ;
 }
 

@@ -7,9 +7,9 @@ chrony for DEBIAN
  Added /etc/chrony and moved the config files there from /etc.  This the
  only change to the source code.
  
- Wrote brief man pages and added a few lines to the info files explaining
- how the Debian installation differs from the standard one.  I also used
- texi2html to generate html docs.
+ Added a few lines to the info files explaining how the Debian installation
+ differs from the standard one.  I also used texi2html to generate html
+ docs.
 
  Created default /etc/chrony/chrony.conf, /etc/chrony/chrony.keys,
  /etc/init.d/chrony, /etc/ppp/ip-up.d/chrony, /etc/cron.weekly/chrony, and
@@ -28,7 +28,9 @@ chrony for DEBIAN
 
  The standard Debian installation does not use the real time clock
  facilities.  If you want to use them you will need to edit the config
- files and scripts.
+ files and scripts. You will also need to make sure hwclock (util-linux
+ package) is kept out of chrony's way (see the hwclock README files in 
+ the util-linux documentation for more information).
 
  The scripts /etc/ppp/ip-up.d/chrony, /etc/ppp/ip-down.d/chrony, and
  /etc/cron.weekly/chrony read key 1 from /etc/chrony/chrony.keys and use it
@@ -37,14 +39,10 @@ chrony for DEBIAN
  but 1 these scripts won't work without editing.
 
  As installed, chronyd will be started on bootup and will attempt to
- contact the default server whenever you connect to your ISP and assumes
- that your hardware clock is on GMT.
+ contact the default server whenever you connect to your ISP.
 
  Use 'info chrony' to read the complete documentation. 
 
- All the files in the Debian chrony package are licensed under the chrony
- license (/usr/share/doc/chrony/LICENCE.gz) except where otherwise noted.
 
-
- John Hasler <john@dhh.gt.org>, 20 Nov 2000
+ John Hasler <john@dhh.gt.org>, 5 Oct 2003
 

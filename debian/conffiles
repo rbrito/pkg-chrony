@@ -4,3 +4,4 @@
 /etc/ppp/ip-up.d/chrony
 /etc/ppp/ip-down.d/chrony
 /etc/cron.weekly/chrony
+/etc/apm/event.d/01chrony

@@ -1,140 +1,28 @@
-This package was debianized by  john@dhh.gt.org on
-20 Nov 2000.
+This is the Debian GNU/Linux packaged version of Chrony. 
 
-It was downloaded from http://www.rrbcurnow.freeserve.co.uk/chrony/
+Downloaded from: <http://chrony.sunsite.dk/>
 
-Upstream Author(s): Richard Curnow <rpc@myself.com>
+Author(s): Richard Curnow <rc@rc0.org.uk>
 
-Copyright:
+License: GNU General Public License (GPL)
 
+Program Copyright (C) 1998-2003 Richard Curnow
+Modifications for Debian Copyright (C) 2000-2003 John Hasler
+Debian scripts and files licensed under the GPL except where otherwise
+noted.
 
-This is the licence for the programs "chronyd" and "chronyc".  Their
-source code files which reference this licence, object files /
-programs (binary form) built from such source code, and the supporting
-documentation are collectively referred to in this licence as "the
-Software".
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-Certain source code files required for the construction of the Software
-may be included under different licensing arrangements; you should refer
-to such source code files directly for further information.  Any such
-files are outside the scope of this licence.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
 
-Person(s) and/or organisation(s) holding the copyright to any part of
-the source code to which this licence applies are referred to in this
-licence as "the Copyright Holder(s)".
-
-Copying and use of this licence itself, with or without modification,
-are permitted for any purpose subject only to condition 6 below.
-
-Copying, use and redistribution of the Software in source and/or binary
-forms, with or without modification, and use of any part of the Software
-in the creation of another work, are permitted without fee subject to
-the following conditions 1 through 8 and the disclaimer below :
-
-1. Redistributions of the Software as source code, in whole or in
-   part, with or without modification, must retain all existing
-   copyright notices and references to this licence, and must be
-   accompanied by a copy of this licence.  You may rename the file
-   containing this licence and change all references to it accordingly
-   if you need to. Such redistributions must be under terms that require
-   this list of conditions and the disclaimer below to be carried on any
-   subsequent redistribution.
-
-2. Redistributions in binary form (of the original version of the
-   Software, a modified version of the Software, or any other work which
-   incorporates any part of the Software), must carry in accompanying
-   documentation and/or other materials a notice to the effect of either
-   (A) or (B) below.
-
-   (A) This original version of this software was written by
-       <name(s) of Copyright Holder(s)> and is used subject to the
-       disclaimer in the file <name of file containing the
-       disclaimer>.
-
-   (B) The parts of this software which <describe their role in
-       your software> were originally written by <name(s) of
-       Copyright Holder(s)> and are used subject to the disclaimer in
-       the file <name of file containing the disclaimer>.
-
-   (You must replace each <...> with the appropriate information.)
-   
-   A copy of the disclaimer below must also be included.  Such
-   redistributions must be under terms that require the relevant notice
-   (A) or (B) and the disclaimer below to be carried on any subsequent
-   redistribution.
-
-   As an exception, if all recipients of your distribution receive
-   additional rights under condition 5, and those rights supersede the
-   disclaimer in its entirety, then you need not include the disclaimer,
-   any reference to it, or the requirement for further redistributions
-   to carry it.
-   
-3. Unless modifications to the original Software are retained for the
-   exclusive personal use of the modifier, each source code file that
-   has been modified must identify the original source version and carry
-   a notice describing the nature and purpose of all modifications and
-   the person responsible for them.  Where modified source code is
-   widely redistributed (e.g. outside the modifier's own organisation),
-   it should preferably be supplied as the original version plus
-   `patches' which can be applied to the original version to obtain the
-   modified version.
-
-4. If a modified version of the Software is distributed in any form,
-   it must not be misrepresented (whether by the method of distribution
-   or by any related advertisement or documentation) as being the
-   original version.  Both the documentation accompanying the software
-   and any advertisement related to the distribution must expressly
-   state that the distributed software is not the original work, and
-   must identify both the original work (by name and version) and the
-   nature and purpose of all modifications made.
-   
-5. You may offer to any party (and charge a fee for) additional
-   warranty, liability rights and/or support for the Software (or a work
-   derived from it).  Any such offer made must be entirely on your own
-   behalf, and you must indemnify the Copyright Holder(s) and all other
-   parties through whose redistributions you have received the Software
-   for any liability arising out of such an offer.
-   
-6. This list of conditions and the disclaimer below, when applied
-   either to the Software as a whole or to any part of the Software, may
-   only be modified by or with the express permission of the Copyright
-   Holder(s).
-
-7. The Copyright Holder(s) retain all rights to the Software,
-   including without limitation the rights to use the Software for any
-   purpose, to create modified and/or enhanced versions of the Software,
-   and to distibute such versions under terms different to those in this
-   licence.
-   
-8. Except as required by this licence, the name(s) of the Copyright
-   Holder(s) may not be used to endorse or promote products derived from
-   the Software without their express permission obtained in advance.
-   
-== Start of disclaimer ==
-
-BECAUSE THE SOFTWARE IS PROVIDED FREE OF CHARGE, THERE IS NO WARRANTY
-FOR IT, TO THE MAXIMUM EXTENT THAT APPLICABLE LAW ALLOWS.  UNLESS
-OTHERWISE STATED IN WRITING OR REQUIRED BY APPLICABLE LAW, THE
-COPYRIGHT HOLDER(S) AND/OR OTHER PARTIES PROVIDE THE SOFTWARE `AS IS'
-AND DISCLAIM ALL WARRANTIES, EITHER EXPRESSED OR IMPLIED, INCLUDING
-WITHOUT LIMITATION WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
-MERCHANTABLE OR FIT FOR A PARTICULAR PURPOSE.  THE USER BEARS THE
-ENTIRE RISK AS TO THE QUALITY, ACCURACY AND PERFORMANCE OF THE
-SOFTWARE AND THE COST OF ANY NECESSARY SERVICING, REPAIR OR CORRECTION
-IN THE EVENT THAT THE SOFTWARE SHOULD PROVE DEFECTIVE.
-
-IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
-REDISTRIBUTE THE SOFTWARE, BE LIABLE TO YOU OR TO ANY OTHER PARTY FOR
-DAMAGES OF ANY CHARACTER, INCLUDING WITHOUT LIMITATION ANY GENERAL,
-SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES WHICH ARISE FROM THE USE
-OF OR INABILITY TO USE THE SOFTWARE (INCLUDING WITHOUT LIMITATION LOSS
-OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU
-OR THIRD PARTIES OR A FAILURE OF THE SOFTWARE TO OPERATE WITH ANY
-OTHER SOFTWARE), EVEN IF SUCH COPYRIGHT HOLDER OR OTHER PARTY HAS BEEN
-ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-
-== End of disclaimer ==
-
-Version control information:
-$Header: /home/richard/myntp/chrony/chrony-1.02/RCS/LICENCE,v 1.8 1998/05/31 08:35:13 richard Exp $
+You should have received a copy of the GNU General Public License with your
+Debian GNU/Linux system, in /usr/share/common-licenses/GPL, and with the
+Debian GNU/Linux chrony package as the file COPYING.  If not, write to the
+Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+02111-1307, USA.

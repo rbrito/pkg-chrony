@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/addrfilt.c,v 1.5 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/addrfilt.c,v 1.8 2002/02/28 23:27:08 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2002
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -141,29 +154,58 @@ set_subnet(TableNode *start_node,
   node = start_node;
 
   if ((subnet_bits < 0) ||
-      (subnet_bits > 32) ||
-      ((subnet_bits % NBITS) != 0)) {
+      (subnet_bits > 32)) {
+
     return ADF_BADSUBNET;
 
   } else {
+
+    if ((bits_to_go & (NBITS-1)) == 0) {
     
-    
-    while (bits_to_go > 0) {
+      while (bits_to_go > 0) {
+        subnet = get_subnet(residual);
+        residual = get_residual(residual);
+        if (!(node->extended)) {
+          open_node(node);
+        }
+        node = &((*(node->extended))[subnet]);
+        bits_to_go -= NBITS;
+      }
+
+      if (delete_children) {
+        close_node(node);
+      }
+      node->state = new_state;
+
+    } else { /* Have to set multiple entries */
+      int N, i, j;
+      TableNode *this_node;
+
+      while (bits_to_go >= NBITS) {
+        subnet = get_subnet(residual);
+        residual = get_residual(residual);
+        if (!(node->extended)) {
+          open_node(node);
+        }
+        node = &((*(node->extended))[subnet]);
+        bits_to_go -= NBITS;
+      }
+
+      /* How many subnet entries to set : 1->8, 2->4, 3->2 */
+      N = 1 << (NBITS-bits_to_go);
       subnet = get_subnet(residual);
-      residual = get_residual(residual);
       if (!(node->extended)) {
         open_node(node);
       }
       
-      node = &((*(node->extended))[subnet]);
-      bits_to_go -= NBITS;
+      for (i=subnet, j=0; j<N; i++, j++) {
+        this_node = &((*(node->extended))[i]);
+        if (delete_children) {
+          close_node(this_node);
+        }
+        this_node->state = new_state;
+      }
     }
-    
-    if (delete_children) {
-      close_node(node);
-    }
-    
-    node->state = new_state;
     
     return ADF_SUCCESS;
   }
@@ -276,3 +318,68 @@ ADF_IsAllowed(ADF_AuthTable table,
 }
 
 /* ================================================== */
+
+#if defined TEST
+
+static void print_node(TableNode *node, unsigned long addr, int shift, int subnet_bits)
+{
+  unsigned long new_addr;
+  int i;
+  TableNode *sub_node;
+
+  for (i=0; i<subnet_bits; i++) putchar(' ');
+
+  printf("%d.%d.%d.%d/%d : %s\n",
+         ((addr >> 24) & 255),
+         ((addr >> 16) & 255),
+         ((addr >>  8) & 255),
+         ((addr      ) & 255),
+         subnet_bits,
+         (node->state == ALLOW) ? "allow" :
+         (node->state == DENY)  ? "deny" : "as parent");
+  if (node->extended) {
+    for (i=0; i<16; i++) {
+      sub_node = &((*(node->extended))[i]);
+      new_addr = addr | ((unsigned long) i << shift);
+      print_node(sub_node, new_addr, shift - 4, subnet_bits + 4);
+    }
+  }
+  return;
+}
+
+
+static void print_table(ADF_AuthTable table)
+{
+  unsigned long addr = 0;
+  int shift = 28;
+  int subnet_bits = 0;
+
+  print_node(&table->base, addr, shift, subnet_bits);
+  return;
+}
+
+/* ================================================== */
+
+int main (int argc, char **argv)
+{
+  ADF_AuthTable table;
+  table = ADF_CreateTable();
+
+  ADF_Allow(table, 0x7e800000, 9);
+  ADF_Deny(table, 0x7ecc0000, 14);
+  /* ADF_Deny(table, 0x7f000001, 32); */
+  /* ADF_Allow(table, 0x7f000000, 8); */
+
+  print_table(table);
+
+  ADF_DestroyTable(table);
+  return 0;
+}
+
+
+
+#endif /* defined TEST */
+
+
+
+

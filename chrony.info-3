@@ -1,6 +1,391 @@
-This is chrony.info, produced by makeinfo version 4.0 from chrony.texi.
+This is chrony.info, produced by makeinfo version 4.3 from chrony.texi.
 
-   This only occurs in the info case
+INFO-DIR-SECTION Net Utilities
+START-INFO-DIR-ENTRY
+* chrony: (chrony).			How to use chronyd and chronyc
+* chronyd: (chrony)Starting chronyd.	Reference for chronyd
+* chronyc: (chrony)Running chronyc.	Reference for chronyc
+END-INFO-DIR-ENTRY
+
+
+File: chrony.info,  Node: add peer command,  Next: add server command,  Prev: activity command,  Up: Chronyc command reference
+
+add peer
+........
+
+   The `add peer' command allows a new NTP peer to be added whilst
+`chronyd' is running.
+
+   Following the words `add peer', the syntax of the following
+parameters and options is identical to that for the `peer' directive in
+the configuration file (*note peer directive::).
+
+   An example of using this command is shown below.
+
+     add peer foo.bar.com minpoll 6 maxpoll 10 authkey 25
+
+
+File: chrony.info,  Node: add server command,  Next: allow command,  Prev: add peer command,  Up: Chronyc command reference
+
+add server
+..........
+
+   The `add server' command allows a new NTP server to be added whilst
+`chronyd' is running.
+
+   Following the words `add server', the syntax of the following
+parameters and options is identical to that for the `server' directive
+in the configuration file (*note server directive::).
+
+   An example of using this command is shown below.
+
+     add server foo.bar.com minpoll 6 maxpoll 10 authkey 25
+
+
+File: chrony.info,  Node: allow command,  Next: allow all command,  Prev: add server command,  Up: Chronyc command reference
+
+allow
+.....
+
+   The effect of the allow command is identical to the `allow'
+directive in the configuration file (*note allow directive::).
+
+   The syntax is illustrated in the following examples:
+
+     allow foo.bar.com
+     allow 1.2
+     allow 3.4.5
+     allow 6.7.8/22
+     allow 6.7.8.9/22
+     allow
+
+   The effect of each of these examples is the same as that of the
+`allow' directive in the configuration file.
+
+
+File: chrony.info,  Node: allow all command,  Next: burst command,  Prev: allow command,  Up: Chronyc command reference
+
+allow all
+.........
+
+   The effect of the allow command is identical to the `allow all'
+directive in the configuration file (*note allow directive::).
+
+
+File: chrony.info,  Node: burst command,  Next: clients command,  Prev: allow all command,  Up: Chronyc command reference
+
+burst
+.....
+
+   The `burst' command tells `chronyd' to make a set of measurements to
+each of its sources over a short duration (rather than the usual
+periodic measurements that it makes).  After such a burst, `chronyd'
+will revert to the previous state for each source.  This might be either
+online, if the source was being periodically measured in the normal way,
+or offline, if the source had been indicated as being offline.
+(Switching a source between the online and offline states is described
+in *Note online command::, *Note offline command::).
+
+   The syntax of the burst command is as follows
+
+     burst <n-good-measurements>/<max-measurements> [<mask>/<masked-address>]
+
+   The mask and masked-address arguments are optional, in which case
+`chronyd' will initiate a burst for all of its currently defined
+sources.
+
+   The arguments have the following meaning and format.
+
+`n-good-measurements'
+     This defines the number of good measurements that `chronyd' will
+     want to obtain from each source.  A measurement is good if it
+     passes certain tests, for example, the round trip time to the
+     source must be acceptable.  (This allows `chronyd' to reject
+     measurements that are likely to be bogus.)
+
+`max-measurements'
+     This defines the maximum number of measurements that `chronyd' will
+     attempt to make, even if the required number of good measurements
+     has not been obtained.
+
+`mask'
+     This is a dotted quad argument (e.g. `255.255.255.0') with which
+     the IP address of each of `chronyd''s sources is to be masked.
+
+`masked-address'
+     This is a dotted quad argument (e.g. `1.2.3.0').  If the masked IP
+     address of a source matches this value then the burst command is
+     applied to that source.
+
+   If no mask or masked address arguments are provided, the default is
+`0.0.0.0' and `0.0.0.0' respectively, which will match every source.
+
+   An example of the two-argument form of the command is
+
+     burst 2/10
+
+   This will cause `chronyd' to attempt to get two good measurements
+from each source, stopping after two have been obtained, but in no
+event will it try more than ten probes to the source.
+
+   An example of the four-argument form of the command is
+
+     burst 2/10 255.255.0.0/1.2.0.0
+
+   In this case, the two out of ten sampling will only be applied to
+sources whose IP addresses are of the form `1.2.x.y', where x and y are
+arbitrary.
+
+
+File: chrony.info,  Node: clients command,  Next: cmdaccheck command,  Prev: burst command,  Up: Chronyc command reference
+
+clients
+.......
+
+   This command shows a list of all clients that have accessed the
+server, through either the NTP or command/monitoring ports.  There are
+no arguments.
+
+   An example of the output is
+
+     Hostname                   Client    Peer CmdAuth CmdNorm  CmdBad  LstN  LstC
+     =========================  ======  ======  ======  ======  ======  ====  ====
+     localhost                       0       0      15       1       0   29y     0
+     aardvark.xxx                    4       0       0       0       0    49   29y
+     badger.xxx                      4       0       0       0       0     6   29y
+
+   Each row shows the data for a single host.  Only hosts that have
+passed the host access checks (set with the `allow', `deny', `cmdallow'
+and `cmddeny' commands or configuration file directives) are logged.
+
+   The columns are as follows:
+
+  1. The hostname of the client
+
+  2. The number of times the client has accessed the server using an NTP
+     client mode packet.
+
+  3. The number of times the client has accessed the server using an NTP
+     symmetric active mode packet.
+
+  4. The number of authenticated command packets that have been
+     processed from the client (i.e. those following a successful
+     `password' command).
+
+  5. The number of unauthenticated command packets that have been
+     processed from the client.
+
+  6. The number of bad command packets received from the client (not all
+     forms of bad packet are logged).
+
+  7. Time since the last NTP packet was received
+
+  8. Time since the last command packet was received
+
+   The last two entries will be shown as the time since 1970 if no
+packet of that type has ever been received.
+
+
+File: chrony.info,  Node: cmdaccheck command,  Next: cmdallow command,  Prev: clients command,  Up: Chronyc command reference
+
+cmdaccheck
+..........
+
+   This command is similar to the `accheck' command, except that it is
+used to check whether command access is permitted from a named host.
+
+   Examples of use are as follows:
+
+     cmdaccheck a.b.c
+     cmdaccheck 1.2.3.4
+
+
+File: chrony.info,  Node: cmdallow command,  Next: cmdallow all command,  Prev: cmdaccheck command,  Up: Chronyc command reference
+
+cmdallow
+........
+
+   This is similar to the `allow' command, except that it is used to
+allow particular hosts or subnets to use the chronyc program to interact
+with `chronyd' on the current host.
+
+
+File: chrony.info,  Node: cmdallow all command,  Next: cmddeny command,  Prev: cmdallow command,  Up: Chronyc command reference
+
+cmdallow all
+............
+
+   This is similar to the `allow all' command, except that it is used
+toallow particular hosts or subnets to use the chronyc program to
+interactwith `chronyd' on the current host.
+
+
+File: chrony.info,  Node: cmddeny command,  Next: cmddeny all command,  Prev: cmdallow all command,  Up: Chronyc command reference
+
+cmddeny
+.......
+
+   This is similar to the `deny' command, except that it is used to
+allow particular hosts or subnets to use the chronyc program to interact
+with `chronyd' on the current host.
+
+
+File: chrony.info,  Node: cmddeny all command,  Next: cyclelogs command,  Prev: cmddeny command,  Up: Chronyc command reference
+
+cmddeny all
+...........
+
+   This is similar to the `deny all' command, except that it is used to
+allow particular hosts or subnets to use the chronyc program to
+interact with `chronyd' on the current host.
+
+
+File: chrony.info,  Node: cyclelogs command,  Next: delete command,  Prev: cmddeny all command,  Up: Chronyc command reference
+
+cyclelogs
+.........
+
+   The `cyclelogs' command causes all of `chronyd's' open log files to
+be closed and re-opened.  This allows them to be renamed so that they
+can be periodically purged.  An example of how to do this is shown
+below.
+
+     % mv /var/log/chrony/measurements.log /var/log/chrony/measurements1.log
+     % chronyc
+     chronyc> password aardvark
+     200 OK
+     chronyc> cyclelogs
+     200 OK
+     chronyc> exit
+     % ls -l /var/log/chrony
+     -rw-r--r--   1 root     root            0 Jun  8 18:17 measurements.log
+     -rw-r--r--   1 root     root        12345 Jun  8 18:17 measurements1.log
+     % rm -f measurements1.log
+
+
+File: chrony.info,  Node: delete command,  Next: deny command,  Prev: cyclelogs command,  Up: Chronyc command reference
+
+delete
+......
+
+   The `delete' command allows an NTP server or peer to be removed from
+the current set of sources.
+
+   The syntax is illustrated in the examples below.
+
+     delete foo.bar.com
+     delete 1.2.3.4
+
+   There is one parameter, the name or IP address of the server or peer
+to be deleted.
+
+
+File: chrony.info,  Node: deny command,  Next: deny all command,  Prev: delete command,  Up: Chronyc command reference
+
+deny
+....
+
+   The effect of the allow command is identical to the `deny' directive
+in the configuration file (*note deny directive::).
+
+   The syntax is illustrated in the following examples:
+
+     deny foo.bar.com
+     deny 1.2
+     deny 3.4.5
+     deny 6.7.8/22
+     deny 6.7.8.9/22
+     deny
+
+
+File: chrony.info,  Node: deny all command,  Next: dump command,  Prev: deny command,  Up: Chronyc command reference
+
+deny all
+........
+
+   The effect of the allow command is identical to the `deny all'
+directive in the configuration file (*note deny directive::).
+
+
+File: chrony.info,  Node: dump command,  Next: exit command,  Prev: deny all command,  Up: Chronyc command reference
+
+dump
+....
+
+   The `dump' command causes `chronyd' to write its current history of
+measurements for each of its sources to dump files, either for
+inspection or to support the `-r' option when `chronyd' is restarted.
+
+   The `dump' command is somewhat equivalent to the `dumponexit'
+directive in the chrony configuration file.  *Note dumponexit
+directive::.
+
+   To use the `dump', you probably want to configure the name of the
+directory into which the dump files will be written.  This can only be
+done in the configuration file, see *Note dumpdir directive::.
+
+
+File: chrony.info,  Node: exit command,  Next: help command,  Prev: dump command,  Up: Chronyc command reference
+
+exit
+....
+
+   The exit command exits from chronyc and returns the user to the shell
+(same as the quit command).
+
+
+File: chrony.info,  Node: help command,  Next: local command,  Prev: exit command,  Up: Chronyc command reference
+
+help
+....
+
+   The help command displays a summary of the commands and their
+arguments.
+
+
+File: chrony.info,  Node: local command,  Next: makestep command,  Prev: help command,  Up: Chronyc command reference
+
+local
+.....
+
+   The `local' command allows `chronyd' to be told that it is to appear
+as a reference source, even if it is not itself properly synchronised to
+an external source.  (This can be used on isolated networks, to allow
+one computer to be a master time server with the other computers slaving
+to it.)  The `local' command is somewhat equivalent to the `local'
+directive in the configuration file, see *Note local directive::.
+
+   The syntax is as shown in the following examples.
+
+     local stratum 10
+     local off
+
+   The first example enables the local reference mode on the host, and
+sets the stratum at which it should claim to be synchronised.
+
+   The second example disables the local reference mode.
+
+
+File: chrony.info,  Node: makestep command,  Next: manual command,  Prev: local command,  Up: Chronyc command reference
+
+makestep
+........
+
+   Normally chronyd will cause the system to gradually correct any time
+offset, by slowing down or speeding up the clock as required.  In
+certain situations, the system clock may be so far adrift that this
+slewing process would take a very long time to correct the system clock.
+
+   The `makestep' command can be used in this situation.  It cancels
+any remaining correction that was being slewed, and jumps the system
+clock by the equivalent amount, making it correct immediately.
+
+   BE WARNED - certain software will be seriously affected by such
+jumps to the system time.  (That is the reason why chronyd uses slewing
+normally.)
+
+   The `makestep' command is currently only available on the Linux
+version of chrony.
 
 
 File: chrony.info,  Node: manual command,  Next: maxdelay command,  Prev: makestep command,  Up: Chronyc command reference
@@ -34,7 +419,7 @@ stored in `chronyd'.  The output is illustrated below.
 
    The columns as as follows :
 
-  1. The sample index (used for the `manual delet'e command)
+  1. The sample index (used for the `manual delete' command)
 
   2. The date and time of the sample
 
@@ -398,14 +783,18 @@ sources
 .......
 
    This command displays information about the current time sources that
-`chronyd' is accessing.  It takes no arguments.
+`chronyd' is accessing.
+
+   The optional argument `-v' can be specified, meaning _verbose_.  In
+this case, extra caption lines are shown as a reminder of the meanings
+of the columns.
 
      210 Number of sources = 3
-     MS Name/IP address      Str  Poll LastRx        Last sample
-     ===================================================================
-     ^+ a.b.c                  3    6   47m  -9491us[-6983us] +/-  159ms
-     ^+ d.e.f                  3    6   47m    +32ms[  +35ms] +/-  274ms
-     ^* g.h.i                  2    6   47m  +8839us[  +11ms] +/-  214ms
+     MS Name/IP address      Stratum Poll LastRx Last sample
+     =======================================================================
+     ^+ a.b.c                    3     6    47m  -9491us[-6983us] +/-  159ms
+     ^+ d.e.f                    3     6    47m    +32ms[  +35ms] +/-  274ms
+     ^* g.h.i                    2     6    47m  +8839us[  +11ms] +/-  214ms
 
    The columns are as follows:
 
@@ -425,10 +814,10 @@ sources
      shown at start-up, until at least 3 samples have been gathered
      from it.
 
-`IP address'
+`Name/IP address'
      This shows the name or the IP address of the source.
 
-`Str'
+`Stratum'
      This shows the stratum of the source, as reported in its most
      recently received sample.  Stratum 1 indicates a computer with a
      locally attached reference clock.  A computer that is synchronised
@@ -476,16 +865,20 @@ sourcestats
 and offset estimatation process for each of the sources currently being
 examined by `chronyd'.
 
+   The optional argument `-v' can be specified, meaning _verbose_.  In
+this case, extra caption lines are shown as a reminder of the meanings
+of the columns.
+
    An example report is
 
      210 Number of sources = 1
-     Name/IP          NP   NR  Span       Freq      Skew      S.D./us
-     ================================================================
-     abc.def.ghi      11    5   46m      -0.001       0.045        25
+     Name/IP Address            NP  NR  Span  Frequency   Freq Skew   Std Dev
+     ========================================================================
+     abc.def.ghi                11   5   46m      -0.001       0.045     25us
 
    The columns are as follows
 
-`Name/IP'
+`Name/IP Address'
      This is the name or dotted-quad IP address of the NTP server (or
      peer) to which the rest of the line relates.
 
@@ -507,17 +900,17 @@ examined by `chronyd'.
      unit is shown the value is in seconds.  In the example, the
      interval is 46 minutes.
 
-`Freq'
+`Frequency'
      This is the estimated residual frequency for the server, in parts
      per million.  In this case, the computer's clock is estimated to
      be running 1 part in 10**9 slow relative to the server.
 
-`Skew'
+`Freq Skew'
      This is the estimated error bounds on `Freq' (again in parts per
      million).
 
-`Var/us'
-     This is the estimated sample variance in microseconds.
+`Std Dev'
+     This is the estimated sample standard deviation.
 
 
 File: chrony.info,  Node: tracking command,  Next: trimrtc command,  Prev: sourcestats command,  Up: Chronyc command reference
@@ -686,7 +1079,7 @@ is also written automatically when `chronyd' is killed (with SIGHUP,
 SIGINT, SIGQUIT or SIGTERM).
 
 
-File: chrony.info,  Node: Porting guide,  Prev: Usage reference,  Up: Top
+File: chrony.info,  Node: Porting guide,  Next: GPL,  Prev: Usage reference,  Up: Top
 
 Porting guide
 *************
@@ -703,7 +1096,7 @@ information for those attempting to write ports to other systems.
                                 already written.
 
 
-File: chrony.info,  Node: System driver files,  Next: Quirks of particular systems,  Prev: Porting guide,  Up: Porting guide
+File: chrony.info,  Node: System driver files,  Next: Quirks of particular systems,  Up: Porting guide
 
 System driver files
 ===================
@@ -745,7 +1138,7 @@ investigated to port the software to each system type.
 * SunOS 4.1.4 porting quirks::
 
 
-File: chrony.info,  Node: Linux porting quirks,  Next: Solaris 2.5 porting quirks,  Prev: Quirks of particular systems,  Up: Quirks of particular systems
+File: chrony.info,  Node: Linux porting quirks,  Next: Solaris 2.5 porting quirks,  Up: Quirks of particular systems
 
 Linux
 -----
@@ -799,5 +1192,4 @@ SunOS 4.1.4
 
   2. The kernel variable `dosynctodr' has to be set to zero, otherwise
      the system clock is periodically reset to the real-time clock.
-
 

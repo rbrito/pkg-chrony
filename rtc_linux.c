@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/rtc_linux.c,v 1.21 2000/06/17 22:31:04 richard Exp $
+  $Header: /cvs/src/chrony/rtc_linux.c,v 1.32 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -29,13 +42,74 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
-/* typedef int spinlock_t;	 Was to enable "extern spinlock_t rtc_lock;" in next. No longer needed? JGH */
-#if defined(__i386__) /* || defined(__sparc__) */
-#include <linux/mc146818rtc.h>
-#else
-#include <linux/rtc.h>
-#define RTC_UIE 0x10		/* update-finished interrupt enable */
+
+/* This is a complete hack since the alpha sys/io.h needs these types
+ * but does not arrange them to be defined.  This is almost certainly
+ * not how one should do these things.  -- broonie
+ */
+
+#ifdef __alpha__
+#include <asm/types.h> /* Alpha seems to need this now */
+typedef __u8  u8;
+typedef __u16 u16;
+typedef __u32 u32;
+typedef __u64 u64;
 #endif
+
+/* From linux/rtc.c */
+
+/*
+ * ioctl calls that are permitted to the /dev/rtc interface, if
+ * any of the RTC drivers are enabled.
+ */
+
+#define RTC_AIE_ON      _IO('p', 0x01)  /* Alarm int. enable on         */
+#define RTC_AIE_OFF     _IO('p', 0x02)  /* ... off                      */
+#define RTC_UIE_ON      _IO('p', 0x03)  /* Update int. enable on        */
+#define RTC_UIE_OFF     _IO('p', 0x04)  /* ... off                      */
+#define RTC_PIE_ON      _IO('p', 0x05)  /* Periodic int. enable on      */
+#define RTC_PIE_OFF     _IO('p', 0x06)  /* ... off                      */
+#define RTC_WIE_ON      _IO('p', 0x0f)  /* Watchdog int. enable on      */
+#define RTC_WIE_OFF     _IO('p', 0x10)  /* ... off                      */
+
+#define RTC_ALM_SET     _IOW('p', 0x07, struct rtc_time) /* Set alarm time  */
+#define RTC_ALM_READ    _IOR('p', 0x08, struct rtc_time) /* Read alarm time */
+#define RTC_RD_TIME     _IOR('p', 0x09, struct rtc_time) /* Read RTC time   */
+#define RTC_SET_TIME    _IOW('p', 0x0a, struct rtc_time) /* Set RTC time    */
+#define RTC_IRQP_READ   _IOR('p', 0x0b, unsigned long)   /* Read IRQ rate   */
+#define RTC_IRQP_SET    _IOW('p', 0x0c, unsigned long)   /* Set IRQ rate    */
+#define RTC_EPOCH_READ  _IOR('p', 0x0d, unsigned long)   /* Read epoch      */
+#define RTC_EPOCH_SET   _IOW('p', 0x0e, unsigned long)   /* Set epoch       */
+
+#define RTC_WKALM_SET   _IOW('p', 0x0f, struct rtc_wkalrm)/* Set wakeup alarm*/
+#define RTC_WKALM_RD    _IOR('p', 0x10, struct rtc_wkalrm)/* Get wakeup alarm*/
+
+#define RTC_PLL_GET     _IOR('p', 0x11, struct rtc_pll_info)  /* Get PLL correction */
+#define RTC_PLL_SET     _IOW('p', 0x12, struct rtc_pll_info)  /* Set PLL correction */
+
+/*
+ * The struct used to pass data via the following ioctl. Similar to the
+ * struct tm in <time.h>, but it needs to be here so that the kernel
+ * source is self contained, allowing cross-compiles, etc. etc.
+ */
+
+struct rtc_time {
+        int tm_sec;
+        int tm_min;
+        int tm_hour;
+        int tm_mday;
+        int tm_mon;
+        int tm_year;
+        int tm_wday;
+        int tm_yday;
+        int tm_isdst;
+};
+
+
+
+
+#define RTC_UIE 0x10L		/* update-finished interrupt enable */
+
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -314,7 +388,7 @@ slew_samples
   }
 
 #if 0
-  LOG(LOGS_INFO, LOGF_RtcLinux, "dfreq=%.8f doffset=%.6f new_freq=%.3f old_freq=%.3f old_fast=%.6f old_rate=%.3f new_fast=%.6f new_rate=%.3f\n",
+  LOG(LOGS_INFO, LOGF_RtcLinux, "dfreq=%.8f doffset=%.6f new_freq=%.3f old_freq=%.3f old_fast=%.6f old_rate=%.3f new_fast=%.6f new_rate=%.3f",
       dfreq, doffset, 1.0e6*new_freq, 1.0e6*old_freq,
       old_seconds_fast, 1.0e6 * old_gain_rate,
       coef_seconds_fast, 1.0e6 * coef_gain_rate);
@@ -432,16 +506,16 @@ read_coefs_from_file(void)
                    &file_ref_offset,
                    &file_rate_ppm) == 4) {
         } else {
-          LOG(LOGS_WARN, LOGF_RtcLinux, "Could not parse coefficients line from RTC file %s\n",
+          LOG(LOGS_WARN, LOGF_RtcLinux, "Could not parse coefficients line from RTC file %s",
               coefs_file_name);
         }
       } else {
-        LOG(LOGS_WARN, LOGF_RtcLinux, "Could not read first line from RTC file %s\n",
+        LOG(LOGS_WARN, LOGF_RtcLinux, "Could not read first line from RTC file %s",
             coefs_file_name);
       }
       fclose(in);
     } else {
-      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not open RTC file %s for reading\n",
+      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not open RTC file %s for reading",
           coefs_file_name);
     }
   }
@@ -472,7 +546,7 @@ write_coefs_to_file(int valid,time_t ref_time,double offset,double rate)
   out = fopen(temp_coefs_file_name, "w");
   if (!out) {
     Free(temp_coefs_file_name);
-    LOG(LOGS_WARN, LOGF_RtcLinux, "Could not open temporary RTC file %s.tmp for writing\n",
+    LOG(LOGS_WARN, LOGF_RtcLinux, "Could not open temporary RTC file %s.tmp for writing",
         coefs_file_name);
     return RTC_ST_BADFILE;
   }
@@ -495,7 +569,7 @@ write_coefs_to_file(int valid,time_t ref_time,double offset,double rate)
   if (rename(temp_coefs_file_name,coefs_file_name)) {
     unlink(temp_coefs_file_name);
     Free(temp_coefs_file_name);
-    LOG(LOGS_WARN, LOGF_RtcLinux, "Could not replace old RTC file %s.tmp with new one %s\n",
+    LOG(LOGS_WARN, LOGF_RtcLinux, "Could not replace old RTC file %s.tmp with new one %s",
         coefs_file_name, coefs_file_name);
     return RTC_ST_BADFILE;
   }
@@ -516,6 +590,7 @@ RTC_Linux_Initialise(void)
 {
   int major, minor, patch;
   char *direc;
+
 
   /* Check whether we can support the real time clock.
 
@@ -539,6 +614,9 @@ RTC_Linux_Initialise(void)
 
      Linux 2.1.x - don't know, haven't got a system to look at.
 
+     Linux 2.2.x, 2.3.x and 2.4.x are believed to be OK for all
+     patch levels
+
      */
 
   SYS_Linux_GetKernelVersion(&major, &minor, &patch);
@@ -559,6 +637,11 @@ RTC_Linux_Initialise(void)
         break;
       case 2:
       case 3:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+      case 8:
         break; /* OK for all patch levels */
     } 
   }
@@ -571,12 +654,11 @@ RTC_Linux_Initialise(void)
 
   /* Try to open device */
 
-  fd = open ("/dev/rtc", O_RDWR);
+  fd = open (CNF_GetRtcDevice(), O_RDWR);
   if (fd < 0) {
-    LOG(LOGS_ERR, LOGF_RtcLinux, "Could not open /dev/rtc, %s\n", strerror(errno));
+    LOG(LOGS_ERR, LOGF_RtcLinux, "Could not open %s, %s", CNF_GetRtcDevice(), strerror(errno));
     return 0;
   }
-
   n_samples = 0;
   n_samples_since_regression = 0;
   n_runs = 0;
@@ -595,7 +677,7 @@ RTC_Linux_Initialise(void)
   if (CNF_GetLogRtc()) {
     direc = CNF_GetLogDir();
     if (!mkdir_and_parents(direc)) {
-      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not create directory %s\n", direc);
+      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not create directory %s", direc);
       logfile = NULL;
     } else {
       logfilename = MallocArray(char, 2 + strlen(direc) + strlen(RTC_LOG));
@@ -604,7 +686,7 @@ RTC_Linux_Initialise(void)
       strcat(logfilename, RTC_LOG);
       logfile = fopen(logfilename, "a");
       if (!logfile) {
-        LOG(LOGS_WARN, LOGF_RtcLinux, "Couldn't open logfile %s for update\n", logfilename);
+        LOG(LOGS_WARN, LOGF_RtcLinux, "Couldn't open logfile %s for update", logfilename);
       }
     }
   }
@@ -647,14 +729,15 @@ switch_interrupts(int onoff)
 
   if (onoff) {
     status = ioctl(fd, RTC_UIE_ON, 0);
+    status = ioctl(fd, RTC_UIE_ON, 0);
     if (status < 0) {
-      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not start measurement : %s\n", strerror(errno));
+      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not start measurement : %s", strerror(errno));
       return;
     }
   } else {
     status = ioctl(fd, RTC_UIE_OFF, 0);
     if (status < 0) {
-      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not stop measurement : %s\n", strerror(errno));
+      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not stop measurement : %s", strerror(errno));
       return;
     }
   }
@@ -689,7 +772,7 @@ set_rtc(time_t new_rtc_time)
 
   status = ioctl(fd, RTC_SET_TIME, &rtc_raw);
   if (status < 0) {
-    LOG(LOGS_ERR, LOGF_RtcLinux, "Could not set RTC time\n");
+    LOG(LOGS_ERR, LOGF_RtcLinux, "Could not set RTC time");
   }
 
 }
@@ -727,10 +810,10 @@ handle_initial_trim(void)
     /* sys_error_now is positive if the system clock is fast */
     sys_error_now = rtc_error_now - coef_seconds_fast;
           
-    LOG(LOGS_INFO, LOGF_RtcLinux, "System trim from RTC = %f\n", sys_error_now);
+    LOG(LOGS_INFO, LOGF_RtcLinux, "System trim from RTC = %f", sys_error_now);
     LCL_AccumulateOffset(sys_error_now);
   } else {
-    LOG(LOGS_WARN, LOGF_RtcLinux, "No valid file coefficients, cannot trim system time\n");
+    LOG(LOGS_WARN, LOGF_RtcLinux, "No valid file coefficients, cannot trim system time");
   }
   
   coefs_valid = 0;
@@ -756,7 +839,7 @@ handle_relock_after_trim(void)
   if (valid) {
     write_coefs_to_file(1,ref,fast,saved_coef_gain_rate);
   } else {
-    LOG(LOGS_WARN, LOGF_RtcLinux, "Could not do regression after trim\n");
+    LOG(LOGS_WARN, LOGF_RtcLinux, "Could not do regression after trim");
   }
 
   n_samples = 0;
@@ -807,9 +890,9 @@ process_reading(time_t rtc_time, struct timeval *system_time)
 
     if (((logwrites++) % 32) == 0) {
       fprintf(logfile,
-              "============================================================================\n"
-              " Date (UTC) Time  RTC fast (s) Val   Est fast (s)   Slope (ppm)  Ns  Nr Meas\n"
-              "============================================================================\n");
+              "===============================================================================\n"
+              "   Date (UTC) Time   RTC fast (s) Val   Est fast (s)   Slope (ppm)  Ns  Nr Meas\n"
+              "===============================================================================\n");
     }
     
     fprintf(logfile, "%s %14.6f %1d  %14.6f  %12.3f  %2d  %2d %4d\n",
@@ -839,10 +922,10 @@ read_from_device(void *any)
 
   status = read(fd, &data, sizeof(data));
   if (status < 0) {
-    LOG(LOGS_ERR, LOGF_RtcLinux, "Could not read flags /dev/rtc : %s\n", strerror(errno));
+    LOG(LOGS_ERR, LOGF_RtcLinux, "Could not read flags %s : %s", CNF_GetRtcDevice(), strerror(errno));
     error = 1;
     goto turn_off_interrupt;
-  }    
+  }
 
   if ((data & RTC_UIE) == RTC_UIE) {
     /* Update interrupt detected */
@@ -854,10 +937,11 @@ read_from_device(void *any)
 
     status = ioctl(fd, RTC_RD_TIME, &rtc_raw);
     if (status < 0) {
-      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not read time from /dev/rtc : %s\n", strerror(errno));
+      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not read time from %s : %s", CNF_GetRtcDevice(), strerror(errno));
       error = 1;
       goto turn_off_interrupt;
     }
+
 
     /* Convert RTC time into a struct timeval */
     rtc_tm.tm_sec = rtc_raw.tm_sec;
@@ -870,7 +954,7 @@ read_from_device(void *any)
     rtc_t = t_from_rtc(&rtc_tm);
 
     if (rtc_t == (time_t)(-1)) {
-      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not convert RTC time to timeval\n");
+      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not convert RTC time to timeval");
       error = 1;
       goto turn_off_interrupt;
     }      
@@ -1001,8 +1085,7 @@ RTC_Linux_TimePreInit(void)
 
   setup_config();
   read_coefs_from_file();
-
-  fd = open("/dev/rtc", O_RDONLY);
+  fd = open(CNF_GetRtcDevice(), O_RDONLY);
 
   if (fd < 0) {
     return; /* Can't open it, and won't be able to later */
@@ -1030,7 +1113,7 @@ RTC_Linux_TimePreInit(void)
         accumulated_error = file_ref_offset + (double)(interval) * 1.0e-6 * file_rate_ppm;
 
         /* Correct time */
-        LOG(LOGS_INFO, LOGF_RtcLinux, "Set system time, error in RTC = %f\n",
+        LOG(LOGS_INFO, LOGF_RtcLinux, "Set system time, error in RTC = %f",
             accumulated_error);
         estimated_correct_rtc_t = rtc_t - (long)(0.5 + accumulated_error);
       } else {
@@ -1042,10 +1125,10 @@ RTC_Linux_TimePreInit(void)
 
       /* Tough luck if this fails */
       if (settimeofday(&new_sys_time, NULL) < 0) {
-        LOG(LOGS_WARN, LOGF_RtcLinux, "Could not settimeofday\n");
+        LOG(LOGS_WARN, LOGF_RtcLinux, "Could not settimeofday");
       }
     } else {
-      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not convert RTC reading to seconds since 1/1/1970\n");
+      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not convert RTC reading to seconds since 1/1/1970");
     }
   }
 
@@ -1086,7 +1169,7 @@ RTC_Linux_Trim(void)
 
   if (fabs(coef_seconds_fast) > 1.0) {
 
-    LOG(LOGS_INFO, LOGF_RtcLinux, "Trimming RTC, error = %.3f seconds\n", coef_seconds_fast);
+    LOG(LOGS_INFO, LOGF_RtcLinux, "Trimming RTC, error = %.3f seconds", coef_seconds_fast);
 
     /* Do processing to set clock.  Let R be the value we set the
        RTC to, then in 500ms the RTC ticks (R+1) (see comments in
@@ -1126,7 +1209,7 @@ RTC_Linux_CycleLogFile(void)
     fclose(logfile);
     logfile = fopen(logfilename, "a");
     if (!logfile) {
-      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not reopen logfile %s\n", logfilename);
+      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not reopen logfile %s", logfilename);
     }
     logwrites = 0;
   }

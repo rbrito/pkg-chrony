@@ -10,6 +10,8 @@
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 DAEMON=/usr/sbin/chronyd
 FLAGS="defaults"
+NAME="chronyd"
+DESC="time daemon"
 
 test -f $DAEMON || exit 0
 
@@ -18,7 +20,7 @@ case "$1" in
     start-stop-daemon --start --verbose --exec $DAEMON
     ;;
   stop)
-    start-stop-daemon --stop --verbose --exec $DAEMON
+    start-stop-daemon --stop --verbose --oknodo --exec $DAEMON
     ;;
   restart|force-reload)
         #
@@ -29,10 +31,10 @@ case "$1" in
         echo -n "Restarting $DESC: "
         start-stop-daemon --stop --quiet --exec $DAEMON
         sleep 1
-        start-stop-daemon --start --quiet --exec $DAEMON
+        start-stop-daemon --start --quiet --exec $DAEMON -- -r
         echo "$NAME."
         ;;
-  e)
+  *)
     echo "Usage: /etc/init.d/chrony {start|stop|restart|force-reload}"
     exit 1
     ;;

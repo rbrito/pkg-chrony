@@ -10,9 +10,10 @@ build: build-stamp
 build-stamp:
 	dh_testdir
 
-	./configure --prefix=/usr
+	./configure --prefix=''
 	# Add here commands to compile the package.
 	$(MAKE) 
+	$(MAKE) docs
 
 	touch build-stamp
 
@@ -34,7 +35,7 @@ install-stamp: build-stamp
 	dh_installdirs
 
 	# Add here commands to install the package into debian/tmp.
-	$(MAKE) install INSTALL_PREFIX=`pwd`/debian/tmp/usr
+	$(MAKE) install DESTDIR=`pwd`/debian/tmp/usr MANDIR=/share/man
 
 	touch install-stamp
 
@@ -42,19 +43,17 @@ install-stamp: build-stamp
 binary-indep: build install
 # We have nothing to do by default.
 
+
 # Build architecture-dependent files here.
 binary-arch: build install
-#	dh_testversion
 	dh_testdir
 	dh_testroot
 	dh_installdocs
 	dh_installexamples
-	dh_installmenu
-#	dh_installemacsen
+	dh_installmenu -n
 	dh_installinit -n
 	dh_installcron
 	dh_installmanpages
-#	dh_undocumented
 	dh_installchangelogs 
 	cp chrony.conf debian/tmp/etc/chrony
 	cp chrony.keys debian/tmp/etc/chrony
@@ -64,17 +63,17 @@ binary-arch: build install
 	cp chrony.info-3 debian/tmp/usr/share/info
 	cp debian/ip-up debian/tmp/etc/ppp/ip-up.d/chrony
 	cp debian/ip-down debian/tmp/etc/ppp/ip-down.d/chrony
+	cp debian/apm debian/tmp/etc/apm/event.d/01chrony
+	chmod 755 debian/tmp/etc/apm/event.d/01chrony
 	dh_strip
 	dh_compress
 	dh_fixperms
-	chmod 640 debian/tmp/etc/chrony/chrony.keys debian/tmp/etc/chrony/chrony.conf
-	chmod 750 debian/tmp/usr/sbin/chronyd
-	dh_suidregister
+	chmod 640 debian/tmp/etc/chrony/chrony.keys
+	chmod 755 debian/tmp/etc/ppp/ip-up.d/chrony debian/tmp/etc/ppp/ip-down.d/chrony
 	dh_installdeb
 	dh_shlibdeps
 	dh_gencontrol
-#	dh_makeshlibs
-#	dh_md5sums
+	dh_md5sums
 	dh_builddeb
 
 source diff:                                                                  

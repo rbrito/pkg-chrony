@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/candm.h,v 1.34 1999/04/21 20:10:58 richard Exp $
+  $Header: /cvs/src/chrony/candm.h,v 1.40 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -71,7 +84,8 @@
 #define REQ_MANUAL_LIST 41
 #define REQ_MANUAL_DELETE 42
 #define REQ_MAKESTEP 43
-#define N_REQUEST_TYPES 44
+#define REQ_ACTIVITY 44
+#define N_REQUEST_TYPES 45
 
 /* Special utoken value used to log on with first exchange being the
    password.  (This time value has long since gone by) */
@@ -82,167 +96,168 @@
    transmitted for each packet type. */
 
 typedef struct {
-  unsigned long mask;
-  unsigned long address;
-  int EOR;
+  uint32_t mask;
+  uint32_t address;
+  int32_t EOR;
 } REQ_Online;
 
 typedef struct {
-  unsigned long mask;
-  unsigned long address;
-  int EOR;
+  uint32_t mask;
+  uint32_t address;
+  int32_t EOR;
 } REQ_Offline;
 
 typedef struct {
-  unsigned long mask;
-  unsigned long address;
-  int n_good_samples;
-  int n_total_samples;
-  int EOR;
+  uint32_t mask;
+  uint32_t address;
+  int32_t n_good_samples;
+  int32_t n_total_samples;
+  int32_t EOR;
 } REQ_Burst;
 
 typedef struct {
-  unsigned long address;
-  int new_minpoll;
-  int EOR;
+  uint32_t address;
+  int32_t new_minpoll;
+  int32_t EOR;
 } REQ_Modify_Minpoll;
 
 typedef struct {
-  unsigned long address;
-  int new_maxpoll;
-  int EOR;
+  uint32_t address;
+  int32_t new_maxpoll;
+  int32_t EOR;
 } REQ_Modify_Maxpoll;
 
 typedef struct {
-  int pad;
-  int EOR;
+  int32_t pad;
+  int32_t EOR;
 } REQ_Dump;
 
 typedef struct {
-  unsigned long address;
-  long new_max_delay;
-  int EOR;
+  uint32_t address;
+  int32_t new_max_delay;
+  int32_t EOR;
 } REQ_Modify_Maxdelay;
 
 typedef struct {
-  unsigned long address;
-  long new_max_delay_ratio;
-  int EOR;
+  uint32_t address;
+  int32_t new_max_delay_ratio;
+  int32_t EOR;
 } REQ_Modify_Maxdelayratio;
 
 typedef struct {
-  long new_max_update_skew;
-  int EOR;
+  int32_t new_max_update_skew;
+  int32_t EOR;
 } REQ_Modify_Maxupdateskew;
 
 typedef struct {
   struct timeval ts;
-  int EOR;
+  int32_t EOR;
 } REQ_Logon;
 
 typedef struct {
   struct timeval ts;
-  int EOR;
+  int32_t EOR;
 } REQ_Settime;
 
 typedef struct {
-  int on_off;
-  int stratum;
-  int EOR;
+  int32_t on_off;
+  int32_t stratum;
+  int32_t EOR;
 } REQ_Local;
 
 typedef struct {
-  int option;
-  int EOR;
+  int32_t option;
+  int32_t EOR;
 } REQ_Manual;
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } REQ_N_Sources;
 
 typedef struct {
-  int index;
-  int EOR;
+  int32_t index;
+  int32_t EOR;
 } REQ_Source_Data;
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } REQ_Rekey;
 
 typedef struct {
-  unsigned long ip;
-  int subnet_bits;
-  int EOR;
+  uint32_t ip;
+  int32_t subnet_bits;
+  int32_t EOR;
 } REQ_Allow_Deny;
 
 typedef struct {
-  unsigned long ip;
-  int EOR;
+  uint32_t ip;
+  int32_t EOR;
 } REQ_Ac_Check;
 
 typedef struct {
-  unsigned long ip_addr;
-  unsigned long port;
-  int minpoll;
-  int maxpoll;
-  int presend_minpoll;
-  int online;
-  unsigned long authkey;
-  long max_delay;
-  long max_delay_ratio;
-  int EOR;
+  uint32_t ip_addr;
+  uint32_t port;
+  int32_t minpoll;
+  int32_t maxpoll;
+  int32_t presend_minpoll;
+  int32_t online;
+  int32_t auto_offline;
+  uint32_t authkey;
+  int32_t max_delay;
+  int32_t max_delay_ratio;
+  int32_t EOR;
 } REQ_NTP_Source;
 
 typedef struct {
-  unsigned long ip_addr;
-  int EOR;
+  uint32_t ip_addr;
+  int32_t EOR;
 } REQ_Del_Source;
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } REQ_WriteRtc;
 
 typedef struct {
-  long dfreq;
-  int EOR;
+  int32_t dfreq;
+  int32_t EOR;
 } REQ_Dfreq;
 
 typedef struct {
-  long sec;
-  long usec;
-  int EOR;
+  int32_t sec;
+  int32_t usec;
+  int32_t EOR;
 } REQ_Doffset;
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } REQ_Tracking;
 
 typedef struct {
-  unsigned long index;
-  int EOR;
+  uint32_t index;
+  int32_t EOR;
 } REQ_Sourcestats;
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } REQ_RTCReport;
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } REQ_TrimRTC;
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } REQ_CycleLogs;
 
 typedef struct {
-  unsigned long ip;
-  unsigned long bits_specd;
+  uint32_t ip;
+  uint32_t bits_specd;
 } REQ_SubnetsAccessed_Subnet;
 
 #define MAX_SUBNETS_ACCESSED 8
 
 typedef struct {
-  unsigned long n_subnets;
+  uint32_t n_subnets;
   REQ_SubnetsAccessed_Subnet subnets[MAX_SUBNETS_ACCESSED];
 } REQ_SubnetsAccessed;
 
@@ -251,28 +266,32 @@ typedef struct {
 #define MAX_CLIENT_ACCESSES 16
 
 typedef struct {
-  unsigned long n_clients;
-  unsigned long client_ips[MAX_CLIENT_ACCESSES];
+  uint32_t n_clients;
+  uint32_t client_ips[MAX_CLIENT_ACCESSES];
 } REQ_ClientAccesses;  
 
 typedef struct {
-  unsigned long first_index;
-  unsigned long n_indices;
-  int EOR;
+  uint32_t first_index;
+  uint32_t n_indices;
+  int32_t EOR;
 } REQ_ClientAccessesByIndex;
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } REQ_ManualList;
 
 typedef struct {
-  int index;
-  int EOR;
+  int32_t index;
+  int32_t EOR;
 } REQ_ManualDelete;
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } REQ_MakeStep;
+
+typedef struct {
+  int32_t EOR;
+} REQ_Activity;
 
 /* ================================================== */
 
@@ -289,25 +308,27 @@ typedef struct {
    Version 2 : both command and reply packet sizes made capable of
    being variable length.
 
+   Version 3 : NTP_Source message lengthened (auto_offline)
+
  */
 
-#define PROTO_VERSION_NUMBER 2
+#define PROTO_VERSION_NUMBER 3
 
 /* ================================================== */
 
 typedef struct {
-  unsigned char version; /* Protocol version */
-  unsigned char pkt_type; /* What sort of packet this is */
-  unsigned char res1;
-  unsigned char res2;
-  unsigned short command; /* Which command is being issued */
-  unsigned short attempt; /* How many resends the client has done
+  uint8_t version; /* Protocol version */
+  uint8_t pkt_type; /* What sort of packet this is */
+  uint8_t res1;
+  uint8_t res2;
+  uint16_t command; /* Which command is being issued */
+  uint16_t attempt; /* How many resends the client has done
                              (count up from zero for same sequence
                              number) */
-  unsigned long sequence; /* Client's sequence number */
-  unsigned long utoken; /* Unique token per incarnation of daemon */
-  unsigned long token; /* Command token (to prevent replay attack) */
-  unsigned long auth[4]; /* MD5 authentication of the packet */
+  uint32_t sequence; /* Client's sequence number */
+  uint32_t utoken; /* Unique token per incarnation of daemon */
+  uint32_t token; /* Command token (to prevent replay attack) */
+  uint32_t auth[4]; /* MD5 authentication of the packet */
 
   union {
     REQ_Online online;
@@ -344,6 +365,7 @@ typedef struct {
     REQ_ManualList manual_list;
     REQ_ManualDelete manual_delete;
     REQ_MakeStep make_step;
+    REQ_Activity activity;
   } data; /* Command specific parameters */
 
 } CMD_Request;
@@ -359,8 +381,8 @@ typedef struct {
 /* These conversion utilities are used to convert between the internal
    and the 'wire' representation of real quantities */
 
-#define WIRE2REAL(x) ((double) ((long) ntohl(x)) / 65536.0)
-#define REAL2WIRE(x) (htonl((long)(0.5 + 65536.0 * (x))))
+#define WIRE2REAL(x) ((double) ((int32_t) ntohl(x)) / 65536.0)
+#define REAL2WIRE(x) (htonl((int32_t)(0.5 + 65536.0 * (x))))
 
 /* ================================================== */
 
@@ -376,7 +398,8 @@ typedef struct {
 #define RPY_CLIENT_ACCESSES 9
 #define RPY_CLIENT_ACCESSES_BY_INDEX 10
 #define RPY_MANUAL_LIST 11
-#define N_REPLY_TYPES 12
+#define RPY_ACTIVITY 12
+#define N_REPLY_TYPES 13
 
 /* Status codes */
 #define STT_SUCCESS 0
@@ -398,12 +421,12 @@ typedef struct {
 #define STT_BADSAMPLE 16
 
 typedef struct {
-  int EOR;
+  int32_t EOR;
 } RPY_Null;
 
 typedef struct {
-  unsigned long n_sources;
-  int EOR;
+  uint32_t n_sources;
+  int32_t EOR;
 } RPY_N_Sources;
 
 #define RPY_SD_MD_CLIENT 0
@@ -417,131 +440,137 @@ typedef struct {
 #define RPY_SD_ST_OTHER 4
 
 typedef struct {
-  unsigned long ip_addr;
-  unsigned short poll;
-  unsigned short stratum;
-  unsigned short state;
-  unsigned short mode;
-  unsigned long  since_sample;
-  long orig_latest_meas;
-  long latest_meas;
-  unsigned long latest_meas_err;
-  long est_offset;
-  unsigned long est_offset_err;
-  long resid_freq;
-  unsigned long resid_skew;
-  int EOR;
+  uint32_t ip_addr;
+  uint16_t poll;
+  uint16_t stratum;
+  uint16_t state;
+  uint16_t mode;
+  uint32_t  since_sample;
+  int32_t orig_latest_meas;
+  int32_t latest_meas;
+  uint32_t latest_meas_err;
+  int32_t est_offset;
+  uint32_t est_offset_err;
+  int32_t resid_freq;
+  uint32_t resid_skew;
+  int32_t EOR;
 } RPY_Source_Data;
 
 typedef struct {
-  unsigned long ref_id;
-  unsigned long stratum;
-  unsigned long ref_time_s;
-  unsigned long ref_time_us;
-  unsigned long current_correction_s;
-  unsigned long current_correction_us;
-  long freq_ppm;
-  long resid_freq_ppm;
-  long skew_ppm;
-  long root_delay;
-  long root_dispersion;
-  int EOR;
+  uint32_t ref_id;
+  uint32_t stratum;
+  uint32_t ref_time_s;
+  uint32_t ref_time_us;
+  uint32_t current_correction_s;
+  uint32_t current_correction_us;
+  int32_t freq_ppm;
+  int32_t resid_freq_ppm;
+  int32_t skew_ppm;
+  int32_t root_delay;
+  int32_t root_dispersion;
+  int32_t EOR;
 } RPY_Tracking;
 
 typedef struct {
-  unsigned long ip_addr;
-  unsigned long n_samples;
-  unsigned long n_runs;
-  unsigned long span_seconds;
-  unsigned long sd_us;
-  long resid_freq_ppm;
-  long skew_ppm;
-  int EOR;
+  uint32_t ip_addr;
+  uint32_t n_samples;
+  uint32_t n_runs;
+  uint32_t span_seconds;
+  uint32_t sd_us;
+  int32_t resid_freq_ppm;
+  int32_t skew_ppm;
+  int32_t EOR;
 } RPY_Sourcestats;
 
 typedef struct {
-  unsigned long ref_time;
-  unsigned short n_samples;
-  unsigned short n_runs;
-  unsigned long span_seconds;
-  long rtc_seconds_fast;
-  long rtc_gain_rate_ppm;
-  int EOR;
+  uint32_t ref_time;
+  uint16_t n_samples;
+  uint16_t n_runs;
+  uint32_t span_seconds;
+  int32_t rtc_seconds_fast;
+  int32_t rtc_gain_rate_ppm;
+  int32_t EOR;
 } RPY_Rtc;
 
 typedef struct {
-  unsigned long centiseconds;
-  long dfreq_ppm;
-  long new_afreq_ppm;
-  int EOR;
+  uint32_t centiseconds;
+  int32_t dfreq_ppm;
+  int32_t new_afreq_ppm;
+  int32_t EOR;
 } RPY_ManualTimestamp;
 
 typedef struct {
-  /* Assume sizeof(unsigned long) == 4; if not so, other parts of the s/w will break
-     horribly anyway */
-  unsigned long ip;
-  unsigned long bits_specd;
-  unsigned long bitmap[8];
+  uint32_t ip;
+  uint32_t bits_specd;
+  uint32_t bitmap[8];
 } RPY_SubnetsAccessed_Subnet;
 
 typedef struct {
-  unsigned long n_subnets;
+  uint32_t n_subnets;
   RPY_SubnetsAccessed_Subnet subnets[MAX_SUBNETS_ACCESSED];
 } RPY_SubnetsAccessed;
 
 typedef struct {
-  unsigned long ip;
-  unsigned long client_hits;
-  unsigned long peer_hits;
-  unsigned long cmd_hits_auth;
-  unsigned long cmd_hits_normal;
-  unsigned long cmd_hits_bad;
-  unsigned long last_ntp_hit_ago;
-  unsigned long last_cmd_hit_ago;
+  uint32_t ip;
+  uint32_t client_hits;
+  uint32_t peer_hits;
+  uint32_t cmd_hits_auth;
+  uint32_t cmd_hits_normal;
+  uint32_t cmd_hits_bad;
+  uint32_t last_ntp_hit_ago;
+  uint32_t last_cmd_hit_ago;
 } RPY_ClientAccesses_Client;
 
 typedef struct {
-  unsigned long n_clients;
+  uint32_t n_clients;
   RPY_ClientAccesses_Client clients[MAX_CLIENT_ACCESSES];
 } RPY_ClientAccesses;
 
 typedef struct {
-  unsigned long n_indices;      /* how many indices there are in the server's table */
-  unsigned long next_index;     /* the index 1 beyond those processed on this call */
-  unsigned long n_clients;      /* the number of valid entries in the following array */
+  uint32_t n_indices;      /* how many indices there are in the server's table */
+  uint32_t next_index;     /* the index 1 beyond those processed on this call */
+  uint32_t n_clients;      /* the number of valid entries in the following array */
   RPY_ClientAccesses_Client clients[MAX_CLIENT_ACCESSES];
 } RPY_ClientAccessesByIndex;
 
 #define MAX_MANUAL_LIST_SAMPLES 32
 
 typedef struct {
-  unsigned long when;
-  long slewed_offset;
-  long orig_offset;
-  long residual;
+  uint32_t when;
+  int32_t slewed_offset;
+  int32_t orig_offset;
+  int32_t residual;
 } RPY_ManualListSample;
 
 typedef struct {
-  unsigned long n_samples;
+  uint32_t n_samples;
   RPY_ManualListSample samples[MAX_MANUAL_LIST_SAMPLES];
 } RPY_ManualList;
 
 typedef struct {
-  unsigned char version;
-  unsigned char pkt_type;
-  unsigned char res1;
-  unsigned char res2;
-  unsigned short command; /* Which command is being replied to */
-  unsigned short reply; /* Which format of reply this is */
-  unsigned short status; /* Status of command processing */
-  unsigned short number; /* Which packet this is in reply sequence */
-  unsigned short total; /* Number of replies to expect in this sequence */
-  unsigned short pad1; /* Get up to 4 byte alignment */
-  unsigned long sequence; /* Echo of client's sequence number */
-  unsigned long utoken; /* Unique token per incarnation of daemon */
-  unsigned long token; /* New command token (only if command was successfully
+  int32_t online;
+  int32_t offline;
+  int32_t burst_online;
+  int32_t burst_offline;
+  int32_t EOR;
+} RPY_Activity;
+
+typedef struct {
+  uint8_t version;
+  uint8_t pkt_type;
+  uint8_t res1;
+  uint8_t res2;
+  uint16_t command; /* Which command is being replied to */
+  uint16_t reply; /* Which format of reply this is */
+  uint16_t status; /* Status of command processing */
+  uint16_t number; /* Which packet this is in reply sequence */
+  uint16_t total; /* Number of replies to expect in this sequence */
+  uint16_t pad1; /* Get up to 4 byte alignment */
+  uint32_t sequence; /* Echo of client's sequence number */
+  uint32_t utoken; /* Unique token per incarnation of daemon */
+  uint32_t token; /* New command token (only if command was successfully
                           authenticated) */
-  unsigned long auth[4]; /* MD5 authentication of the packet */
+  uint32_t auth[4]; /* MD5 authentication of the packet */
 
   union {
     RPY_Null null;
@@ -555,6 +584,7 @@ typedef struct {
     RPY_ClientAccesses client_accesses;
     RPY_ClientAccessesByIndex client_accesses_by_index;
     RPY_ManualList manual_list;
+    RPY_Activity activity;
   } data; /* Reply specific parameters */
 
 } CMD_Reply;

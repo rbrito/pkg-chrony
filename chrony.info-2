@@ -1,6 +1,264 @@
-This is chrony.info, produced by makeinfo version 4.0 from chrony.texi.
+This is chrony.info, produced by makeinfo version 4.3 from chrony.texi.
 
-   This only occurs in the info case
+INFO-DIR-SECTION Net Utilities
+START-INFO-DIR-ENTRY
+* chrony: (chrony).			How to use chronyd and chronyc
+* chronyd: (chrony)Starting chronyd.	Reference for chronyd
+* chronyc: (chrony)Running chronyc.	Reference for chronyc
+END-INFO-DIR-ENTRY
+
+
+File: chrony.info,  Node: allow directive,  Next: bindaddress directive,  Prev: acquisitionport directive,  Up: Configuration file
+
+allow
+-----
+
+   The `allow' command is used to designate a particular subnet from
+which NTP clients are allowed to access the computer as an NTP server.
+
+   The default is that no clients are allowed access, i.e. `chronyd'
+operates purely as an NTP client.  If the `allow' directive is used,
+`chronyd' will be both a client of its servers, and a server to other
+clients.
+
+   Examples of use of the command are as follows:
+
+     allow foo.bar.com
+     allow 1.2
+     allow 3.4.5
+     allow 6.7.8/22
+     allow 6.7.8.9/22
+     allow
+
+   The first command allows the named node to be an NTP client of this
+computer.  The second command allows any node with an IP address of the
+form 1.2.x.y (with x and y arbitrary) to be an NTP client of this
+computer.  Likewise, the third command allows any node with an IP
+address of the form 3.4.5.x to have client NTP access.  The fourth and
+fifth forms allow access from any node with an IP address of the form
+6.7.8.x, 6.7.9.x, 6.7.10.x or 6.7.11.x (with x arbitrary), i.e. the
+value 22 is the number of bits defining the specified subnet.  (In the
+fifth form, the final byte is ignored).  The sixth form allows access
+by any node on the entire Internet.
+
+   A second form of the directive, `allow all', has a greater effect,
+depending on the ordering of directives in the configuration file.  To
+illustrate the effect, consider the two examples
+
+     allow 1.2.3.4
+     deny 1.2.3
+     allow 1.2
+
+   and
+
+     allow 1.2.3.4
+     deny 1.2.3
+     allow all 1.2
+
+   In the first example, the effect is the same regardles of what order
+the three directives are given in.  So the 1.2.x.y subnet is allowed
+access, except for the 1.2.3.x subnet, which is denied access, however
+the host 1.2.3.4 is allowed access.
+
+   In the second example, the `allow all 1.2' directives overrides the
+effect of _any_ previous directive relating to a subnet within the
+specified subnet.  Within a configuration file this capability is
+probably rather moot; however, it is of greater use for reconfiguration
+at run-time via `chronyc' (*note allow all command::).
+
+   Note, if the `initstepslew' directive (*note initstepslew
+directive::) is used in the configuration file, each of the computers
+listed in that directive must allow client access by this computer for
+it to work.
+
+
+File: chrony.info,  Node: bindaddress directive,  Next: bindcmdaddress directive,  Prev: allow directive,  Up: Configuration file
+
+bindaddress
+-----------
+
+   The bindaddress allows you to restrict the network interface to which
+chronyd will listen for NTP packets.  This provides an additional level
+of access restriction above that available through the 'deny' mechanism.
+
+   Suppose you have a local ethernet with addresses in the 192.168.1.0
+subnet together with a dial-up connection.  The ethernet interface's IP
+address is 192.168.1.1.  Suppose (for some reason) you want to block all
+access through the dialup connection (note, this will even block replies
+from servers on the dialup side, so you will not be able to synchronise
+to an external source).  You could add the line
+
+     bindaddress 192.168.1.1
+
+   to the configuration file.
+
+   This directive affects NTP (UDP port 123) packets.  If no
+`bindcmdaddress' directive is present, the address supplied by
+`bindaddress' will be used to control binding of the command socket
+(UDP port 323) as well.
+
+   The `bindaddress' directive has been found to cause problems when
+used on computers that need to pass NTP traffic over multiple network
+interfaces (e.g.  firewalls).  It is, therefore, not particularly
+useful.  Use of the `allow' and `deny' directives together with a
+network firewall is more likely to be successful.
+
+
+File: chrony.info,  Node: bindcmdaddress directive,  Next: broadcast directive,  Prev: bindaddress directive,  Up: Configuration file
+
+bindcmdaddress
+--------------
+
+   The bindcmdaddress allows you to restrict the network interface to
+which chronyd will listen for command packets (issued by chronyc).
+
+   Suppose you have a local ethernet with addresses in the 192.168.1.0
+subnet together with a dial-up connection.  The ethernet interface's IP
+address is 192.168.1.1.  Suppose you want to block all access through
+the dialup connection.  You could add the line
+
+     bindcmdaddress 192.168.1.1
+
+   to the configuration file.
+
+   The `bindcmdaddress' directive has been found to cause problems when
+used on computers that need to pass command traffic over multiple
+network interfaces.  It is, therefore, not particularly useful.  Use of
+the `cmdallow' and `cmddeny' directives together with a network firewall
+is more likely to be successful.
+
+
+File: chrony.info,  Node: broadcast directive,  Next: cmdallow directive,  Prev: bindcmdaddress directive,  Up: Configuration file
+
+broadcast
+---------
+
+   The `broadcast' directive is used to declare a broadcast address to
+which chronyd should send packets in NTP broadcast mode (i.e. make
+chronyd act as a broadcast server).  Broadcast clients on that subnet
+will be able to synchronise.
+
+   The syntax is as follows
+
+     broadcast 30 192.168.1.255
+     broadcast 60 192.168.2.255 12123
+
+   In the first example, the destination port defaults to 123/udp (the
+normal NTP port).  In the second example, the destionation port is
+specified as 12123.  The first parameter in each case (30 or 60
+respectively) is the interval in seconds between broadcast packets
+being sent.  The second parameter in each case is the broadcast address
+to send the packet to.  This should correspond to the broadcast address
+of one of the network interfaces on the computer where chronyd is
+running.
+
+   You can have more than 1 `broadcast' directive if you have more than
+1 network interface onto which you wish to send NTP broadcast packets.
+
+   Chronyd itself cannot currently act as a broadcast client; it must
+always be configured as a point-to-point client by defining specific
+NTP servers and peers.  This broadcast server feature is intended for
+providing a time source to other NTP software (e.g. various MS Windows
+clients).
+
+   If xntpd is used as the broadcast client, it will try to use a
+point-to-point client/server NTP access to measure the round-trip
+delay.  Thus, the broadcast subnet should also be the subject of an
+`allow' directive (*note allow directive::).
+
+
+File: chrony.info,  Node: cmdallow directive,  Next: cmddeny directive,  Prev: broadcast directive,  Up: Configuration file
+
+cmdallow
+--------
+
+   This is similar to the `allow' directive (*note allow directive::),
+except that it allows control access (rather than NTP client access) to
+a particular subnet or host.  (By 'control access' is meant that
+chronyc can be run on those hosts and successfully connect to chronyd
+on this computer.)
+
+   The syntax is identical to the `allow' directive.
+
+   There is also a `cmdallow all' directive with similar behaviour to
+the `allow all' directive (but applying to control access in this case,
+of course).
+
+
+File: chrony.info,  Node: cmddeny directive,  Next: commandkey directive,  Prev: cmdallow directive,  Up: Configuration file
+
+cmddeny
+-------
+
+   This is similar to the `cmdallow' directive (*note cmdallow
+directive::), except that it denies control access to a particular
+subnet or host, rather than allowing it.
+
+   The syntax is identical.
+
+   There is also a `cmddeny all' directive with similar behaviour to the
+`cmdallow all' directive.
+
+
+File: chrony.info,  Node: commandkey directive,  Next: cmdport directive,  Prev: cmddeny directive,  Up: Configuration file
+
+commandkey
+----------
+
+   The commandkey command is used to set the key number used for
+authenticating user commands via the chronyc program at run time.  This
+allows certain actions of the chronyc program to be restricted to
+administrators.
+
+   An example of the commandkey command is
+
+     commandkey 20
+
+   In the key file (see the keyfile command) there should be a line of
+the form
+
+     20 foobar
+
+   When running the chronyc program to perform run-time configuration,
+the command
+
+     password foobar
+
+   must be entered before any commands affecting the operation of the
+daemon can be entered.
+
+
+File: chrony.info,  Node: cmdport directive,  Next: deny directive,  Prev: commandkey directive,  Up: Configuration file
+
+cmdport
+-------
+
+   The `cmdport' directive allows the port that is used for run-time
+command and monitoring (via the program `chronyc') to be altered from
+its default (323/udp).
+
+   An example shows the syntax
+
+     cmdport 257
+
+   This would make `chronyd' use 257/udp as its command port.
+(`chronyc' would need to be run with the `-p 257' switch to
+inter-operate correctly).
+
+
+File: chrony.info,  Node: deny directive,  Next: driftfile directive,  Prev: cmdport directive,  Up: Configuration file
+
+deny
+----
+
+   This is similar to the `allow' directive (*note allow directive::),
+except that it denies NTP client access to a particular subnet or host,
+rather than allowing it.
+
+   The syntax is identical.
+
+   There is also a `deny all' directive with similar behaviour to the
+`allow all' directive.
 
 
 File: chrony.info,  Node: driftfile directive,  Next: dumpdir directive,  Prev: deny directive,  Up: Configuration file
@@ -133,7 +391,7 @@ to be rebooted, the slaves can be relied on to 'flywheel' the time for
 the master.
 
 
-File: chrony.info,  Node: keyfile directive,  Next: local directive,  Prev: initstepslew directive,  Up: Configuration file
+File: chrony.info,  Node: keyfile directive,  Next: linux_hz directive,  Prev: initstepslew directive,  Up: Configuration file
 
 keyfile
 -------
@@ -170,7 +428,7 @@ mode with `xntpd' running on other computers.
 commandkey command (see earlier).
 
 
-File: chrony.info,  Node: local directive,  Next: log directive,  Prev: keyfile directive,  Up: Configuration file
+File: chrony.info,  Node: local directive,  Next: log directive,  Prev: linux_freq_scale directive,  Up: Configuration file
 
 local
 -----
@@ -203,6 +461,53 @@ be at a stratum less than 10.  Therefore, the choice of a high value
 like 10 for the local command prevents the machine's own time from ever
 being confused with real time, were it ever to leak out to clients that
 have visibility of real servers.
+
+
+File: chrony.info,  Node: linux_hz directive,  Next: linux_freq_scale directive,  Prev: keyfile directive,  Up: Configuration file
+
+linux_hz
+--------
+
+   (This option only applies to Linux).
+
+   By default, chronyd will find the value of `HZ' from a kernel header
+file at compile time.  `HZ' is the nominal number of timer interrupts
+per second.  If you're running chronyd on the system where it was
+built, the value it has should be right, and you don't need to worry
+about this option.
+
+   This option is provided for people who move a pre-built chronyd onto
+a system where the value of HZ in the kernel headers has been changed
+from the default value.
+
+   An example of the command is
+
+     linux_hz 100
+
+
+File: chrony.info,  Node: linux_freq_scale directive,  Next: local directive,  Prev: linux_hz directive,  Up: Configuration file
+
+linux_freq_scale
+----------------
+
+   (This option only applies to Linux).
+
+   By default, chronyd will find the value of `HZ' and `SHIFT_HZ' from
+kernel header files at compile time.  An internal value called
+`freq_scale' is calculated from this.  By default it is
+(1<<SHIFT_HZ)/HZ, except for the case HZ=100, when special case code is
+used which leads to the value 128/128.125.  If you're running chronyd
+on the system where it was built, the value it has should be right, and
+you don't need to worry about this option.
+
+   This option is provided for people who move a pre-built chronyd onto
+a system where the method by which the kernel computes the reciprocal
+of this value has been changed or where the HZ and SHIFT_HZ constants
+differ from those on the system where chronyd was built.
+
+   An example of the command is
+
+     linux_freq_scale 0.99902439
 
 
 File: chrony.info,  Node: log directive,  Next: logchange directive,  Prev: local directive,  Up: Configuration file
@@ -242,7 +547,7 @@ command.
 * RTC log::                     The format of the RTC log
 
 
-File: chrony.info,  Node: measurements log,  Next: statistics log,  Prev: log directive,  Up: log directive
+File: chrony.info,  Node: measurements log,  Next: statistics log,  Up: log directive
 
 Measurements log file format
 ............................
@@ -250,13 +555,13 @@ Measurements log file format
    An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
-     22Jul98 05:40:50 158.152.1.76    N  8 1111 11 1111 10 10  1 \
+     1998-07-22 05:40:50 158.152.1.76    N  8 1111 11 1111 10 10  1 \
         -4.966e-03  2.296e-01  1.577e-05  1.615e-01  7.446e-03
 
    The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-  1. Date [22Jul98]
+  1. Date [1998-07-22]
 
   2. Hour:Minute:Second [05:40:50].  Note that the date/time pair is
      expressed in UTC, not the local time zone.
@@ -310,13 +615,13 @@ Statistics log file format
    An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
-     22Jul98 05:40:50 158.152.1.76     6.261e-03 -3.247e-03 \
+     1998-07-22 05:40:50 158.152.1.76     6.261e-03 -3.247e-03 \
           2.220e-03  1.874e-06  1.080e-06 7.8e-02  16   0   8
 
    The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-  1. Date [22Jul98]
+  1. Date [1998-07-22]
 
   2. Hour:Minute:Second [05:40:50].  Note that the date/time pair is
      expressed in UTC, not the local time zone.
@@ -374,12 +679,12 @@ Tracking log file format
    An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
-     22Jul98 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03
+     1998-07-22 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03
 
    The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-  1. Date [22Jul98]
+  1. Date [1998-07-22]
 
   2. Hour:Minute:Second [05:40:50].  Note that the date/time pair is
      expressed in UTC, not the local time zone.
@@ -410,13 +715,13 @@ Real-time clock log file format
    An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
-     22Jul98 05:40:50     -0.037360 1       -0.037434\
+     1998-07-22 05:40:50     -0.037360 1       -0.037434\
                -37.948  12   5  120
 
    The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-  1. Date [22Jul98]
+  1. Date [1998-07-22]
 
   2. Hour:Minute:Second [05:40:50].  Note that the date/time pair is
      expressed in UTC, not the local time zone.
@@ -566,7 +871,7 @@ accesses are not to be logged.  Normally they are logged, allowing
 statistics to be reported using the `clients' command in `chronyc'.
 
 
-File: chrony.info,  Node: peer directive,  Next: port directive,  Prev: noclientlog directive,  Up: Configuration file
+File: chrony.info,  Node: peer directive,  Next: pidfile directive,  Prev: noclientlog directive,  Up: Configuration file
 
 peer
 ----
@@ -576,7 +881,20 @@ directive (*note server directive::), except that it is used to specify
 an NTP peer rather than an NTP server.
 
 
-File: chrony.info,  Node: port directive,  Next: rtcfile directive,  Prev: peer directive,  Up: Configuration file
+File: chrony.info,  Node: pidfile directive,  Next: port directive,  Prev: peer directive,  Up: Configuration file
+
+pidfile
+-------
+
+   chronyd always writes its process ID (pid) to a file, and checks
+this file on startup to see if another chronyd may already be running
+on the system.  By default, the file used is `/var/run/chronyd.pid'.
+The `pidfile' directive allows the name to be changed, e.g.
+
+     pidfile /var/tmp/chronyd.pid
+
+
+File: chrony.info,  Node: port directive,  Next: rtcdevice directive,  Prev: pidfile directive,  Up: Configuration file
 
 port
 ----
@@ -597,7 +915,20 @@ mode and never be available as a server to xntpd clients.
 udp/11123.
 
 
-File: chrony.info,  Node: rtcfile directive,  Next: rtconutc directive,  Prev: port directive,  Up: Configuration file
+File: chrony.info,  Node: rtcdevice directive,  Next: rtcfile directive,  Prev: port directive,  Up: Configuration file
+
+rtcdevice
+---------
+
+   The `rtcdevice' directive defines the name of the device file for
+accessing the real time clock.  By default this is `/dev/rtc/', unless
+the directive is used to set a different value.  This applies to Linux
+systems with devfs.  An example of use is
+
+     rtcdevice /dev/misc/rtc
+
+
+File: chrony.info,  Node: rtcfile directive,  Next: rtconutc directive,  Prev: rtcdevice directive,  Up: Configuration file
 
 rtcfile
 -------
@@ -621,7 +952,8 @@ use the real time clock facilities (the `rtcfile' directive and the
 `-s' command line option to `chronyd') if the following three
 conditions apply:
 
-  1. You are running Linux v2.0.x with x>=32.
+  1. You are running Linux version 2.2.x or 2.4.x (for any value of x),
+     or v2.0.x with x>=32.
 
   2. You have compiled the kernel with extended real-time clock support
      (i.e. the `/dev/rtc' device is capable of doing useful things).
@@ -758,6 +1090,15 @@ order):
      the server until it is enabled to do so (by using the online
      option of `chronyc').
 
+`auto_offline'
+     If this option is set, the server will be assumed to have gone
+     offline when 2 requests have been sent to it without receiving a
+     response.  This option avoids the need to run the `offline' (*note
+     offline command::) command from chrony when disconnecting the
+     dial-up link.  (It will still be necessary to use chronyc's
+     `online' (*note online command::) command when the link has been
+     established, to enable measurements to start.)
+
 
 File: chrony.info,  Node: Running chronyc,  Prev: Configuration file,  Up: Usage reference
 
@@ -776,7 +1117,7 @@ to generate status reports about the operation of `chronyd'.
 * Chronyc command reference::   All the commands chronyc supports
 
 
-File: chrony.info,  Node: Chronyc basic use,  Next: Chronyc command line options,  Prev: Running chronyc,  Up: Running chronyc
+File: chrony.info,  Node: Chronyc basic use,  Next: Chronyc command line options,  Up: Running chronyc
 
 Basic use
 ---------
@@ -788,7 +1129,7 @@ Basic use
    at the command line.  The prompt `chronyc' is displayed whilst
 chronyc is expecting input from the user, when it is being run from a
 terminal.  If chronyc's input or output are redirected from/to a file,
-the prompt is ow shown.
+the prompt is now shown.
 
    When you are finished entering commands, the commands `exit' or
 `quit' will terminate the program.  (Entering <Control-D> will also
@@ -885,6 +1226,7 @@ interface.
 * Menu:
 
 * accheck command::             Verifying NTP client access
+* activity command::            Check how many NTP servers/peers are online/offline
 * add peer command::            Add a new NTP peer
 * add server command::          Add a new NTP server
 * allow command::               Allowing NTP client access
@@ -924,7 +1266,7 @@ interface.
 * writertc command::            Write the RTC parameters to file.
 
 
-File: chrony.info,  Node: accheck command,  Next: add peer command,  Prev: Chronyc command reference,  Up: Chronyc command reference
+File: chrony.info,  Node: accheck command,  Next: activity command,  Up: Chronyc command reference
 
 accheck
 .......
@@ -943,373 +1285,30 @@ as follows:
 via chronyc, or in `chronyd's' configuration file.
 
 
-File: chrony.info,  Node: add peer command,  Next: add server command,  Prev: accheck command,  Up: Chronyc command reference
+File: chrony.info,  Node: activity command,  Next: add peer command,  Prev: accheck command,  Up: Chronyc command reference
 
-add peer
+activity
 ........
 
-   The `add peer' command allows a new NTP peer to be added whilst
-`chronyd' is running.
-
-   Following the words `add peer', the syntax of the following
-parameters and options is identical to that for the `peer' directive in
-the configuration file (*note peer directive::).
-
-   An example of using this command is shown below.
-
-     add peer foo.bar.com minpoll 6 maxpoll 10 authkey 25
-
-
-File: chrony.info,  Node: add server command,  Next: allow command,  Prev: add peer command,  Up: Chronyc command reference
-
-add server
-..........
-
-   The `add server' command allows a new NTP server to be added whilst
-`chronyd' is running.
-
-   Following the words `add server', the syntax of the following
-parameters and options is identical to that for the `server' directive
-in the configuration file (*note server directive::).
-
-   An example of using this command is shown below.
-
-     add server foo.bar.com minpoll 6 maxpoll 10 authkey 25
-
-
-File: chrony.info,  Node: allow command,  Next: allow all command,  Prev: add server command,  Up: Chronyc command reference
-
-allow
-.....
-
-   The effect of the allow command is identical to the `allow'
-directive in the configuration file (*note allow directive::).
-
-   The syntax is illustrated in the following examples:
-
-     allow foo.bar.com
-     allow 1.2
-     allow 3.4.5
-
-
-File: chrony.info,  Node: allow all command,  Next: burst command,  Prev: allow command,  Up: Chronyc command reference
-
-allow all
-.........
-
-   The effect of the allow command is identical to the `allow all'
-directive in the configuration file (*note allow directive::).
-
-
-File: chrony.info,  Node: burst command,  Next: clients command,  Prev: allow all command,  Up: Chronyc command reference
-
-burst
-.....
-
-   The `burst' command tells `chronyd' to make a set of measurements to
-each of its sources over a short duration (rather than the usual
-periodic measurements that it makes).  After such a burst, `chronyd'
-will revert to the previous state for each source.  This might be either
-online, if the source was being periodically measured in the normal way,
-or offline, if the source had been indicated as being offline.
-(Switching a source between the online and offline states is described
-in *Note online command::, *Note offline command::).
-
-   The syntax of the burst command is as follows
-
-     burst <n-good-measurements>/<max-measurements> [<mask>/<masked-address>]
-
-   The mask and masked-address arguments are optional, in which case
-`chronyd' will initiate a burst for all of its currently defined
-sources.
-
-   The arguments have the following meaning and format.
-
-`n-good-measurements'
-     This defines the number of good measurements that `chronyd' will
-     want to obtain from each source.  A measurement is good if it
-     passes certain tests, for example, the round trip time to the
-     source must be acceptable.  (This allows `chronyd' to reject
-     measurements that are likely to be bogus.)
-
-`max-measurements'
-     This defines the maximum number of measurements that `chronyd' will
-     attempt to make, even if the required number of good measurements
-     has not been obtained.
-
-`mask'
-     This is a dotted quad argument (e.g. `255.255.255.0') with which
-     the IP address of each of `chronyd''s sources is to be masked.
-
-`masked-address'
-     This is a dotted quad argument (e.g. `1.2.3.0').  If the masked IP
-     address of a source matches this value then the burst command is
-     applied to that source.
-
-   If no mask or masked address arguments are provided, the default is
-`0.0.0.0' and `0.0.0.0' respectively, which will match every source.
-
-   An example of the two-argument form of the command is
-
-     burst 2/10
-
-   This will cause `chronyd' to attempt to get two good measurements
-from each source, stopping after two have been obtained, but in no
-event will it try more than ten probes to the source.
-
-   An example of the four-argument form of the command is
-
-     burst 2/10 255.255.0.0/1.2.0.0
-
-   In this case, the two out of ten sampling will only be applied to
-sources whose IP addresses are of the form `1.2.x.y', where x and y are
-arbitrary.
-
-
-File: chrony.info,  Node: clients command,  Next: cmdaccheck command,  Prev: burst command,  Up: Chronyc command reference
-
-clients
-.......
-
-   This command shows a list of all clients that have accessed the
-server, through either the NTP or command/monitoring ports.  There are
-no arguments.
-
-   An example of the output is
-
-   Hostname                   Client    Peer CmdAuth CmdNorm  CmdBad
-LstN  LstC =========================  ======  ======  ======  ======
-======  ====  ==== localhost                       0       0      15
-  1       0   29y     0 aardvark.xxx                    4       0
-0       0       0    49   29y badger.xxx                      4
-0       0       0       0     6   29y
-
-   Each row shows the data for a single host.  Only hosts that have
-passed the host access checks (set with the `allow', `deny', `cmdallow'
-and `cmddeny' commands or configuration file directives) are logged.
-
-   The columns are as follows:
-
-  1. The hostname of the client
-
-  2. The number of times the client has accessed the server using an NTP
-     client mode packet.
-
-  3. The number of times the client has accessed the server using an NTP
-     symmetric active mode packet.
-
-  4. The number of authenticated command packets that have been
-     processed from the client (i.e. those following a successful
-     `password' command).
-
-  5. The number of unauthenticated command packets that have been
-     processed from the client.
-
-  6. The number of bad command packets received from the client (not all
-     forms of bad packet are logged).
-
-  7. Time since the last NTP packet was received
-
-  8. Time since the last command packet was received
-
-   The last two entries will be shown as the time since 1970 if no
-packet of that type has ever been received.
-
-
-File: chrony.info,  Node: cmdaccheck command,  Next: cmdallow command,  Prev: clients command,  Up: Chronyc command reference
-
-cmdaccheck
-..........
-
-   This command is similar to the `accheck' command, except that it is
-used to check whether command access is permitted from a named host.
-
-   Examples of use are as follows:
-
-     cmdaccheck a.b.c
-     cmdaccheck 1.2.3.4
-
-
-File: chrony.info,  Node: cmdallow command,  Next: cmdallow all command,  Prev: cmdaccheck command,  Up: Chronyc command reference
-
-cmdallow
-........
-
-   This is similar to the `allow' command, except that it is used to
-allow particular hosts or subnets to use the chronyc program to interact
-with `chronyd' on the current host.
-
-
-File: chrony.info,  Node: cmdallow all command,  Next: cmddeny command,  Prev: cmdallow command,  Up: Chronyc command reference
-
-cmdallow all
-............
-
-   This is similar to the `allow all' command, except that it is used to
-allow particular hosts or subnets to use the chronyc program to interact
-with `chronyd' on the current host.
-
-
-File: chrony.info,  Node: cmddeny command,  Next: cmddeny all command,  Prev: cmdallow all command,  Up: Chronyc command reference
-
-cmddeny
-.......
-
-   This is similar to the `deny' command, except that it is used to
-allow particular hosts or subnets to use the chronyc program to interact
-with `chronyd' on the current host.
-
-
-File: chrony.info,  Node: cmddeny all command,  Next: cyclelogs command,  Prev: cmddeny command,  Up: Chronyc command reference
-
-cmddeny all
-...........
-
-   This is similar to the `deny all' command, except that it is used to
-allow particular hosts or subnets to use the chronyc program to
-interact with `chronyd' on the current host.
-
-
-File: chrony.info,  Node: cyclelogs command,  Next: delete command,  Prev: cmddeny all command,  Up: Chronyc command reference
-
-cyclelogs
-.........
-
-   The `cyclelogs' command causes all of `chronyd's' open log files to
-be closed and re-opened.  This allows them to be renamed so that they
-can be periodically purged.  An example of how to do this is shown
-below.
-
-     % mv /var/log/chrony/measurements.log /var/log/chrony/measurements1.log
-     % chronyc
-     chronyc> password aardvark
-     200 OK
-     chronyc> cyclelogs
-     200 OK
-     chronyc> exit
-     % ls -l /var/log/chrony
-     -rw-r--r--   1 root     root            0 Jun  8 18:17 measurements.log
-     -rw-r--r--   1 root     root        12345 Jun  8 18:17 measurements1.log
-
-
-File: chrony.info,  Node: delete command,  Next: deny command,  Prev: cyclelogs command,  Up: Chronyc command reference
-
-delete
-......
-
-   The `delete' command allows an NTP server or peer to be removed from
-the current set of sources.
-
-   The syntax is illustrated in the examples below.
-
-     delete foo.bar.com
-     delete 1.2.3.4
-
-   There is one parameter, the name or IP address of the server or peer
-to be deleted.
-
-
-File: chrony.info,  Node: deny command,  Next: deny all command,  Prev: delete command,  Up: Chronyc command reference
-
-deny
-....
-
-   The effect of the allow command is identical to the `deny' directive
-in the configuration file (*note deny directive::).
-
-   The syntax is illustrated in the following examples:
-
-     deny foo.bar.com
-     deny 1.2
-     deny 3.4.5
-
-
-File: chrony.info,  Node: deny all command,  Next: dump command,  Prev: deny command,  Up: Chronyc command reference
-
-deny all
-........
-
-   The effect of the allow command is identical to the `deny all'
-directive in the configuration file (*note deny directive::).
-
-
-File: chrony.info,  Node: dump command,  Next: exit command,  Prev: deny all command,  Up: Chronyc command reference
-
-dump
-....
-
-   The `dump' command causes `chronyd' to write its current history of
-measurements for each of its sources to dump files, either for
-inspection or to support the `-r' option when `chronyd' is restarted.
-
-   The `dump' command is somewhat equivalent to the `dumponexit'
-directive in the chrony configuration file.  *Note dumponexit
-directive::.
-
-   To use the `dump', you probably want to configure the name of the
-directory into which the dump files will be written.  This can only be
-done in the configuration file, see *Note dumpdir directive::.
-
-
-File: chrony.info,  Node: exit command,  Next: help command,  Prev: dump command,  Up: Chronyc command reference
-
-exit
-....
-
-   The exit command exits from chronyc and returns the user to the shell
-(same as the quit command).
-
-
-File: chrony.info,  Node: help command,  Next: local command,  Prev: exit command,  Up: Chronyc command reference
-
-help
-....
-
-   The help command displays a summary of the commands and their
-arguments.
-
-
-File: chrony.info,  Node: local command,  Next: makestep command,  Prev: help command,  Up: Chronyc command reference
-
-local
-.....
-
-   The `local' command allows `chronyd' to be told that it is to appear
-as a reference source, even if it is not itself properly synchronised to
-an external source.  (This can be used on isolated networks, to allow
-one computer to be a master time server with the other computers slaving
-to it.)  The `local' command is somewhat equivalent to the `local'
-directive in the configuration file, see *Note local directive::.
-
-   The syntax is as shown in the following examples.
-
-     local stratum 10
-     local off
-
-   The first example enables the local reference mode on the host, and
-sets the stratum at which it should claim to be synchronised.
-
-   The second example disables the local reference mode.
-
-
-File: chrony.info,  Node: makestep command,  Next: manual command,  Prev: local command,  Up: Chronyc command reference
-
-makestep
-........
-
-   Normally chronyd will cause the system to gradually correct any time
-offset, by slowing down or speeding up the clock as required.  In
-certain situations, the system clock may be so far adrift that this
-slewing process would take a very long time to correct the system clock.
-
-   The `makestep' command can be used in this situation.  It cancels
-any remaining correction that was being slewed, and jumps the system
-clock by the equivalent amount, making it correct immediately.
-
-   BE WARNED - certain software will be seriously affected by such
-jumps to the system time.  (That is the reason why chronyd uses slewing
-normally.)
-
-   The `makestep' command is currently only available on the Linux
-version of chrony.
+   This command reports the number of servers/peers that are online and
+offline.  If the auto_offline option is used in specifying some of the
+servers/peers, the `activity' command may be useful for detecting when
+all of them have entered the offline state after the PPP link has been
+disconnected.
+
+   The report shows the number of servers/peers in 4 states:
+   * `online' : the server/peer is currently online (i.e. assumed by
+     chronyd to be reachable)
+
+   * `offline' : the server/peer is currently offline (i.e. assumed by
+     chronyd to be unreachable, and no measurements from it will be
+     attempted.)
+
+   * `burst_online' : a burst command has been initiated for the
+     server/peer and is being performed; after the burst is complete,
+     the server/peer will be returned to the online state.
+
+   * `burst_offline' : a burst command has been initiated for the
+     server/peer and is being performed; after the burst is complete,
+     the server/peer will be returned to the offline state.
 

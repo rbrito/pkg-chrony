@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/keys.c,v 1.7 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/keys.c,v 1.12 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -84,14 +97,18 @@ compare_keys_by_id(const void *a, const void *b)
 
 /* ================================================== */
 
+
+#define KEYLEN 2047
+#define SKEYLEN "2047"
+
 void
 KEY_Reload(void)
 {
-  int i;
+  int i, len1;
   char *key_file;
   FILE *in;
   unsigned long key_id;
-  char line[2048], keyval[2048];;
+  char line[KEYLEN+1], keyval[KEYLEN+1];
 
   for (i=0; i<n_keys; i++) {
     Free(keys[i].val);
@@ -105,8 +122,15 @@ KEY_Reload(void)
     in = fopen(key_file, "r");
     if (in) {
       while (fgets(line, sizeof(line), in)) {
-        line[strlen(line) - 1] = 0;
-        if (sscanf(line, "%lu%s", &key_id, keyval) == 2) {
+        len1 = strlen(line) - 1;
+
+        /* Guard against removing last character of the line
+         * if the last line of the file is missing an end-of-line */
+        if (line[len1] == '\n') {
+          line[len1] = '\0';
+        }
+
+        if (sscanf(line, "%lu%" SKEYLEN "s", &key_id, keyval) == 2) {
           keys[n_keys].id = key_id;
           keys[n_keys].len = strlen(keyval);
           keys[n_keys].val = MallocArray(char, 1 + keys[n_keys].len);

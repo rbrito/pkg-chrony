@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/local.c,v 1.15 1999/09/21 21:03:26 richard Exp $
+  $Header: /cvs/src/chrony/local.c,v 1.21 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -116,7 +129,7 @@ calculate_sys_precision(void)
     best_dusec *= 2;
   }
 
-  precision_quantum = 1.0 / (double)(1<<precision_log);
+  precision_quantum = 1.0 / (double)(1<<(-precision_log));
 
   return;
 }
@@ -484,8 +497,8 @@ LCL_AccumulateFrequencyAndOffset(double dfreq, double doffset)
   current_freq_ppm = (1.0 - dfreq) * old_freq_ppm +
     (1.0e6 * dfreq);
 
-#if 0
-  LOG(LOGS_INFO, LOGF_Local, "old_freq=%.3fppm new_freq=%.3fppm offset=%.6fsec\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_Local, "old_freq=%.3fppm new_freq=%.3fppm offset=%.6fsec",
       old_freq_ppm, current_freq_ppm, doffset);
 #endif
 
@@ -533,8 +546,8 @@ lcl_RegisterSystemDrivers(lcl_ReadFrequencyDriver read_freq,
 
   current_freq_ppm = (*drv_read_freq)();
 
-#if 0
-  LOG(LOGS_INFO, LOGF_Local, "Local freq=%.3fppm\n", current_freq_ppm);
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_Local, "Local freq=%.3fppm", current_freq_ppm);
 #endif
 
   return;
@@ -549,7 +562,9 @@ LCL_MakeStep(void)
 {
   if (drv_immediate_step) {
     (drv_immediate_step)();
+#ifdef TRACEON
     LOG(LOGS_INFO, LOGF_Local, "Made step to system time to apply remaining slew");
+#endif
     return 1;
   }
 

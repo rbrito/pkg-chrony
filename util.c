@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/util.c,v 1.13 1999/08/17 21:21:46 richard Exp $
+  $Header: /cvs/src/chrony/util.c,v 1.22 2003/09/28 22:21:17 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -169,7 +182,7 @@ UTI_AverageDiffTimevals (struct timeval *earlier,
     /* This seems to be fairly benign, so don't bother logging it */
 
 #if 0
-    LOG(LOGS_INFO, LOGF_Util, "Earlier=[%s] Later=[%s]\n",
+    LOG(LOGS_INFO, LOGF_Util, "Earlier=[%s] Later=[%s]",
         UTI_TimevalToString(earlier), UTI_TimevalToString(later));
 #endif
 
@@ -201,7 +214,8 @@ UTI_AverageDiffTimevals (struct timeval *earlier,
 /* ================================================== */
 
 #define POOL_ENTRIES 16
-static char buffer_pool[POOL_ENTRIES][64];
+#define BUFFER_LENGTH 64
+static char buffer_pool[POOL_ENTRIES][BUFFER_LENGTH];
 static int  pool_ptr = 0;
 
 #define NEXT_BUFFER (buffer_pool[pool_ptr = ((pool_ptr + 1) % POOL_ENTRIES)])
@@ -218,7 +232,7 @@ UTI_TimevalToString(struct timeval *tv)
   stm = *gmtime((time_t *) &(tv->tv_sec));
   strftime(buffer, sizeof(buffer), "%a %x %X", &stm);
   result = NEXT_BUFFER;
-  snprintf(result, 64, "%s.%06ld", buffer, (unsigned long)(tv->tv_usec)); /* was sprintf JGH 19 Nov 2000 */
+  snprintf(result, sizeof(buffer), "%s.%06ld", buffer, (unsigned long)(tv->tv_usec));
   return result;
 }
 
@@ -259,7 +273,7 @@ UTI_IPToDottedQuad(unsigned long ip)
   c = (ip>> 8) & 0xff;
   d = (ip>> 0) & 0xff;
   result = NEXT_BUFFER;
-  snprintf(result, 64, "%ld.%ld.%ld.%ld", a, b, c, d); /* was sprintf JGH 19 Nov 2000 */
+  snprintf(result, BUFFER_LENGTH, "%ld.%ld.%ld.%ld", a, b, c, d);
   return result;
 }
 
@@ -270,17 +284,11 @@ UTI_TimeToLogForm(time_t t)
 {
   struct tm stm;
   char *result;
-  static char *months[] = {"Jan", "Feb", "Mar", "Apr",
-                           "May", "Jun", "Jul", "Aug",
-                           "Sep", "Oct", "Nov", "Dec"};
-
 
   result = NEXT_BUFFER;
 
   stm = *gmtime(&t);
-  snprintf(result, 64, "%2d%s%02d %02d:%02d:%02d", /* was sprintf JGH 19 Nov 2000 */
-          stm.tm_mday, months[stm.tm_mon], stm.tm_year % 100,
-          stm.tm_hour, stm.tm_min, stm.tm_sec);
+  strftime(result, BUFFER_LENGTH, "%Y-%m-%d %H:%M:%S", &stm);
 
   return result;
 }
@@ -298,15 +306,55 @@ UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *
 }
 
 /* ================================================== */
+
+/* Seconds part of RFC1305 timestamp correponding to the origin of the
+   struct timeval format. */
+#define JAN_1970 0x83aa7e80UL
+
+void
+UTI_TimevalToInt64(struct timeval *src,
+                   NTP_int64 *dest)
+{
+  unsigned long usec = src->tv_usec;
+  unsigned long sec = src->tv_sec;
+
+  /* Recognize zero as a special case - it always signifies
+     an 'unknown' value */
+  if (!usec && !sec) {
+    dest->hi = dest->lo = 0;
+  } else {
+    dest->hi = htonl(src->tv_sec + JAN_1970);
+
+    /* This formula gives an error of about 0.1us worst case */
+    dest->lo = htonl(4295 * usec - (usec>>5) - (usec>>9));
+  }
+}
+
+/* ================================================== */
+
+void
+UTI_Int64ToTimeval(NTP_int64 *src,
+                   struct timeval *dest)
+{
+  /* As yet, there is no need to check for zero - all processing that
+     has to detect that case is in the NTP layer */
+
+  dest->tv_sec = ntohl(src->hi) - JAN_1970;
+  
+  /* Until I invent a slick way to do this, just do it the obvious way */
+  dest->tv_usec = (int)(0.5 + (double)(ntohl(src->lo)) / 4294.967296);
+}
+
+/* ================================================== */
 /* Force a core dump and exit without doing abort() or assert(0).
    These do funny things with the call stack in the core file that is
    generated, which makes diagnosis difficult. */
 
 int
-croak(char *file, int line, char *msg)
+croak(const char *file, int line, const char *msg)
 {
   int a;
-  LOG(LOGS_ERR, LOGF_Util, "Unexpected condition [%s] at %s:%d, core dumped\n",
+  LOG(LOGS_ERR, LOGF_Util, "Unexpected condition [%s] at %s:%d, core dumped",
       msg, file, line);
   a = * (int *) 0;
   return a; /* Can't happen - this stops the optimiser optimising the
