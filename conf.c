@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/conf.c,v 1.30 1999/04/29 20:29:28 richard Exp $
+  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/conf.c,v 1.25 1998/06/22 05:51:06 richard Exp $
 
   =======================================================================
 
@@ -31,7 +31,8 @@
 
 /* ================================================== */
 
-#define DEFAULT_CONF_FILE "/etc/chrony.conf"
+/* Was "/etc/chrony.conf" JGH Sun Nov  8 18:11:11 CST 1998 */
+#define DEFAULT_CONF_FILE "/etc/chrony/chrony.conf"
 
 /* ================================================== */
 /* Forward prototypes */

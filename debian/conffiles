@@ -1,0 +1,6 @@
+/etc/chrony/chrony.conf
+/etc/chrony/chrony.keys
+/etc/init.d/chrony
+/etc/ppp/ip-up.d/chrony
+/etc/ppp/ip-down.d/chrony
+/etc/cron.weekly/chrony

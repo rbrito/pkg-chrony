@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+# postinst for chrony John Hasler jhasler@debian.org 3 Dec 1998
+install-info --description="Set your clock from the Net" \
+	     --section "General Commands" \
+             --quiet /usr/info/chrony.info
+
+if [ -x /usr/bin/update-menus ] ; then 
+    /usr/bin/update-menus 
+fi
+# If chrony.keys is the dist file generate a random passord and put it there.
+if [ "`cat /etc/chrony/chrony.keys`" = "1 password_here" ] ; then
+    until [ `expr "$PASSWORD" : ".*"` -ge 8 ]
+    do
+	PASSWORD=`head -c 100 /dev/urandom | tr -dc '[:alnum:]' | head -c 8`
+    done
+    echo "1 $PASSWORD" > /etc/chrony/chrony.keys
+fi
+update-rc.d chrony defaults 83 >/dev/null
+/etc/init.d/chrony start
+exit 0

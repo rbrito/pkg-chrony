@@ -1,0 +1,9 @@
+usr/bin
+usr/sbin
+usr/info
+etc/chrony
+etc/ppp/ip-up.d
+etc/ppp/ip-down.d
+etc/cron.weekly
+var/log/chrony
+var/lib/chrony

@@ -1,0 +1,46 @@
+.TH CHRONY 8 
+.\" NAME should be all caps, SECTION should be 1-8, maybe w/ subsection
+.\" other parms are allowed: see man(7), man(1)
+.SH CHRONY
+chrony sets your clock from the Net and adjusts the system time for drift 
+when you are not connected.
+.SH SYNOPSIS
+.B chronyd
+.I "[options]"
+.br
+.B chronyc
+.I "[options] [files] ..."
+.SH "DESCRIPTION"
+.B chrony
+is a software package for maintaining the accuracy of computer
+system clocks.  It consists of a pair of programs:
+
+.B chronyd
+ This is a daemon which runs in background on the
+system.  It obtains measurements (e.g. via the network) of the
+system's offset relative to other systems, and adjusts the system
+time accordingly.  For isolated systems, the user can periodically
+enter the correct time by hand (using 
+.B chronyc
+).  In either case,
+.B chronyd
+determines the rate at which the computer gains or loses
+time, and compensates for this.
+
+.B chronyc
+ This is a command-line driven control and monitoring
+program.  An administrator can use this to fine-tune various
+parameters within the daemon, add or delete servers etc whilst the
+daemon is running.
+.SH FILES
+/etc/chrony/chrony.conf, /etc/chrony/chrony.keys, /var/lib/chrony/chrony.drift, 
+/etc/init.d/chrony, /etc/ppp/ip-up.d/chrony, /etc/ppp/ip-down.d/chrony,
+/etc/cron.weekly/chrony, /var/log/chrony/
+.SH "SEE ALSO"
+The programs are documented fully in the info system under
+.B chrony.  Just type 'info chrony'.  Also look at the files in /usr/doc/chrony.
+.
+.SH AUTHOR
+This manual page was written by  John Hasler <john@dhh.gt.org> on Nov 7 1998,
+based on Richard Curnow's info documents. 
+It is licensed under the chrony license: see /usr/doc/chrony/COPYING.

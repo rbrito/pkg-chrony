@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/sources.c,v 1.23 1999/04/19 20:27:29 richard Exp $
+  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/sources.c,v 1.21 1998/06/10 20:48:07 richard Exp $
 
   =======================================================================
 
@@ -751,7 +751,7 @@ SRC_DumpSources(void)
       c = ((sources[i]->ref_id) >> 8) & 0xff;
       d = ((sources[i]->ref_id)) & 0xff;
       
-      sprintf(filename, "%s/%d.%d.%d.%d.dat", direc, a, b, c, d);
+      snprintf(filename, 1024, "%s/%d.%d.%d.%d.dat", direc, a, b, c, d); /* was sprintf JGH 2/28/99 */
       out = fopen(filename, "w");
       if (!out) {
         LOG(LOGS_WARN, LOGF_Sources, "Could not open dump file %s\n", filename);
@@ -781,7 +781,7 @@ SRC_ReloadSources(void)
     c = ((sources[i]->ref_id) >> 8) & 0xff;
     d = ((sources[i]->ref_id)) & 0xff;
 
-    sprintf(filename, "%s/%d.%d.%d.%d.dat", CNF_GetDumpDir(), a, b, c, d);
+    snprintf(filename, 1024, "%s/%d.%d.%d.%d.dat", CNF_GetDumpDir(), a, b, c, d); /* was sprintf JGH 2/28/99 */
     in = fopen(filename, "r");
     if (!in) {
       LOG(LOGS_WARN, LOGF_Sources, "Could not open dump file %s\n", filename);

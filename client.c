@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/client.c,v 1.46 1999/04/21 20:14:03 richard Exp $
+  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/client.c,v 1.38 1998/06/22 06:01:32 richard Exp $
 
   =======================================================================
 
@@ -996,7 +996,6 @@ give_help(void)
   printf("allow [<subnet-addr>] : Allow NTP access to that subnet as a default\n");
   printf("allow all [<subnet-addr>] : Allow NTP access to that subnet and all children\n");
   printf("burst <n-good>/<n-max> [<mask>/<masked-address>] : Start a rapid set of measurements\n");
-  printf("clients : Report on clients that have accessed the server\n");
   printf("cmdaccheck <address> : Check whether command access is allowed to <address>\n");
   printf("cmdallow [<subnet-addr>] : Allow command access to that subnet as a default\n");
   printf("cmdallow all [<subnet-addr>] : Allow command access to that subnet and all children\n");
@@ -1012,9 +1011,7 @@ give_help(void)
   printf("help : Generate this help\n");
   printf("local off : Disable server capability for unsynchronised clock\n");
   printf("local stratum <stratum> : Enable server capability for unsynchronised clock\n");
-  printf("makestep : Jump the time to remove any correction being slewed\n");
   printf("manual off|on|reset : Disable/enable/reset settime command and statistics\n");
-  printf("manual list : Show previous settime entries\n");
   printf("minpoll <address> <new-minpoll> : Modify minimum polling interval of source\n");
   printf("maxdelay <address> <new-max-delay> : Modify maximum round-trip valid sample delay for source\n");
   printf("maxdelayratio <address> <new-max-ratio> : Modify max round-trip delay ratio for source\n");

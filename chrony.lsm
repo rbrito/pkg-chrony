@@ -1,7 +1,7 @@
 Begin3
 Title:          chrony
-Version:        1.1
-Entered-date:   06MAY99
+Version:        1.02
+Entered-date:   01AUG98
 Description:    A pair of programs for keeping computer clocks accurate.
                 chronyd is a background (daemon) program and chronyc is a
                 command-line interface to it.  Time reference sources for

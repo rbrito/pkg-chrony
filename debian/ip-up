@@ -1,0 +1,10 @@
+#!/bin/sh
+# This script tells chronyd that the connection is up so that it can
+# contact the server.  John Hasler <jhasler@debian.org> 1 Dec. 1998
+
+PASSWORD=`awk '$1 ~ /^1$/ {print $2; exit}' /etc/chrony/chrony.keys`
+cat << EOF | /usr/bin/chronyc
+password $PASSWORD
+online
+EOF
+exit 0

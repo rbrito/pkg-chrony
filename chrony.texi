@@ -400,10 +400,11 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 @node Installation, Typical scenarios, Introduction, Top
 @chapter Installation
 
-The software is distributed as source code which has to be compiled.
-The source code is supplied in the form of a gzipped tar file, which
-unpacks to a subdirectory identifying the name and version of the
-program.
+The software is distributed as source code which has to be compiled
+unless you have installed the Debian package, in which case it is
+already compiled and installed with a default configuration.  The source
+code is supplied in the form of a gzipped tar file, which unpacks to a
+subdirectory identifying the name and version of the program.
 
 After unpacking the source code, change directory into it, and type
 
@@ -444,10 +445,12 @@ entered.
 make install
 @end example
 
-Now that the software is successfully installed, the next step is to
-set up a configuration file.  The contents of this depend on the
-network environment in which the computer operates.  Typical scenarios
-are described in the following section of the document.
+Now that the software is successfully installed, the next step is to set
+up a configuration file.  The contents of this depend on the network
+environment in which the computer operates.  The Debian package installs
+a simple configuration file suitable for a dial-up pc.  You should edit
+it to suit your situation.  Typical scenarios are described in the
+following section of the document.
 
 @node Typical scenarios, Usage reference, Installation, Top
 @chapter Typical operating scenarios
@@ -487,8 +490,9 @@ use their facilities.
 
 Assuming that you have found some servers, you need to set up a
 configuration file to run chrony.  The (compiled-in) default location
-for this file is @file{/etc/chrony.conf}.  Assuming that your ntp
-servers are called @code{a.b.c} and @code{d.e.f}, your
+for this file is @file{/etc/chrony.conf}.  In the Debian package the
+configuration files are in the directory @file{/etc/chrony}.  Assuming
+that your ntp servers are called @code{a.b.c} and @code{d.e.f}, your
 @file{chrony.conf} file could contain as a minimum
 
 @example
@@ -569,11 +573,12 @@ overcome.  The @code{offline} keyword indicates that the servers start
 in an offline state, and that they should not be contacted until @code{chronyd}
 receives notification that the link to the internet is present.
 
-In order to notify @code{chronyd} of the presence of the link, you will need to
-be able to log in to it with the program chronyc.  To do this, @code{chronyd}
-needs to be configured with an administrator password.  To set up an
-administrator password, you can create a file @file{/etc/chrony.keys}
-containing a single line
+In order to notify @code{chronyd} of the presence of the link, you will
+need to be able to log in to it with the program chronyc.  To do this,
+@code{chronyd} needs to be configured with an administrator password.
+The Debian package puts a default key in @file{/etc/chrony/chrony.keys}.
+You should change it.  To set up an administrator password, you can
+create a file @file{/etc/chrony.keys} containing a single line
 
 @example
 1 xyzzy
@@ -631,6 +636,9 @@ password xyzzy
 offline
 EOF
 @end example
+
+The Debian package puts scripts similar to those above in the
+directories @file{/etc/ppp/ip-up.d} and @file{/etc/ppp/ip-down.d}.
 
 @code{chronyd's} polling of the servers will now only occur whilst the
 machine is actually connected to the Internet.
@@ -865,6 +873,9 @@ if [ -f /usr/local/sbin/chronyd -a -f /etc/chrony.conf ]; then
 fi
 @end example
 
+The Debian package puts a script which handles this and shutdown in
+@file{/etc/init.d/chrony}.
+
 The placement of this command may be important on some systems.  In
 particular, @code{chronyd} may need to be started several seconds (about
 10 as a minimum) before any software that depends on the system clock
@@ -938,6 +949,8 @@ entering the command
 @example
 /usr/local/sbin/chronyd
 @end example
+
+The Debian package uses @file{/usr/sbin/chronyd}.
 
 Information messages and warnings will be logged to syslog.
 
@@ -1045,7 +1058,6 @@ directives can occur in any order in the file.
 
 @menu
 * allow directive::             Give access to NTP clients
-* bindaddress directive::       Limit the network interface that is used
 * commandkey directive::        Set runtime command key
 * cmdport directive::           Set port to use for runtime commanding
 * deny directive::              Deny access to NTP clients
@@ -1056,12 +1068,9 @@ directives can occur in any order in the file.
 * keyfile directive::           Specify location of file containing keys
 * local directive::             Allow unsynchronised machine to act as server
 * log directive::               Make daemon log certain sets of information
-* logchange directive::         Generate syslog messages if large offsets occur
 * logdir directive::            Specify directory for logging
-* mailonchange directive::      Send email if a clock correction above a threshold occurs
 * manual directive::            Allow manual entry using chronyc's settime cmd.
 * maxupdateskew directive::     Stop bad estimates upsetting machine clock
-* noclientlog directive::       Prevent chronyd from gathering data about clients
 * peer directive::              Specify an NTP peer
 * port directive::              Set port to use for NTP packets
 * rtcfile directive::           Specify the file where real-time clock data is stored
@@ -2046,7 +2055,6 @@ interface.
 * allow command::               Allowing NTP client access
 * allow all command::           Allowing NTP client access
 * burst command::               Initiating a rapid set of measurements
-* clients command::             Show clients that have accessed the server
 * cmdaccheck command::          Verifying command client access
 * cmdallow command::            Allowing command client access
 * cmdallow all command::        Allowing command client access
@@ -2060,7 +2068,6 @@ interface.
 * exit command::                Exit from chronyc
 * help command::                Generate help summary
 * local command::               Let computer be a server when it is unsynchronised
-* makestep command::            Immediately correct the system clock instead of slewing
 * manual command::              Enable/disable/configure options for settime
 * maxdelay command::            Set max measurement delay for a source
 * maxdelayratio command::       Set max measurement delay for a source as ratio

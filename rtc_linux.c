@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/rtc_linux.c,v 1.16 1999/04/21 21:14:06 richard Exp $
+  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/rtc_linux.c,v 1.13 1998/07/27 21:23:50 richard Exp $
 
   =======================================================================
 
@@ -18,6 +18,15 @@
   */
 
 #if defined LINUX
+
+  /* 
+  Added by JGH Mon May 17 22:45:39 CDT 1999 at the suggestion of
+  bmc@visi.net to permit the package to build on SPARC.
+  */
+
+#ifdef sparc
+#define __KERNEL__
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>

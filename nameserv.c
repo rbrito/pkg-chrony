@@ -67,7 +67,7 @@ DNS_IPAddress2Name(unsigned long ip_addr)
       b = (ip_addr >> 16) & 0xff;
       c = (ip_addr >>  8) & 0xff;
       d = (ip_addr)       & 0xff;
-      sprintf(buffer, "%u.%u.%u.%u", a, b, c, d);
+      snprintf(buffer, 16, "%u.%u.%u.%u", a, b, c, d); /* was sprintf JGH 2/8/99 */
       return buffer;
     } else {
       return host->h_name;

@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/util.c,v 1.12 1999/04/19 20:27:29 richard Exp $
+  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/util.c,v 1.10 1998/07/12 10:45:27 richard Exp $
 
   =======================================================================
 
@@ -220,7 +220,7 @@ UTI_TimevalToString(struct timeval *tv)
   stm = *gmtime((time_t *) &(tv->tv_sec));
   strftime(buffer, sizeof(buffer), "%a %x %X", &stm);
   result = NEXT_BUFFER;
-  sprintf(result, "%s.%06ld", buffer, (unsigned long)(tv->tv_usec));
+  snprintf(result, 64, "%s.%06ld", buffer, (unsigned long)(tv->tv_usec)); /* was sprintf JGH 2/28/99 */
   return result;
 }
 
@@ -261,7 +261,7 @@ UTI_IPToDottedQuad(unsigned long ip)
   c = (ip>> 8) & 0xff;
   d = (ip>> 0) & 0xff;
   result = NEXT_BUFFER;
-  sprintf(result, "%ld.%ld.%ld.%ld", a, b, c, d);
+  snprintf(result, 16, "%ld.%ld.%ld.%ld", a, b, c, d); /* was sprintf JGH 2/28/99 */
   return result;
 }
 
@@ -280,7 +280,7 @@ UTI_TimeToLogForm(time_t t)
   result = NEXT_BUFFER;
 
   stm = *gmtime(&t);
-  sprintf(result, "%2d%s%02d %02d:%02d:%02d",
+  snprintf(result, 17, "%2d%s%02d %02d:%02d:%02d", /* was sprintf JGH 2/28/99 */
           stm.tm_mday, months[stm.tm_mon], stm.tm_year % 100,
           stm.tm_hour, stm.tm_min, stm.tm_sec);
 

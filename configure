@@ -59,7 +59,7 @@ case $SYSTEM in
 		;;
 	esac
     ;;
-    Linux-i[3456]86 )
+    Linux-* )
 	EXTRA_OBJECTS="sys_linux.o rtc_linux.o"
         SYSDEFS="-DLINUX"
 	echo "Configuring for " $SYSTEM

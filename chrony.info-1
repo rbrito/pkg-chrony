@@ -1,0 +1,1194 @@
+This is Info file chrony.info, produced by Makeinfo version 1.68 from
+the input file chrony.texi.
+
+   This only occurs in the info case
+
+
+File: chrony.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
+
+* Menu:
+
+* Introduction::                What the chrony suite does
+* Installation::                How to compile and install the software
+* Typical scenarios::           How to configure the software for some common cases
+* Usage reference::             Reference manual
+* Porting guide::               Hints to help with porting the software
+
+
+File: chrony.info,  Node: Introduction,  Next: Installation,  Prev: Top,  Up: Top
+
+Introduction
+************
+
+* Menu:
+
+* Overview::                    What the programs do
+* Acknowledgements::            Credit where credit is due
+* Availability::                Where to get the software
+* Other time synchronisation packages::  Comparision with other software
+* Distribution and warranty::   There is no warranty
+
+
+File: chrony.info,  Node: Overview,  Next: Acknowledgements,  Prev: Introduction,  Up: Introduction
+
+Overview
+========
+
+   Chrony is a software package for maintaining the accuracy of computer
+system clocks.  It consists of a pair of programs :
+
+   * `chronyd'.  This is a daemon which runs in background on the
+     system.  It obtains measurements (e.g. via the network) of the
+     system's offset relative to other systems, and adjusts the system
+     time accordingly.  For isolated systems, the user can periodically
+     enter the correct time by hand (using `chronyc').  In either case,
+     `chronyd' determines the rate at which the computer gains or loses
+     time, and compensates for this.
+
+   * `chronyc'.  This is a command-line driven control and monitoring
+     program.  An administrator can use this to fine-tune various
+     parameters within the daemon, add or delete servers etc whilst the
+     daemon is running.
+
+
+File: chrony.info,  Node: Acknowledgements,  Next: Availability,  Prev: Overview,  Up: Introduction
+
+Acknowledgements
+================
+
+   The `chrony' suite makes use of the algorithm known as *RSA Data
+Security, Inc. MD5 Message-Digest Algorithm* for authenticating
+messages between different machines on the network.
+
+   In writing the `chronyd' program, extensive use has been made of
+RFC1305, written by David Mills.  I have occasionally referred to the
+`xntp' suite's source code to check details of the protocol that the
+RFC did not make absolutely clear.  The core algorithms in `chronyd'
+are all completely distinct from `xntp', however.
+
+
+File: chrony.info,  Node: Availability,  Next: Other time synchronisation packages,  Prev: Acknowledgements,  Up: Introduction
+
+Availability
+============
+
+* Menu:
+
+* Getting the software::        Where can I get the software from?
+* Platforms::                   Which platforms will it run on?
+
+
+File: chrony.info,  Node: Getting the software,  Next: Platforms,  Prev: Availability,  Up: Availability
+
+Getting the software
+--------------------
+
+   Links on the chrony home page (http://www.curnow.demon.co.uk/chrony/index.html) describe how to obtain the software.
+
+
+File: chrony.info,  Node: Platforms,  Prev: Getting the software,  Up: Availability
+
+Platforms
+---------
+
+   Although most of the program is portable between Unix-like systems,
+there are parts that have to be tailored to each specific vendor's
+system.  These are the parts that interface with the operating system's
+facilities for adjusting the system clock; different operating systems
+may provide different function calls to achieve this, and even where
+the same function is used it may have different quirks in its behaviour.
+
+   So far, the software is able to run in the following environments:
+   * Linux/i386.  The software can be compiled on Linux v2.0.x kernels.
+     Linux v2.1.x kernels should also present no problem, but the
+     `sys_linux.c' file needs modifying to define the patchlevel (value
+     of 'x') at which the change to the kernel time-keeping equivalent
+     to that applied in v2.0.32 was included.  Until I find out which
+     version this was, v2.1 kernels are limited to patchlevels prior to
+     51.
+
+   * Solaris 2.5/2.5.1 on Sparc 20 and Ultrasparc.
+
+   * SunOS 4.1.4 on Sparc 2 and Sparc20.
+
+   Closely related systems may work too, but they have not been tested.
+
+   Porting the software to other system (particularly to those
+supporting an `adjtime' system call) should not be difficult, however it
+requires access to such systems to test out the driver.
+
+
+File: chrony.info,  Node: Other time synchronisation packages,  Next: Distribution and warranty,  Prev: Availability,  Up: Introduction
+
+Relationship to other software packages
+=======================================
+
+* Menu:
+
+* Comparison with xntpd::
+* Comparison with timed::
+
+
+File: chrony.info,  Node: Comparison with xntpd,  Next: Comparison with timed,  Prev: Other time synchronisation packages,  Up: Other time synchronisation packages
+
+xntpd
+-----
+
+   The `reference' implementation of the Network Time Protocol is the
+program `xntpd', available via The NTP home page (http://www.eecis.udel.edu/~ntp).
+
+   `xntpd' is designed to support all the operating modes defined by
+RFC1305, and has driver support for a large number of reference clocks
+(such as GPS receivers) that can be connected directly to a computer,
+thereby providing a so-called 'stratum 1' server.
+
+   Things `chronyd' can do that `xntpd' can't:
+
+   * `chronyd' can perform usefully in an environment where access to
+     the time reference is intermittent.  `chronyd' estimates *both*
+     the current time offset *and* the rate at which the computer's
+     clock gains or loses time, and can use that rate estimate to trim
+     the clock after the reference disappears.  `xntpd' corrects any
+     time offset by speeding up and slowing down the computer clock, and
+     so could be left with a significant rate error if the reference
+     disappears whilst it is trying to correct a big offset.
+
+   * `chronyd' provides support for isolated networks whether the only
+     method of time correction is manual entry (e.g. by the
+     administrator looking at a clock).  `chronyd' can look at the
+     errors corrected at different updates to work out the rate at
+     which the computer gains or loses time, and use this estimate to
+     trim the computer clock subsequently.
+
+   * `chronyd' provides support to work out the gain or loss rate of the
+     `real-time clock', i.e. the clock that maintains the time when the
+     computer is turned off.  It can use this data when the system
+     boots to set the system time from a corrected version of the
+     real-time clock.  These real-time clock facilities are only
+     available on certain releases of Linux, so far.
+
+   * The `xntpd' program is supported by other programs to carry out
+     certain functions.  `ntpdate' is used to provide an initial
+     correction to the system clock based on a `one-shot' sampling of
+     other NTP servers.  `tickadj' is used to adjust certain operating
+     system parameters to make `xntpd' work better.  All this
+     functionality is integrated into `chronyd'.
+
+   Things `xntpd' can do that `chronyd' can't:
+
+   * `xntpd' supports a range of different hardware reference clocks
+     (GPS, atomic etc) that can be connected to a computer to provide a
+     `stratum-1' server.  `chronyd' does not support any such hardware
+     *yet*; I don't have access to any to do any development work.
+     However, the software architecture should allow such equipment to
+     be interfaced at a later date.
+
+   * `xntpd' supports effectively all of RFC1305, including broadcast /
+     multicast clients, leap seconds, and extra encryption schemes for
+     authenticating data packets.
+
+   * `xntpd' has been ported to more types of computer / operating
+     system (so far).
+
+   * xntpd is designed to work solely with integer arithmetic (i.e.
+     does not require floating point support from its host).
+
+
+File: chrony.info,  Node: Comparison with timed,  Prev: Comparison with xntpd,  Up: Other time synchronisation packages
+
+timed
+-----
+
+   `timed' is a program that is part of the BSD networking suite.  It
+uses broadcast packets to find all machines running the daemon within a
+subnet.  The machines elect a master which periodically measures the
+system clock offsets of the other computers using ICMP timestamps.
+Corrections are sent to each member as a result of this process.
+
+   Problems that may arise with `timed' are :
+
+   * Because it uses broadcasts, it is not possible to isolate its
+     functionality to a particular group of computers; there is a risk
+     of upsetting other computers on the same network (e.g. where a
+     whole company is on the same subnet but different departments are
+     independent from the point of view of administering their
+     computers.)
+
+   * The update period appears to be 10 minutes.  Computers can build up
+     significant offsets relative to each other in that time.  If a
+     computer can estimate its rate of drift it can keep itself closer
+     to the other computers between updates by adjusting its clock
+     every few seconds.  `timed' does not seem to do this.
+
+   * `timed' does not have any integrated capability for feeding
+     real-time into its estimates, or for estimating the average rate
+     of time loss/gain of the machines relative to real-time (unless
+     one of the computers in the group has access to an external
+     reference and is always appointed as the `master').
+
+   `timed' does have the benefit over `chronyd' that for isolated
+networks of computers, they will track the `majority vote' time.  For
+such isolated networks, `chronyd' requires one computer to be the
+`master' with the others slaved to it.  If the master has a particular
+defective clock, the whole set of computers will tend to slip relative
+to real time (but they *will* stay accurate relative to one another).
+
+
+File: chrony.info,  Node: Distribution and warranty,  Prev: Other time synchronisation packages,  Up: Introduction
+
+Distribution rights and (lack of) warranty
+==========================================
+
+This is the licence for the programs "chronyd" and "chronyc".  Their
+source code files which reference this licence, object files / programs
+(binary form) built from such source code, and the supporting
+documentation are collectively referred to in this licence as "the
+Software".
+
+Certain source code files required for the construction of the Software
+may be included under different licensing arrangements; you should refer
+to such source code files directly for further information.  Any such
+files are outside the scope of this licence.
+
+Person(s) and/or organisation(s) holding the copyright to any part of
+the source code to which this licence applies are referred to in this
+licence as "the Copyright Holder(s)".
+
+Copying and use of this licence itself, with or without modification,
+are permitted for any purpose subject only to condition 6 below.
+
+Copying, use and redistribution of the Software in source and/or binary
+forms, with or without modification, and use of any part of the Software
+in the creation of another work, are permitted without fee subject to
+the following conditions 1 through 8 and the disclaimer below :
+
+  1. Redistributions of the Software as source code, in whole or in
+     part, with or without modification, must retain all existing
+     copyright notices and references to this licence, and must be
+     accompanied by a copy of this licence.  You may rename the file
+     containing this licence and change all references to it accordingly
+     if you need to. Such redistributions must be under terms that
+     require this list of conditions and the disclaimer below to be
+     carried on any subsequent redistribution.
+
+  2. Redistributions in binary form (of the original version of the
+     Software, a modified version of the Software, or any other work
+     which incorporates any part of the Software), must carry in
+     accompanying documentation and/or other materials a notice to the
+     effect of either (A) or (B) below.
+
+       A. This original version of this software was written by
+          <name(s) of Copyright Holder(s)> and is used subject to the
+          disclaimer in the file <name of file containing the
+          disclaimer>.
+
+       B. The parts of this software which <describe their role in your
+          software> were originally written by <name(s) of Copyright
+          Holder(s)> and are used subject to the disclaimer in the file
+          <name of file containing the disclaimer>.
+
+
+     (You must replace each <...> with the appropriate information.)
+
+     A copy of the disclaimer below must also be included.  Such
+     redistributions must be under terms that require the relevant
+     notice (A) or (B) and the disclaimer below to be carried on any
+     subsequent redistribution.
+
+     As an exception, if all recipients of your distribution receive
+     additional rights under condition 5, and those rights supersede the
+     disclaimer in its entirety, then you need not include the
+     disclaimer, any reference to it, or the requirement for further
+     redistributions to carry it.
+
+  3. Unless modifications to the original Software are retained for the
+     exclusive personal use of the modifier, each source code file that
+     has been modified must identify the original source version and
+     carry a notice describing the nature and purpose of all
+     modifications and the person responsible for them.  Where modified
+     source code is widely redistributed (e.g. outside the modifier's
+     own organisation), it should preferably be supplied as the
+     original version plus `patches' which can be applied to the
+     original version to obtain the modified version.
+
+  4. If a modified version of the Software is distributed in any form,
+     it must not be misrepresented (whether by the method of
+     distribution or by any related advertisement or documentation) as
+     being the original version.  Both the documentation accompanying
+     the software and any advertisement related to the distribution
+     must expressly state that the distributed software is not the
+     original work, and must identify both the original work (by name
+     and version) and the nature and purpose of all modifications made.
+
+  5. You may offer to any party (and charge a fee for) additional
+     warranty, liability rights and/or support for the Software (or a
+     work derived from it).  Any such offer made must be entirely on
+     your own behalf, and you must indemnify the Copyright Holder(s)
+     and all other parties through whose redistributions you have
+     received the Software for any liability arising out of such an
+     offer.
+
+  6. This list of conditions and the disclaimer below, when applied
+     either to the Software as a whole or to any part of the Software,
+     may only be modified by or with the express permission of the
+     Copyright Holder(s).
+
+  7. The Copyright Holder(s) retain all rights to the Software,
+     including without limitation the rights to use the Software for any
+     purpose, to create modified and/or enhanced versions of the
+     Software, and to distibute such versions under terms different to
+     those in this licence.
+
+  8. Except as required by this licence, the name(s) of the Copyright
+     Holder(s) may not be used to endorse or promote products derived
+     from the Software without their express permission obtained in
+     advance.
+
+
+== Start of disclaimer ==
+
+BECAUSE THE SOFTWARE IS PROVIDED FREE OF CHARGE, THERE IS NO WARRANTY
+FOR IT, TO THE MAXIMUM EXTENT THAT APPLICABLE LAW ALLOWS.  UNLESS
+OTHERWISE STATED IN WRITING OR REQUIRED BY APPLICABLE LAW, THE
+COPYRIGHT HOLDER(S) AND/OR OTHER PARTIES PROVIDE THE SOFTWARE `AS IS'
+AND DISCLAIM ALL WARRANTIES, EITHER EXPRESSED OR IMPLIED, INCLUDING
+WITHOUT LIMITATION WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+MERCHANTABLE OR FIT FOR A PARTICULAR PURPOSE.  THE USER BEARS THE
+ENTIRE RISK AS TO THE QUALITY, ACCURACY AND PERFORMANCE OF THE SOFTWARE
+AND THE COST OF ANY NECESSARY SERVICING, REPAIR OR CORRECTION IN THE
+EVENT THAT THE SOFTWARE SHOULD PROVE DEFECTIVE.
+
+IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+REDISTRIBUTE THE SOFTWARE, BE LIABLE TO YOU OR TO ANY OTHER PARTY FOR
+DAMAGES OF ANY CHARACTER, INCLUDING WITHOUT LIMITATION ANY GENERAL,
+SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES WHICH ARISE FROM THE USE
+OF OR INABILITY TO USE THE SOFTWARE (INCLUDING WITHOUT LIMITATION LOSS
+OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR
+THIRD PARTIES OR A FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER
+SOFTWARE), EVEN IF SUCH COPYRIGHT HOLDER OR OTHER PARTY HAS BEEN
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+== End of disclaimer ==
+
+
+File: chrony.info,  Node: Installation,  Next: Typical scenarios,  Prev: Introduction,  Up: Top
+
+Installation
+************
+
+   The software is distributed as source code which has to be compiled
+unless you have installed the Debian package, in which case it is
+already compiled and installed with a default configuration.  The source
+code is supplied in the form of a gzipped tar file, which unpacks to a
+subdirectory identifying the name and version of the program.
+
+   After unpacking the source code, change directory into it, and type
+
+     ./configure
+
+   This is a shell script that automatically determines the system type.
+There is a single optional parameter, `--prefix' which indicates the
+directory tree where the software should be installed.  For example,
+
+     ./configure --prefix=/opt/free
+
+   will install the `chronyd' daemon into /opt/free/sbin and the
+chronyc control program into /opt/free/bin.  The default value for the
+prefix is /usr/local.
+
+   If the software cannot (yet) be built on your system, an error
+message will be shown.  Otherwise, the files `options.h' and `Makefile'
+will be generated.
+
+   Now type
+
+     make
+
+   to build the programs.
+
+   Once the programs have been successfully compiled, they need to be
+installed in their target locations.  This step normally needs to be
+performed by the superuser, and requires the following command to be
+entered.
+
+     make install
+
+   Now that the software is successfully installed, the next step is to
+set up a configuration file.  The contents of this depend on the network
+environment in which the computer operates.  The Debian package installs
+a simple configuration file suitable for a dial-up pc.  You should edit
+it to suit your situation.  Typical scenarios are described in the
+following section of the document.
+
+
+File: chrony.info,  Node: Typical scenarios,  Next: Usage reference,  Prev: Installation,  Up: Top
+
+Typical operating scenarios
+***************************
+
+* Menu:
+
+* Computers on the net::        Your computer is permanently on the Internet (or on
+                                a private network with NTP servers)
+* Infrequent connection::       You connect to the Internet sometimes (e.g. via a modem)
+* Isolated networks::           You have an isolated network with no reference clocks
+* Dial-up home PCs::            Additional considerations if you turn your computer off
+                                when it's not in use.
+* Configuration options overview::  Overview of some configuration options.
+
+
+File: chrony.info,  Node: Computers on the net,  Next: Infrequent connection,  Prev: Typical scenarios,  Up: Typical scenarios
+
+Computers connected to the internet
+===================================
+
+   In this section we discuss how to configure chrony for computers that
+have permanent connections to the internet (or to any network
+containing true NTP servers which ultimately derive their time from a
+reference clock).
+
+   To operate in this mode, you will need to know the names of the NTP
+server machines you wish to use.  You may be able to find names of
+suitable servers by one of the following methods:
+
+   * Your institution may already operate servers on its network.
+     Contact your system administrator to find out.
+
+   * Your ISP probably has one or more NTP servers available for its
+     customers.
+
+   * Somewhere under the NTP homepage there is a list of public stratum
+     1 and stratum 2 servers.  You should find one or more servers that
+     are near to you -- check that their access policy allows you to
+     use their facilities.
+
+   Assuming that you have found some servers, you need to set up a
+configuration file to run chrony.  The (compiled-in) default location
+for this file is `/etc/chrony.conf'.  In the Debian package the
+configuration files are in the directory `/etc/chrony'.  Assuming that
+your ntp servers are called `a.b.c' and `d.e.f', your `chrony.conf'
+file could contain as a minimum
+
+     server a.b.c
+     server d.e.f
+     server g.h.i
+
+   However, you will probably want to include some of the other
+directives described later.  The following directives will be
+particularly useful : `driftfile', `commandkey', `keyfile'.  The
+smallest useful configuration file would look something like
+
+     server a.b.c
+     server d.e.f
+     server g.h.i
+     keyfile /etc/chrony.keys
+     commandkey 1
+     driftfile /etc/chrony.drift
+
+
+File: chrony.info,  Node: Infrequent connection,  Next: Isolated networks,  Prev: Computers on the net,  Up: Typical scenarios
+
+Infrequent connection to true NTP servers
+=========================================
+
+   In this section we discuss how to configure chrony for computers that
+have occasional connections to the internet.
+
+* Menu:
+
+* Configuration for infrequent connections::  How to set up the `/etc/chrony' file
+* Advising chronyd of internet availability::  How to tell chronyd when the link is available
+
+
+File: chrony.info,  Node: Configuration for infrequent connections,  Next: Advising chronyd of internet availability,  Prev: Infrequent connection,  Up: Infrequent connection
+
+Setting up the configuration file for infrequent connections
+------------------------------------------------------------
+
+   As in the previous section, you will need access to NTP servers on
+the internet.  The same remarks apply for how to find them.
+
+   In this case, you will need some additional configuration to tell
+`chronyd' when the connection to the internet goes up and down.  This
+saves the program from continuously trying to poll the servers when
+they are inaccessible.
+
+   Again, assuming that your ntp servers are called `a.b.c' and
+`d.e.f', your `chrony.conf' file would need to contain something like
+
+     server a.b.c
+     server d.e.f
+     server g.h.i
+
+   However, the following issues need to be addressed:
+
+  1. Your computer probably doesn't have DNS access whilst offline to
+     turn the machine names into IP addresses.
+
+  2. Your computer will keep trying to contact the servers to obtain
+     timestamps, even whilst offline.  If you operate a dial-on-demand
+     system, things are even worse, because the link to the internet
+     will keep getting established.
+
+   For this reason, it would be better to specify this part of your
+configuration file in the following way:
+
+     server 1.2.3.4 offline
+     server 5.6.7.8 offline
+     server 9.10.11.12 offline
+
+   Because numeric IP addresses have been used, the first problem is
+overcome.  The `offline' keyword indicates that the servers start in an
+offline state, and that they should not be contacted until `chronyd'
+receives notification that the link to the internet is present.
+
+   In order to notify `chronyd' of the presence of the link, you will
+need to be able to log in to it with the program chronyc.  To do this,
+`chronyd' needs to be configured with an administrator password.  The
+Debian package puts a default key in `/etc/chrony/chrony.keys'.  You
+should change it.  To set up an administrator password, you can create
+a file `/etc/chrony.keys' containing a single line
+
+     1 xyzzy
+
+   and add the following line to `/etc/chrony.conf' (the order of the
+lines does not matter)
+
+     commandkey 1
+
+   The smallest useful configuration file would look something like
+
+     server 1.2.3.4 offline
+     server 5.6.7.8 offline
+     server 9.10.11.12 offline
+     keyfile /etc/chrony.keys
+     commandkey 1
+     driftfile /etc/chrony.drift
+
+   The next section describes how to tell `chronyd' when the internet
+link goes up and down.
+
+
+File: chrony.info,  Node: Advising chronyd of internet availability,  Prev: Configuration for infrequent connections,  Up: Infrequent connection
+
+How to tell chronyd when the internet link is available.
+--------------------------------------------------------
+
+   To use this option, you will need to configure a command key in
+`chronyd's' configuration file `/etc/chrony.conf', as described in the
+previous section.
+
+   To tell `chronyd' when to start and finish sampling the servers, the
+`online' and `offline' commands of chronyc need to be used.  To give an
+example of their use, we assume that `pppd' is the program being used
+to connect to the internet, and that chronyc has been installed at its
+default location `/usr/local/bin/chronyc'.  We also assume that the
+command key has been set up as described in the previous section.
+
+   In the file `/etc/ppp/ip-up' we add the command sequence
+
+     cat <<EOF | /usr/local/bin/chronyc
+     password xyzzy
+     online
+     EOF
+
+   and in the file `/etc/ppp/ip-down' we add the sequence
+
+     cat <<EOF | /usr/local/bin/chronyc
+     password xyzzy
+     offline
+     EOF
+
+   The Debian package puts scripts similar to those above in the
+directories `/etc/ppp/ip-up.d' and `/etc/ppp/ip-down.d'.
+
+   `chronyd's' polling of the servers will now only occur whilst the
+machine is actually connected to the Internet.
+
+
+File: chrony.info,  Node: Isolated networks,  Next: Dial-up home PCs,  Prev: Infrequent connection,  Up: Typical scenarios
+
+Isolated networks
+=================
+
+   In this section we discuss how to configure chrony for computers that
+never have network conectivity to any computer which ultimately derives
+its time from a reference clock.
+
+   In this situation, one computer is selected to be the master
+timeserver.  The other computers are either direct clients of the
+master, or clients of clients.
+
+   The rate value in the master's drift file needs to be set to the
+average rate at which the master gains or loses time.  `chronyd'
+includes support for this, in the form of the `manual' directive in the
+configuration file and the `settime' command in the `chronyc' program.
+
+   If the master is rebooted, `chronyd' can re-read the drift rate from
+the drift file.  However, the master has no accurate estimate of the
+current time.  To get around this, the system can be configured so that
+the master can initially set itself to a `majority-vote' of selected
+clients' times; this allows the clients to `flywheel' the master across
+its outage.
+
+   A typical configuration file for the master (called `master') might
+be (assuming the clients are in the 192.168.165.x subnet and that the
+master's address is 192.168.169.170)
+
+     driftfile /etc/chrony.drift
+     commandkey 25
+     keyfile /etc/chrony.keys
+     initstepslew 10 client1 client3 client6
+     local stratum 8
+     manual
+     allow 192.168.165
+
+   For the clients that have to resynchronise the master when it
+restarts, the configuration file might be
+
+     server master
+     driftfile /etc/chrony.drift
+     logdir /var/log/chrony
+     log measurements statistics tracking
+     keyfile /etc/chrony.keys
+     commandkey 24
+     local stratum 10
+     initstepslew 20 master
+     allow 192.168.169.170
+
+   The rest of the clients would be the same, except that the `local'
+and `allow' directives are not required.
+
+
+File: chrony.info,  Node: Dial-up home PCs,  Next: Configuration options overview,  Prev: Isolated networks,  Up: Typical scenarios
+
+The home PC with a dial-up connection
+=====================================
+
+* Menu:
+
+* Dial-up overview::            General discussion of how the software operates in this mode
+* Dial-up configuration::       Typical configuration files
+
+
+File: chrony.info,  Node: Dial-up overview,  Next: Dial-up configuration,  Prev: Dial-up home PCs,  Up: Dial-up home PCs
+
+Assumptions/how the software works
+----------------------------------
+
+   This section considers the home computer which has a dial-up
+connection.  It assumes that Linux is run exclusively on the computer.
+Dual-boot systems may work; it depends what (if anything) the other
+system does to the system's real-time clock.
+
+   Much of the configuration for this case is discussed earlier (*note
+Infrequent connection::.).  This section addresses specifically the
+case of a computer which is turned off between 'sessions'.
+
+   In this case, `chronyd' relies on the computer's real-time clock
+(RTC) to maintain the time between the periods when it is powered up.
+The arrangement is shown in the figure below.
+
+                 trim if required                          PSTN
+           +---------------------------+               +----------+
+           |                           |               |          |
+           v                           |               |          |
+     +---------+                    +-------+       +-----+     +---+
+     | System's|  measure error/    |chronyd|       |modem|     |ISP|
+     |real-time|------------------->|       |-------|     |     |   |
+     |  clock  |   drift rate       +-------+       +-----+     +---+
+     +---------+                       ^                          |
+           |                           |                          |
+           +---------------------------+                  --o-----o---
+              set time at boot up                           |
+                                                       +----------+
+                                                       |NTP server|
+                                                       +----------+
+
+   When the computer is connected to the Internet (via the modem),
+`chronyd' has access to external NTP servers which it makes
+measurements from.  These measurements are saved, and straight-line fits
+are performed on them to provide an estimate of the computer's time
+error and rate of gaining/losing time.
+
+   When the computer is taken offline from the Internet, the best
+estimate of the gain/loss rate is used to free-run the computer until
+it next goes online.
+
+   Whilst the computer is running, `chronyd' makes measurements of the
+real-time clock (RTC) (via the `/dev/rtc' interface, which must be
+compiled into the kernel).  An estimate is made of the RTC error at a
+particular RTC second, and the rate at which the RTC gains or loses time
+relative to true time.
+
+   For kernels in the 2.0 series prior to 2.0.32, the kernel was set up
+to trim the RTC every 11 minutes.  This would be disasterous for
+`chronyd' - there is no reliable way of synchronising with this
+trimming. For this reason, `chronyd' only supports the RTC in 2.0
+kernels from v2.0.32 onwards.  (I don't know anything about the kernel's
+RTC behaviour in other kernel series).
+
+   When the computer is powered down, the measurement histories for all
+the NTP servers are saved to files (if the `dumponexit' directive is
+specified in the configuration file), and the RTC tracking information
+is also saved to a file (if the `rtcfile' directive has been
+specified).  These pieces of information are also saved if the `dump'
+and `writertc' commands respectively are issued through `chronyc'.
+
+   When the computer is rebooted, `chronyd' reads the current RTC time
+and the RTC information saved at the last shutdown.  This information is
+used to set the system clock to the best estimate of what its time would
+have been now, had it been left running continuously.  The measurement
+histories for the servers are then reloaded.
+
+   The next time the computer goes online, the previous sessions'
+measurements can contribute to the line-fitting process, which gives a
+much better estimate of the computer's gain/loss rate.
+
+   One problem with saving the measurements and RTC data when the
+machine is shut down is what happens if there is a power failure; the
+most recent data will not be saved.  Although `chronyd' is robust enough
+to cope with this, some performance may be lost.  (The main danger
+arises if the RTC has been changed during the session, with the
+`trimrtc' command in `chronyc'.  Because of this, `trimrtc' will make
+sure that a meaningful RTC file is saved out after the change is
+completed).
+
+   The easiest protection against power failure is to put the `dump'
+and `writertc' commands in the same place as the `offline' command is
+issued to take `chronyd' offline; because `chronyd' free-runs between
+online sessions, no parameters will change significantly between going
+offline from the Internet and any power failure.
+
+   A final point regards home computers which are left running for
+extended periods and where it is desired to spin down the hard disc
+when it is not in use (e.g. when not accessed for 15 minutes).
+`chronyd' has been planned so it supports such operation; this is the
+reason why the RTC tracking parameters are not saved to disc after
+every update, but only when the user requests such a write, or during
+the shutdown sequence.  The only other facility that will generate
+periodic writes to the disc is the `log rtc' facility in the
+configuration file; this option should not be used if you want your
+disc to spin down.
+
+
+File: chrony.info,  Node: Dial-up configuration,  Prev: Dial-up overview,  Up: Dial-up home PCs
+
+Typical configuration files.
+----------------------------
+
+   To illustrate how a dial-up home computer might be configured,
+example configuration files are shown in this section.
+
+   For the `/etc/chrony.conf' file, the following can be used as an
+example.  *NOTE : The `server' directives are only applicable to
+customers of Demon Internet; users of other ISPs will need to use their
+own ISP's NTP servers or public NTP servers.*
+
+     server 158.152.1.65 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+     server 158.152.1.76 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+     server 194.159.253.2 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+     logdir /var/log/chrony
+     log statistics measurements tracking
+     driftfile /etc/chrony.drift
+     keyfile /etc/chrony.keys
+     commandkey 25
+     maxupdateskew 100.0
+     dumponexit
+     dumpdir /var/log/chrony
+     rtcfile /etc/chrony.rtc
+
+   I use `pppd' for connecting to my ISP.  This runs two scripts
+`/etc/ppp/ip-up' and `/etc/ppp/ip-down' when the link goes online and
+offline respectively.
+
+   The relevant part of the `/etc/ppp/ip-up' file is (with a dummy
+password)
+
+     cat <<EOF | /usr/local/bin/chronyc
+     password xxxxxxxx
+     online
+     EOF
+
+   and the relevant part of the `/etc/ppp/ip-down' script is
+
+     cat <<EOF | /usr/local/bin/chronyc
+     password xxxxxxxx
+     offline
+     dump
+     writertc
+     EOF
+
+   (Because they have to contain the administrator password, it would be
+desirable to make the files readable only by root on a multiuser
+machine).
+
+   To start `chronyd' during the boot sequence, I have the following in
+`/etc/rc.d/rc.local' (this is a Slackware system)
+
+     if [ -f /usr/local/sbin/chronyd -a -f /etc/chrony.conf ]; then
+       /usr/local/sbin/chronyd -r -s
+       echo "Start chronyd"
+     fi
+
+   The Debian package puts a script which handles this and shutdown in
+`/etc/init.d/chrony'.
+
+   The placement of this command may be important on some systems.  In
+particular, `chronyd' may need to be started several seconds (about 10
+as a minimum) before any software that depends on the system clock not
+jumping or moving backwards, depending on the directives in `chronyd's'
+configuration file.
+
+   For the system shutdown, `chronyd' should receive a SIGTERM several
+seconds before the final SIGKILL; the SIGTERM causes the measurement
+histories and RTC information to be saved out.  There should be no need
+to add anything to the shutdown sequence, unless (as my system had)
+there is no pause between the SIGTERM and SIGKILL being delivered to the
+remaining processes.  So if you find something like
+
+     killall5 -15
+     killall5 -9
+
+   in your `/etc/rc.d/rc.0' script, you will need to insert a sleep,
+e.g.
+
+     killall5 -15
+     sleep 5
+     killall5 -9
+
+   Otherwise, `chronyd' will not always save information on shutdown,
+which could be a problem if you don't use `dump' and `writertc' when
+you go offline.
+
+
+File: chrony.info,  Node: Configuration options overview,  Prev: Dial-up home PCs,  Up: Typical scenarios
+
+Other important configuration options
+=====================================
+
+   The most common option to include in the configuration file is the
+`driftfile' option.  One of the major tasks of `chronyd' is to work out
+how fast or how slow the system clock runs relative to real time - e.g.
+in terms of seconds gained or lost per day.  Measurements over a long
+period are usually required to refine this estimate to an acceptable
+degree of accuracy.  Therefore, it would be bad if `chronyd' had to
+work the value out each time it is restarted, because the system clock
+would not run so accurately whilst the determination is taking place.
+
+   To avoid this problem, `chronyd' allows the gain or loss rate to be
+stored in a file, which can be read back in when the program is
+restarted.  This file is called the drift file, and might typically be
+stored in `/etc/chrony.drift'.  By specifying an option like the
+following
+
+     driftfile /etc/chrony.drift
+
+   in the configuration file (`/etc/chrony.conf'), the drift file
+facility will be activated.
+
+
+File: chrony.info,  Node: Usage reference,  Next: Porting guide,  Prev: Typical scenarios,  Up: Top
+
+Usage reference
+***************
+
+* Menu:
+
+* Starting chronyd::            Command line options for the daemon
+* Configuration file::          Format of the configuration file
+* Running chronyc::             The run-time configuration program
+
+
+File: chrony.info,  Node: Starting chronyd,  Next: Configuration file,  Prev: Usage reference,  Up: Usage reference
+
+Starting chronyd
+================
+
+   If `chronyd' has been installed to its default location
+`/usr/local/sbin/chronyd', starting it is simply a matter of entering
+the command
+
+     /usr/local/sbin/chronyd
+
+   The Debian package uses `/usr/sbin/chronyd'.
+
+   Information messages and warnings will be logged to syslog.
+
+   The command line options supported are as follows:
+
+`-d'
+     When run in this mode, the program will not detach itself from the
+     terminal, and all messages will be sent to the terminal instead of
+     to syslog.
+
+`-f <conf-file>'
+     This option can be used to specify an alternate location for the
+     configuration file (default `/etc/chrony.conf').
+
+`-r'
+     This option will reload sample histories for each of the servers
+     being used.  These histories are created by using the `dump'
+     command in `chronyc', or by setting the `dumponexit' directive in
+     the configuration file.  This option is useful if you want to stop
+     and restart `chronyd' briefly for any reason, e.g. to install a new
+     version.  However, it only makes sense on systems where the kernel
+     can maintain clock compensation whilst not under `chronyd's'
+     control.  The only version where this happens so far is Linux.  On
+     systems where this is not the case, e.g. Solaris and SunOS the
+     option should not be used.
+
+`-s'
+     This option will set the system clock from the computer's real-time
+     clock.  This is analogous to supplying the `-s' flag to the
+     `/sbin/clock' program during the Linux boot sequence.
+
+     Support for real-time clocks is limited at present - the criteria
+     are described in the section on the `rtcfile' directive (*note
+     rtcfile directive::.).
+
+     If `chronyd' cannot support the real time clock on your computer,
+     this option cannot be used and a warning message will be logged to
+     the syslog.
+
+     If used in conjunction with the `-r' flag, `chronyd' will attempt
+     to preserve the old samples after setting the system clock from
+     the real time clock.  This can be used to allow `chronyd' to
+     perform long term averaging of the gain or loss rate across system
+     reboots, and is useful for dial-up systems that are shut down when
+     not in use.  For this to work well, it relies on `chronyd' having
+     been able to determine accurate statistics for the difference
+     between the real time clock and system clock last time the
+     computer was on.
+
+`-v'
+     This option displays `chronyd's' version number to the terminal and
+     exits.
+
+   On systems that support an `/etc/rc.local' file for starting
+programs at boot time, `chronyd' can be started from there.
+
+   On systems with a System V style initialisation (e.g. Solaris), a
+suitable start/stop script might be as shown below.  This might be
+placed in the file `/etc/rc2.d/S83chrony'.
+
+     #!/bin/sh
+     # This file should have uid root, gid sys and chmod 744
+     #
+     
+     killproc() {            # kill the named process(es)
+             pid=`/usr/bin/ps -e |
+                  /usr/bin/grep -w $1 |
+                  /usr/bin/sed -e 's/^  *//' -e 's/ .*//'`
+             [ "$pid" != "" ] && kill $pid
+     }
+     
+     case "$1" in
+     
+     'start')
+        if [ -f /opt/free/sbin/chronyd -a -f /etc/chrony.conf ]; then
+          /opt/free/sbin/chronyd
+        fi
+        ;;
+     'stop')
+        killproc chronyd
+        ;;
+     *)
+        echo "Usage: /etc/rc2.d/S83chrony { start | stop }"
+        ;;
+     esac
+
+   (In both cases, you may want to bear in mind that `chronyd' can step
+the time when it starts.  There may be other programs started at boot
+time that could be upset by this, so you may need to consider the
+ordering carefully.  However, `chronyd' will need to start after
+daemons providing services that it may require, e.g. the domain name
+service.)
+
+
+File: chrony.info,  Node: Configuration file,  Next: Running chronyc,  Prev: Starting chronyd,  Up: Usage reference
+
+The chronyd configuration file
+==============================
+
+   The configuration file is normally called `/etc/chrony.conf'; in
+fact, this is the compiled-in default. However, other locations can be
+specified with a command line option.
+
+   Each command in the configuration file is placed on a separate line.
+The following sections describe each of the commands in turn.  The
+directives can occur in any order in the file.
+
+* Menu:
+
+* allow directive::             Give access to NTP clients
+* commandkey directive::        Set runtime command key
+* cmdport directive::           Set port to use for runtime commanding
+* deny directive::              Deny access to NTP clients
+* driftfile directive::         Specify location of file containing drift data
+* dumpdir directive::           Specify directory for dumping measurements
+* dumponexit directive::        Dump measurements when daemon exits
+* initstepslew directive::      Trim the system clock on boot-up.
+* keyfile directive::           Specify location of file containing keys
+* local directive::             Allow unsynchronised machine to act as server
+* log directive::               Make daemon log certain sets of information
+* logdir directive::            Specify directory for logging
+* manual directive::            Allow manual entry using chronyc's settime cmd.
+* maxupdateskew directive::     Stop bad estimates upsetting machine clock
+* peer directive::              Specify an NTP peer
+* port directive::              Set port to use for NTP packets
+* rtcfile directive::           Specify the file where real-time clock data is stored
+* rtconutc directive::          Specify that the real time clock keeps UTC not local time
+* server directive::            Specify an NTP server
+
+
+File: chrony.info,  Node: allow directive,  Next: commandkey directive,  Prev: Configuration file,  Up: Configuration file
+
+allow
+-----
+
+   The `allow' command is used to designate a particular subnet from
+which NTP clients are allowed to access the computer as an NTP server.
+
+   The default is that no clients are allowed access, i.e. `chronyd'
+operates purely as an NTP client.  If the `allow' directive is used,
+`chronyd' will be both a client of its servers, and a server to other
+clients.
+
+   Examples of use of the command are as follows:
+
+     allow foo.bar.com
+     allow 1.2
+     allow 3.4.5
+     allow
+
+   The first command allows the named host to be an NTP client of this
+computer.  The second command allows any host with an IP address of the
+form 1.2.x.y (with x and y arbitrary) to be an NTP client of this
+computer.  Likewise, the third command allows any host with an IP
+address of the form 3.4.5.x to have client NTP access.  The fourth form
+allows access by any node on the entire Internet.
+
+   A second form of the directive, `allow all', has a greater effect,
+depending on the ordering of directives in the configuration file.  To
+illustrate the effect, consider the two examples
+
+     allow 1.2.3.4
+     deny 1.2.3
+     allow 1.2
+
+   and
+
+     allow 1.2.3.4
+     deny 1.2.3
+     allow all 1.2
+
+   In the first example, the effect is the same regardles of what order
+the three directives are given in.  So the 1.2.x.y subnet is allowed
+access, except for the 1.2.3.x subnet, which is denied access, however
+the host 1.2.3.4 is allowed access.
+
+   In the second example, the `allow all 1.2' directives overrides the
+effect of *any* previous directive relating to a subnet within the
+specified subnet.  Within a configuration file this capability is
+probably rather moot; however, it is of greater use for reconfiguration
+at run-time via `chronyc' (*note allow all command::.).
+
+   Note, if the `initstepslew' directive (*note initstepslew
+directive::.) is used in the configuration file, each of the computers
+listed in that directive must allow client access by this computer for
+it to work.
+
+
+File: chrony.info,  Node: commandkey directive,  Next: cmdport directive,  Prev: allow directive,  Up: Configuration file
+
+commandkey
+----------
+
+   The commandkey command is used to set the key number used for
+authenticating user commands via the chronyc program at run time.  This
+allows certain actions of the chronyc program to be restricted to
+administrators.
+
+   An example of the commandkey command is
+
+     commandkey 20
+
+   In the key file (see the keyfile command) there should be a line of
+the form
+
+     20 foobar
+
+   When running the chronyc program to perform run-time configuration,
+the command
+
+     password foobar
+
+   must be entered before any commands affecting the operation of the
+daemon can be entered.
+
+
+File: chrony.info,  Node: cmdport directive,  Next: deny directive,  Prev: commandkey directive,  Up: Configuration file
+
+cmdport
+-------
+
+   The `cmdport' directive allows the port that is used for run-time
+command and monitoring (via the program `chronyc') to be altered from
+its default (323/udp).
+
+   An example shows the syntax
+
+     cmdport 257
+
+   This would make `chronyd' use 257/udp as its command port.
+(`chronyc' would need to be run with the `-p 257' switch to
+inter-operate correctly).
+
+
+File: chrony.info,  Node: deny directive,  Next: driftfile directive,  Prev: cmdport directive,  Up: Configuration file
+
+deny
+----
+
+   This is similar to the `allow' directive (*note allow directive::.),
+except that it denies NTP client access to a particular subnet or host,
+rather than allowing it.
+
+   The syntax is identical.
+
+   There is also a `deny all' directive with similar behaviour to the
+`allow all' directive.
+
+
+File: chrony.info,  Node: driftfile directive,  Next: dumpdir directive,  Prev: deny directive,  Up: Configuration file
+
+driftfile
+---------
+
+   One of the main activities of the `chronyd' program is to work out
+the rate at which the system clock gains or loses time relative to real
+time.
+
+   Whenever `chronyd' computes a new value of the gain/loss rate, it is
+desirable to record it somewhere.  This allows `chronyd' to begin
+compensating the system clock at that rate whenever it is restarted,
+even before it has had a chance to obtain an equally good estimate of
+the rate during the new run.  (This process may take many minutes, at
+least).
+
+   The driftfile command allows a file to be specified into which
+`chronyd' can store the rate information.  Two parameters are recorded
+in the file.  The first is the rate at which the system clock gains or
+loses time, expressed in parts per million, with gains positive.
+Therefore, a value of 100.0 indicates that when the system clock has
+advanced by a second, it has gained 100 microseconds on reality (so the
+true time has only advanced by 999900 microseconds).  The second is an
+estimate of the error bound around the first value in which the true
+rate actually lies.
+
+   An example of the driftfile command is
+
+     driftfile /etc/chrony.drift
+

@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/cmdmon.c,v 1.41 1999/04/29 20:29:41 richard Exp $
+  $Header: /home/richard/myntp/chrony/chrony-1.02/RCS/cmdmon.c,v 1.32 1998/07/12 10:31:07 richard Exp $
 
   =======================================================================
 
