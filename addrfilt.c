@@ -82,6 +82,7 @@ ADF_CreateTable(void)
   ADF_AuthTable result;
   result = MallocNew(struct ADF_AuthTableInst);
 
+
   /* Default is that nothing is allowed */
   result->base.state = DENY;
   result->base.extended = NULL;
@@ -124,7 +125,7 @@ open_node(TableNode *node)
 
   if (node->extended == NULL) {
 
-    node->extended = MallocNew(ExtendedTable);
+  node->extended = MallocArray(ExtendedTable, TABLE_SIZE);
 
     for (i=0; i<TABLE_SIZE; i++) {
       child_node = &((*(node->extended))[i]);

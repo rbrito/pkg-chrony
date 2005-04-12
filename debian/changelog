@@ -1,3 +1,31 @@
+chrony (1.20-7) unstable; urgency=low
+
+  * Added info-4 to debian/rules.
+    Closes: #287142: chrony: Can't find chrony.info-4
+
+  * Corrected "See Also" section in chrony man page.  Now mentions
+    chronyc(1), chronyd(8), and chrony.conf(5).
+    Closes: #287444: chrony.1.gz: SEE ALSO on man page has wrong section.
+  
+  * Edited chrony.conf to disable rtc by default and explain why:
+    on some systems that use genrtc or the HPET real-time clock it
+    fails and causes chronyd to fill up the log.  The failure is
+    probably due to a kernel bug, bug the logging should be
+    throttled.
+  
+  * Added more explanatory comments at the servers directive in 
+    chrony.conf.
+  
+  * The postinst script now sends a message to root saying where the
+    password is, whether Chrony is assuming UTC or local time,
+    that rtc updating is disabled, why, and how to change it.
+  
+  * Added missing '#' to
+    "Can't tell how your clock is set: assuming local time."
+    in postinst.
+  
+ -- John Hasler <jhasler@debian.org>  Tue, 12 Apr 2005 17:59:13 -0500
+
 chrony (1.20-6) unstable; urgency=low
 
   * Fixed error in chrony.conf where the non-existent 'online' directive

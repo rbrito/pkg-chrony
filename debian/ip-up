@@ -11,4 +11,5 @@ PASSWORD=`awk '$1 ~ /^'$KEY'$/ {print $2; exit}' /etc/chrony/chrony.keys`
 password $PASSWORD
 online
 EOF
+touch /var/run/chrony-ppp-up
 exit 0

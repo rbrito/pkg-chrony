@@ -61,6 +61,7 @@ binary-arch: build install
 	cp chrony.info-1 debian/tmp/usr/share/info
 	cp chrony.info-2 debian/tmp/usr/share/info
 	cp chrony.info-3 debian/tmp/usr/share/info
+	cp chrony.info-4 debian/tmp/usr/share/info
 	cp debian/ip-up debian/tmp/etc/ppp/ip-up.d/chrony
 	cp debian/ip-down debian/tmp/etc/ppp/ip-down.d/chrony
 	cp debian/apm debian/tmp/etc/apm/event.d/01chrony
