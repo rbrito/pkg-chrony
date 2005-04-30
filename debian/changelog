@@ -1,3 +1,18 @@
+chrony (1.20-8) unstable; urgency=high
+
+  * Added test for /usr/bin/mail in postinst.
+    Closes: #307061: Install failure: Cannot configure on system without mailx
+    I consider this bug serious because it can cause installation to fail
+    and so I want to get the fix into Sarge.
+  
+  * Fixed typo in chrony.conf, replaced '/etc/init.d/chrony restart'
+    with 'invoke-rc.d chrony restart'.
+    Closes: #305090: Typo in chrony.conf, should mention invoke-rc.d
+
+  * Added README.Debian explaining that rtc is off by default.
+  
+ -- John Hasler <jhasler@debian.org>  Sat, 30 Apr 2005 18:47:30 -0500
+
 chrony (1.20-7) unstable; urgency=low
 
   * Added info-4 to debian/rules.

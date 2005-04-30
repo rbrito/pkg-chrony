@@ -48,12 +48,16 @@ what to do."
     fi
 fi
 
-if [ "$MAILPASSWORD" -o "$MAILUTC" ] ; then
-    mail -s "Chrony" root <<EOF
+invoke-rc.d chrony start
+
+if [ \( "$MAILPASSWORD" -o "$MAILUTC" \) -a \( -x /usr/bin/mail \) ] ; then
+    /usr/bin/mail -s "Chrony" root <<EOF
 
 $MAILPASSWORD
 
 $MAILUTC
+
+In the chrony.conf included in this package:
 
 Chrony has been configured on the assumption that you are using either a dialup
 connection or a PPPoE DSL connection.  It will be brought online when PPP 
@@ -72,5 +76,4 @@ EOF
 
 fi
 
-invoke-rc.d chrony start
 exit 0
