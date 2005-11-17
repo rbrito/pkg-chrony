@@ -2,8 +2,8 @@ Source: chrony
 Section: admin
 Priority: extra
 Maintainer: John Hasler <jhasler@debian.org>
-Standards-Version: 3.5.8.0
-Build-Depends: debhelper, libreadline4-dev, texinfo, bison
+Standards-Version: 3.6.2.1
+Build-Depends: debhelper (>= 4), libreadline5-dev | libreadline-dev, texinfo, bison
 
 Package: chrony
 Architecture: any

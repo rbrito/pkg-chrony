@@ -41,8 +41,8 @@ install-stamp: build-stamp
 
 # Build architecture-independent files here.
 binary-indep: build install
-# We have nothing to do by default.
-
+	chmod 755 faqgen.pl
+	./faqgen.pl < faq.txt > faq.html
 
 # Build architecture-dependent files here.
 binary-arch: build install
@@ -55,22 +55,22 @@ binary-arch: build install
 	dh_installcron
 	dh_installmanpages
 	dh_installchangelogs 
-	cp chrony.conf debian/tmp/etc/chrony
-	cp chrony.keys debian/tmp/etc/chrony
-	cp chrony.info debian/tmp/usr/share/info
-	cp chrony.info-1 debian/tmp/usr/share/info
-	cp chrony.info-2 debian/tmp/usr/share/info
-	cp chrony.info-3 debian/tmp/usr/share/info
-	cp chrony.info-4 debian/tmp/usr/share/info
-	cp debian/ip-up debian/tmp/etc/ppp/ip-up.d/chrony
-	cp debian/ip-down debian/tmp/etc/ppp/ip-down.d/chrony
-	cp debian/apm debian/tmp/etc/apm/event.d/01chrony
-	chmod 755 debian/tmp/etc/apm/event.d/01chrony
+	cp chrony.conf debian/chrony/etc/chrony
+	cp chrony.keys debian/chrony/etc/chrony
+	cp chrony.info debian/chrony/usr/share/info
+#	cp chrony.info-1 debian/chrony/usr/share/info
+#	cp chrony.info-2 debian/chrony/usr/share/info
+#	cp chrony.info-3 debian/chrony/usr/share/info
+#	cp chrony.info-4 debian/chrony/usr/share/info
+	cp debian/ip-up debian/chrony/etc/ppp/ip-up.d/chrony
+	cp debian/ip-down debian/chrony/etc/ppp/ip-down.d/chrony
+	cp debian/apm debian/chrony/etc/apm/event.d/01chrony
+	chmod 755 debian/chrony/etc/apm/event.d/01chrony
 	dh_strip
 	dh_compress
 	dh_fixperms
-	chmod 640 debian/tmp/etc/chrony/chrony.keys
-	chmod 755 debian/tmp/etc/ppp/ip-up.d/chrony debian/tmp/etc/ppp/ip-down.d/chrony
+	chmod 640 debian/chrony/etc/chrony/chrony.keys
+	chmod 755 debian/chrony/etc/ppp/ip-up.d/chrony debian/chrony/etc/ppp/ip-down.d/chrony
 	dh_installdeb
 	dh_shlibdeps
 	dh_gencontrol

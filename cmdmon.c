@@ -1281,12 +1281,6 @@ handle_rtcreport(CMD_Request *rx_message, CMD_Reply *tx_message)
 {
   int status;
   RPT_RTC_Report report;
-
-#ifdef ALPHA
-  tx_message->status = htons(STT_NORTC);
-  return;
-#endif
-
   status = RTC_GetReport(&report);
   if (status) {
     tx_message->status = htons(STT_SUCCESS);
@@ -1309,12 +1303,6 @@ static void
 handle_trimrtc(CMD_Request *rx_message, CMD_Reply *tx_message)
 {
   int status;
-
-#ifdef ALPHA
-  tx_message->status = htons(STT_NORTC);
-  return;
-#endif
-
   status = RTC_Trim();
   if (status) {
     tx_message->status = htons(STT_SUCCESS);

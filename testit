@@ -1,5 +1,0 @@
-#!/bin/sh
-/usr/cat <<EOF
-qwerty
-EOF
-echo $?

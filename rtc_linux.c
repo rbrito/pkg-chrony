@@ -43,73 +43,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-/* This is a complete hack since the alpha sys/io.h needs these types
- * but does not arrange them to be defined.  This is almost certainly
- * not how one should do these things.  -- broonie
- */
-
-#ifdef __alpha__
-#include <asm/types.h> /* Alpha seems to need this now */
-typedef __u8  u8;
-typedef __u16 u16;
-typedef __u32 u32;
-typedef __u64 u64;
-#endif
-
-/* From linux/rtc.c */
-
-/*
- * ioctl calls that are permitted to the /dev/rtc interface, if
- * any of the RTC drivers are enabled.
- */
-
-#define RTC_AIE_ON      _IO('p', 0x01)  /* Alarm int. enable on         */
-#define RTC_AIE_OFF     _IO('p', 0x02)  /* ... off                      */
-#define RTC_UIE_ON      _IO('p', 0x03)  /* Update int. enable on        */
-#define RTC_UIE_OFF     _IO('p', 0x04)  /* ... off                      */
-#define RTC_PIE_ON      _IO('p', 0x05)  /* Periodic int. enable on      */
-#define RTC_PIE_OFF     _IO('p', 0x06)  /* ... off                      */
-#define RTC_WIE_ON      _IO('p', 0x0f)  /* Watchdog int. enable on      */
-#define RTC_WIE_OFF     _IO('p', 0x10)  /* ... off                      */
-
-#define RTC_ALM_SET     _IOW('p', 0x07, struct rtc_time) /* Set alarm time  */
-#define RTC_ALM_READ    _IOR('p', 0x08, struct rtc_time) /* Read alarm time */
-#define RTC_RD_TIME     _IOR('p', 0x09, struct rtc_time) /* Read RTC time   */
-#define RTC_SET_TIME    _IOW('p', 0x0a, struct rtc_time) /* Set RTC time    */
-#define RTC_IRQP_READ   _IOR('p', 0x0b, unsigned long)   /* Read IRQ rate   */
-#define RTC_IRQP_SET    _IOW('p', 0x0c, unsigned long)   /* Set IRQ rate    */
-#define RTC_EPOCH_READ  _IOR('p', 0x0d, unsigned long)   /* Read epoch      */
-#define RTC_EPOCH_SET   _IOW('p', 0x0e, unsigned long)   /* Set epoch       */
-
-#define RTC_WKALM_SET   _IOW('p', 0x0f, struct rtc_wkalrm)/* Set wakeup alarm*/
-#define RTC_WKALM_RD    _IOR('p', 0x10, struct rtc_wkalrm)/* Get wakeup alarm*/
-
-#define RTC_PLL_GET     _IOR('p', 0x11, struct rtc_pll_info)  /* Get PLL correction */
-#define RTC_PLL_SET     _IOW('p', 0x12, struct rtc_pll_info)  /* Set PLL correction */
-
-/*
- * The struct used to pass data via the following ioctl. Similar to the
- * struct tm in <time.h>, but it needs to be here so that the kernel
- * source is self contained, allowing cross-compiles, etc. etc.
- */
-
-struct rtc_time {
-        int tm_sec;
-        int tm_min;
-        int tm_hour;
-        int tm_mday;
-        int tm_mon;
-        int tm_year;
-        int tm_wday;
-        int tm_yday;
-        int tm_isdst;
-};
-
-
-
-
-#define RTC_UIE 0x10L		/* update-finished interrupt enable */
-
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -125,9 +58,22 @@ struct rtc_time {
 #include "regress.h"
 #include "rtc.h"
 #include "rtc_linux.h"
+#include "io_linux.h"
 #include "conf.h"
 #include "memory.h"
 #include "mkdirpp.h"
+
+struct rtc_time {
+	int tm_sec;
+	int tm_min;
+	int tm_hour;
+	int tm_mday;
+	int tm_mon;
+	int tm_year;
+	int tm_wday;
+	int tm_yday;
+	int tm_isdst;
+};
 
 /* ================================================== */
 /* Forward prototypes */
@@ -591,7 +537,6 @@ RTC_Linux_Initialise(void)
   int major, minor, patch;
   char *direc;
 
-
   /* Check whether we can support the real time clock.
 
      Linux 1.2.x - haven't checked yet
@@ -659,6 +604,7 @@ RTC_Linux_Initialise(void)
     LOG(LOGS_ERR, LOGF_RtcLinux, "Could not open %s, %s", CNF_GetRtcDevice(), strerror(errno));
     return 0;
   }
+
   n_samples = 0;
   n_samples_since_regression = 0;
   n_runs = 0;
@@ -728,7 +674,6 @@ switch_interrupts(int onoff)
   int status;
 
   if (onoff) {
-    status = ioctl(fd, RTC_UIE_ON, 0);
     status = ioctl(fd, RTC_UIE_ON, 0);
     if (status < 0) {
       LOG(LOGS_ERR, LOGF_RtcLinux, "Could not start measurement : %s", strerror(errno));
@@ -922,10 +867,20 @@ read_from_device(void *any)
 
   status = read(fd, &data, sizeof(data));
   if (status < 0) {
+    /* This looks like a bad error : the file descriptor was indicating it was
+     * ready to read but we couldn't read anything.  Give up. */
     LOG(LOGS_ERR, LOGF_RtcLinux, "Could not read flags %s : %s", CNF_GetRtcDevice(), strerror(errno));
     error = 1;
-    goto turn_off_interrupt;
-  }
+    SCH_RemoveInputFileHandler(fd);
+    switch_interrupts(0); /* Likely to raise error too, but just to be sure... */
+    close(fd);
+    fd = -1;
+    if (logfile) {
+      fclose(logfile);
+      logfile = NULL;
+    }
+    return;
+  }    
 
   if ((data & RTC_UIE) == RTC_UIE) {
     /* Update interrupt detected */
@@ -941,7 +896,6 @@ read_from_device(void *any)
       error = 1;
       goto turn_off_interrupt;
     }
-
 
     /* Convert RTC time into a struct timeval */
     rtc_tm.tm_sec = rtc_raw.tm_sec;
@@ -1085,6 +1039,7 @@ RTC_Linux_TimePreInit(void)
 
   setup_config();
   read_coefs_from_file();
+
   fd = open(CNF_GetRtcDevice(), O_RDONLY);
 
   if (fd < 0) {

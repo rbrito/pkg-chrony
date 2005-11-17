@@ -86,7 +86,7 @@ clean :
 	-rm -f *.o *.s chronyc chronyd core *~
 
 version.h : version.txt
-	sed -e 's/[$$]Name: \(.*\) [$$]/\1/;' < version.txt > version.h
+	./mkversion
 
 
 # For install, don't use the install command, because its switches
@@ -133,9 +133,6 @@ main.o logging.o client.o : version.h
 # makeinfo v4 required to generate plain text and html
 MAKEINFO:=makeinfo
 
-# faqgen.pl is used to generate faq.html from faq.txt. JGH 4 Dec 2004
-MAKEFAQ:=./faqgen.pl
-
 install-docs : docs
 	[ -d $(DESTDIR)$(INSTALL_PREFIX)/share/doc ] || mkdir -p $(DESTDIR)$(INSTALL_PREFIX)/share/doc
 	cp chrony.txt $(DESTDIR)$(INSTALL_PREFIX)/share/doc/chrony/chrony.txt
@@ -148,12 +145,8 @@ install-docs : docs
 	cp chrony.info* $(DESTDIR)$(INFODIR)
 	chown root $(DESTDIR)$(INFODIR)/chrony.info*
 	chmod 444 $(DESTDIR)$(INFODIR)/chrony.info*
-# Added faq JGH 4 Dec 2004
-	cp faq.html $(DESTDIR)$(INSTALL_PREFIX)/share/doc/chrony/faq.html
-	chown root $(DESTDIR)$(INSTALL_PREFIX)/share/doc/chrony/faq.html
-	chmod 444 $(DESTDIR)$(INSTALL_PREFIX)/share/doc/chrony/faq.html
 
-docs : chrony.txt chrony.html chrony.info faq.html
+docs : chrony.txt chrony.html chrony.info
 
 chrony.txt : chrony.texi
 	$(MAKEINFO) --no-headers --number-sections -o chrony.txt chrony.texi
@@ -163,7 +156,3 @@ chrony.html : chrony.texi
 
 chrony.info : chrony.texi
 	$(MAKEINFO) chrony.texi
-
-faq.html : faq.txt
-	$(MAKEFAQ) faq.txt > faq.html
-

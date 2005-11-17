@@ -1,6 +1,3 @@
-In the chrony.conf included in this package:
-Updating of the real-time clock has been disabled because some systems that
-use either the genrtc driver or have HPET hardware clocks have problems.  To
-enable real-time clock updating edit  /etc/chrony/chrony.conf.  The comments
-explain what to do.
-
+Upstream has fixed the HPET error message problem so updating of the
+real-time clock has been enabled.  However, RTC may still not work on
+systems with HPET: it just won't flood the log.

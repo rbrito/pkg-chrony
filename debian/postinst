@@ -67,10 +67,10 @@ information on configuring Chrony use the command  'info chrony'.
 
 You can also change the default time servers in  /etc/chrony/chrony.conf.
 
-Updating of the real-time clock has been disabled because some systems that
-use either the genrtc driver or have HPET hardware clocks have problems.  To
-enable real-time clock updating edit  /etc/chrony/chrony.conf.  The comments
-explain what to do.
+Updating of the real-time clock has been enabled but some systems that use
+either the genrtc driver or have HPET hardware clocks have problems.  To
+disable real-time clock updating edit /etc/chrony/chrony.conf.  The
+comments explain what to do.
 
 EOF
 

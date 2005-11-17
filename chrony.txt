@@ -1,10 +1,5 @@
-START-INFO-DIR-ENTRY
-* chrony: (chrony).			How to use chronyd and chronyc
-* chronyd: (chrony)Starting chronyd.	Reference for chronyd
-* chronyc: (chrony)Running chronyc.	Reference for chronyc
-END-INFO-DIR-ENTRY
-
-
+User guide for the chrony suite
+*******************************
 
 1 Introduction
 **************
@@ -12,7 +7,7 @@ END-INFO-DIR-ENTRY
 1.1 Overview
 ============
 
-   Chrony is a software package for maintaining the accuracy of computer
+Chrony is a software package for maintaining the accuracy of computer
 system clocks.  It consists of a pair of programs :
 
    * `chronyd'.  This is a daemon which runs in background on the
@@ -43,7 +38,7 @@ system clocks.  It consists of a pair of programs :
 1.2 Acknowledgements
 ====================
 
-   The `chrony' suite makes use of the algorithm known as _RSA Data
+The `chrony' suite makes use of the algorithm known as _RSA Data
 Security, Inc. MD5 Message-Digest Algorithm_ for authenticating
 messages between different machines on the network.
 
@@ -59,14 +54,13 @@ are all completely distinct from `xntp', however.
 1.3.1 Getting the software
 --------------------------
 
-   Links on the chrony home page
-(http://chrony.sunsite.dk/download.php) describe how to obtain the
-software.
+Links on the chrony home page (http://chrony.sunsite.dk/download.php)
+describe how to obtain the software.
 
 1.3.2 Platforms
 ---------------
 
-   Although most of the program is portable between Unix-like systems,
+Although most of the program is portable between Unix-like systems,
 there are parts that have to be tailored to each specific vendor's
 system.  These are the parts that interface with the operating system's
 facilities for adjusting the system clock; different operating systems
@@ -99,7 +93,7 @@ requires access to such systems to test out the driver.
 1.4.1 xntpd
 -----------
 
-   The `reference' implementation of the Network Time Protocol is the
+The `reference' implementation of the Network Time Protocol is the
 program `xntpd', available via The NTP home page
 (http://www.eecis.udel.edu/~ntp).
 
@@ -162,8 +156,8 @@ thereby providing a so-called 'stratum 1' server.
 1.4.2 timed
 -----------
 
-   `timed' is a program that is part of the BSD networking suite.  It
-uses broadcast packets to find all machines running the daemon within a
+`timed' is a program that is part of the BSD networking suite.  It uses
+broadcast packets to find all machines running the daemon within a
 subnet.  The machines elect a master which periodically measures the
 system clock offsets of the other computers using ICMP timestamps.
 Corrections are sent to each member as a result of this process.
@@ -199,17 +193,16 @@ to real time (but they _will_ stay accurate relative to one another).
 1.5 Distribution rights and (lack of) warranty
 ==============================================
 
-   Chrony may be distributed in accordance with the GNU General Public
+Chrony may be distributed in accordance with the GNU General Public
 License version 2, reproduced in *Note GPL::.
 
 1.6 Bug reporting and suggestions
 =================================
 
-   If you think you've found a bug in chrony, or have a suggestion,
-please let me know.  My primary current email address is
-<rc@rc0.org.uk>.  If that fails, you could try finding me through one
-of the chrony mailing lists, or by looking up my name on a search
-engine.
+If you think you've found a bug in chrony, or have a suggestion, please
+let me know.  My primary current email address is <rc@rc0.org.uk>.  If
+that fails, you could try finding me through one of the chrony mailing
+lists, or by looking up my name on a search engine.
 
    I can't promise a timescale to fix a bug; it depends a lot on the
 how complex the bug is to track down, as I have a lot of other calls on
@@ -235,10 +228,9 @@ source code patch to fix it, I will be very grateful!
 1.7 Contributions
 =================
 
-   Although chrony is now a fairly mature and established project,
-there are still areas that could be improved.  If you can program in C
-and have some expertise in these areas, you might be able to fill the
-gaps.
+Although chrony is now a fairly mature and established project, there
+are still areas that could be improved.  If you can program in C and
+have some expertise in these areas, you might be able to fill the gaps.
 
    Particular areas I know need addressing are :
 
@@ -281,7 +273,7 @@ gaps.
 2 Installation
 **************
 
-   The software is distributed as source code which has to be compiled.
+The software is distributed as source code which has to be compiled.
 The source code is supplied in the form of a gzipped tar file, which
 unpacks to a subdirectory identifying the name and version of the
 program.
@@ -369,9 +361,9 @@ in the following section of the document.
 2.1 Support for the readline library
 ====================================
 
-   By default, chronyc is built to make use of the readline library.
-This allows you to use the cursor keys to replay and edit old commands.
-If you don't want to use readline (in which case chronyc will use a
+By default, chronyc is built to make use of the readline library.  This
+allows you to use the cursor keys to replay and edit old commands.  If
+you don't want to use readline (in which case chronyc will use a
 minimal command line interface), invoke configure like this:
 
      ./configure --disable-readline other-options...
@@ -396,8 +388,8 @@ options if you want readline to be used:
 2.2 Extra options for package builders
 ======================================
 
-   The configure and make procedures have some extra options that may
-be useful if you are building a distribution package for chrony.
+The configure and make procedures have some extra options that may be
+useful if you are building a distribution package for chrony.
 
    The -infodir=DIR option to configure specifies a different install
 directory for the info files.  This overrides the `info' subdirectory
@@ -431,7 +423,7 @@ will install the files to the intended final locations.
 3.1 Computers connected to the internet
 =======================================
 
-   In this section we discuss how to configure chrony for computers that
+In this section we discuss how to configure chrony for computers that
 have permanent connections to the internet (or to any network
 containing true NTP servers which ultimately derive their time from a
 reference clock).
@@ -477,14 +469,14 @@ smallest useful configuration file would look something like
 3.2 Infrequent connection to true NTP servers
 =============================================
 
-   In this section we discuss how to configure chrony for computers that
+In this section we discuss how to configure chrony for computers that
 have occasional connections to the internet.
 
 3.2.1 Setting up the configuration file for infrequent connections
 ------------------------------------------------------------------
 
-   As in the previous section, you will need access to NTP servers on
-the internet.  The same remarks apply for how to find them.
+As in the previous section, you will need access to NTP servers on the
+internet.  The same remarks apply for how to find them.
 
    In this case, you will need some additional configuration to tell
 `chronyd' when the connection to the internet goes up and down.  This
@@ -555,7 +547,7 @@ link goes up and down.
 3.2.2 How to tell chronyd when the internet link is available.
 --------------------------------------------------------------
 
-   To use this option, you will need to configure a command key in
+To use this option, you will need to configure a command key in
 `chronyd's' configuration file `/etc/chrony.conf', as described in the
 previous section.
 
@@ -589,7 +581,7 @@ machine is actually connected to the Internet.
 3.3 Isolated networks
 =====================
 
-   In this section we discuss how to configure chrony for computers that
+In this section we discuss how to configure chrony for computers that
 never have network conectivity to any computer which ultimately derives
 its time from a reference clock.
 
@@ -643,10 +635,10 @@ and `allow' directives are not required.
 3.4.1 Assumptions/how the software works
 ----------------------------------------
 
-   This section considers the home computer which has a dial-up
-connection.  It assumes that Linux is run exclusively on the computer.
-Dual-boot systems may work; it depends what (if anything) the other
-system does to the system's real-time clock.
+This section considers the home computer which has a dial-up connection.
+It assumes that Linux is run exclusively on the computer.  Dual-boot
+systems may work; it depends what (if anything) the other system does to
+the system's real-time clock.
 
    Much of the configuration for this case is discussed earlier (*note
 Infrequent connection::).  This section addresses specifically the case
@@ -688,7 +680,12 @@ compiled into the kernel).  An estimate is made of the RTC error at a
 particular RTC second, and the rate at which the RTC gains or loses time
 relative to true time.
 
-   The RTC is fully supported in 2.2 and 2.4 kernels.
+   The RTC is fully supported in 2.2, 2.4 and 2.6 kernels.
+
+   On 2.6 kernels, if your motherboard has a HPET, you need to enable
+the `HPET_EMULATE_RTC' option in your kernel configuration.  Otherwise,
+chrony will not be able to interact with the RTC device and will give
+up using it.
 
    For kernels in the 2.0 series prior to 2.0.32, the kernel was set up
 to trim the RTC every 11 minutes.  This would be disasterous for
@@ -742,8 +739,8 @@ disc to spin down.
 3.4.2 Typical configuration files.
 ----------------------------------
 
-   To illustrate how a dial-up home computer might be configured,
-example configuration files are shown in this section.
+To illustrate how a dial-up home computer might be configured, example
+configuration files are shown in this section.
 
    For the `/etc/chrony.conf' file, the following can be used as an
 example.  _NOTE : The `server' directives are only applicable to
@@ -835,7 +832,7 @@ you go offline.
 3.5 Other important configuration options
 =========================================
 
-   The most common option to include in the configuration file is the
+The most common option to include in the configuration file is the
 `driftfile' option.  One of the major tasks of `chronyd' is to work out
 how fast or how slow the system clock runs relative to real time - e.g.
 in terms of seconds gained or lost per day.  Measurements over a long
@@ -861,7 +858,7 @@ facility will be activated.
 4.1 Starting chronyd
 ====================
 
-   If `chronyd' has been installed to its default location
+If `chronyd' has been installed to its default location
 `/usr/local/sbin/chronyd', starting it is simply a matter of entering
 the command
 
@@ -931,16 +928,16 @@ placed in the file `/etc/rc2.d/S83chrony'.
      #!/bin/sh
      # This file should have uid root, gid sys and chmod 744
      #
-     
+
      killproc() {            # kill the named process(es)
              pid=`/usr/bin/ps -e |
                   /usr/bin/grep -w $1 |
                   /usr/bin/sed -e 's/^  *//' -e 's/ .*//'`
              [ "$pid" != "" ] && kill $pid
      }
-     
+
      case "$1" in
-     
+
      'start')
         if [ -f /opt/free/sbin/chronyd -a -f /etc/chrony.conf ]; then
           /opt/free/sbin/chronyd
@@ -964,8 +961,8 @@ service.)
 4.2 The chronyd configuration file
 ==================================
 
-   The configuration file is normally called `/etc/chrony.conf'; in
-fact, this is the compiled-in default. However, other locations can be
+The configuration file is normally called `/etc/chrony.conf'; in fact,
+this is the compiled-in default. However, other locations can be
 specified with a command line option.
 
    Each command in the configuration file is placed on a separate line.
@@ -975,7 +972,7 @@ directives can occur in any order in the file.
 4.2.1 Comments in the configuration file
 ----------------------------------------
 
-   The configuration file may contain comment lines.  A comment line is
+The configuration file may contain comment lines.  A comment line is
 any line that starts with zero or more spaces followed by any one of
 the following characters:
    * !
@@ -990,7 +987,7 @@ the following characters:
 4.2.2 acquisitionport
 ---------------------
 
-   `chronyd' uses a separate client-side port for the rapid-fire
+`chronyd' uses a separate client-side port for the rapid-fire
 measurements requested with the `initstepslew' directive (*note
 initstepslew directive::).  Normally, that port is chosen arbitrarily
 by the operating system.  However, you can use `acquisitionport' to
@@ -1010,8 +1007,8 @@ could then persuade the firewall administrator to let that port through.
 4.2.3 allow
 -----------
 
-   The `allow' command is used to designate a particular subnet from
-which NTP clients are allowed to access the computer as an NTP server.
+The `allow' command is used to designate a particular subnet from which
+NTP clients are allowed to access the computer as an NTP server.
 
    The default is that no clients are allowed access, i.e. `chronyd'
 operates purely as an NTP client.  If the `allow' directive is used,
@@ -1071,7 +1068,7 @@ it to work.
 4.2.4 bindaddress
 -----------------
 
-   The bindaddress allows you to restrict the network interface to which
+The bindaddress allows you to restrict the network interface to which
 chronyd will listen for NTP packets.  This provides an additional level
 of access restriction above that available through the 'deny' mechanism.
 
@@ -1100,8 +1097,8 @@ network firewall is more likely to be successful.
 4.2.5 bindcmdaddress
 --------------------
 
-   The bindcmdaddress allows you to restrict the network interface to
-which chronyd will listen for command packets (issued by chronyc).
+The bindcmdaddress allows you to restrict the network interface to which
+chronyd will listen for command packets (issued by chronyc).
 
    Suppose you have a local ethernet with addresses in the 192.168.1.0
 subnet together with a dial-up connection.  The ethernet interface's IP
@@ -1121,7 +1118,7 @@ is more likely to be successful.
 4.2.6 broadcast
 ---------------
 
-   The `broadcast' directive is used to declare a broadcast address to
+The `broadcast' directive is used to declare a broadcast address to
 which chronyd should send packets in NTP broadcast mode (i.e. make
 chronyd act as a broadcast server).  Broadcast clients on that subnet
 will be able to synchronise.
@@ -1157,7 +1154,7 @@ delay.  Thus, the broadcast subnet should also be the subject of an
 4.2.7 cmdallow
 --------------
 
-   This is similar to the `allow' directive (*note allow directive::),
+This is similar to the `allow' directive (*note allow directive::),
 except that it allows control access (rather than NTP client access) to
 a particular subnet or host.  (By 'control access' is meant that
 chronyc can be run on those hosts and successfully connect to chronyd
@@ -1172,7 +1169,7 @@ of course).
 4.2.8 cmddeny
 -------------
 
-   This is similar to the `cmdallow' directive (*note cmdallow
+This is similar to the `cmdallow' directive (*note cmdallow
 directive::), except that it denies control access to a particular
 subnet or host, rather than allowing it.
 
@@ -1184,7 +1181,7 @@ subnet or host, rather than allowing it.
 4.2.9 commandkey
 ----------------
 
-   The commandkey command is used to set the key number used for
+The commandkey command is used to set the key number used for
 authenticating user commands via the chronyc program at run time.  This
 allows certain actions of the chronyc program to be restricted to
 administrators.
@@ -1209,7 +1206,7 @@ daemon can be entered.
 4.2.10 cmdport
 --------------
 
-   The `cmdport' directive allows the port that is used for run-time
+The `cmdport' directive allows the port that is used for run-time
 command and monitoring (via the program `chronyc') to be altered from
 its default (323/udp).
 
@@ -1224,7 +1221,7 @@ inter-operate correctly).
 4.2.11 deny
 -----------
 
-   This is similar to the `allow' directive (*note allow directive::),
+This is similar to the `allow' directive (*note allow directive::),
 except that it denies NTP client access to a particular subnet or host,
 rather than allowing it.
 
@@ -1236,8 +1233,8 @@ rather than allowing it.
 4.2.12 driftfile
 ----------------
 
-   One of the main activities of the `chronyd' program is to work out
-the rate at which the system clock gains or loses time relative to real
+One of the main activities of the `chronyd' program is to work out the
+rate at which the system clock gains or loses time relative to real
 time.
 
    Whenever `chronyd' computes a new value of the gain/loss rate, it is
@@ -1264,8 +1261,8 @@ rate actually lies.
 4.2.13 dumpdir
 --------------
 
-   To compute the rate of gain or loss of time, `chronyd' has to store
-a measurement history for each of the time sources it uses.
+To compute the rate of gain or loss of time, `chronyd' has to store a
+measurement history for each of the time sources it uses.
 
    Certain systems (so far only Linux) have operating system support for
 setting the rate of gain or loss to compensate for known errors.  (On
@@ -1291,14 +1288,14 @@ history saved in the file `/var/log/chrony/1.2.3.4.dat'.
 4.2.14 dumponexit
 -----------------
 
-   If this command is present, it indicates that `chronyd' should save
-the measurement history for each of its time sources recorded whenever
-the program exits.  (See the dumpdir command above).
+If this command is present, it indicates that `chronyd' should save the
+measurement history for each of its time sources recorded whenever the
+program exits.  (See the dumpdir command above).
 
 4.2.15 initstepslew
 -------------------
 
-   In normal operation, `chronyd' always slews the time when it needs to
+In normal operation, `chronyd' always slews the time when it needs to
 adjust the system clock.  For example, to correct a system clock which
 is 1 second slow, `chronyd' slightly increases the amount by which the
 system clock is advanced on each clock interrupt, until the error is
@@ -1354,7 +1351,7 @@ the master.
 4.2.16 keyfile
 --------------
 
-   This command is used to specify the location of the file containing
+This command is used to specify the location of the file containing
 ID/key pairs for the following 2 uses:
 
    * Authentication of NTP packets.
@@ -1388,9 +1385,9 @@ commandkey command (see earlier).
 4.2.17 local
 ------------
 
-   The local keyword is used to allow `chronyd' to appear synchronised
-to real time (from the viewpoint of clients polling it), even if it has
-no current synchronisation source.
+The local keyword is used to allow `chronyd' to appear synchronised to
+real time (from the viewpoint of clients polling it), even if it has no
+current synchronisation source.
 
    This option is normally used on computers in an isolated network,
 where several computers are required to synchronise to one other, this
@@ -1420,7 +1417,7 @@ have visibility of real servers.
 4.2.18 linux_hz
 ---------------
 
-   (This option only applies to Linux).
+(This option only applies to Linux).
 
    By default, chronyd will find the value of `HZ' from a kernel header
 file at compile time.  `HZ' is the nominal number of timer interrupts
@@ -1439,7 +1436,7 @@ from the default value.
 4.2.19 linux_freq_scale
 -----------------------
 
-   (This option only applies to Linux).
+(This option only applies to Linux).
 
    By default, chronyd will find the value of `HZ' and `SHIFT_HZ' from
 kernel header files at compile time.  An internal value called
@@ -1461,7 +1458,7 @@ differ from those on the system where chronyd was built.
 4.2.20 log
 ----------
 
-   The log command indicates that certain information is to be logged.
+The log command indicates that certain information is to be logged.
 
 `measurements'
      This option logs the raw NTP measurements and related information
@@ -1488,7 +1485,7 @@ command.
 4.2.20.1 Measurements log file format
 .....................................
 
-   An example line (which actually appears as a single line in the file)
+An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
      1998-07-22 05:40:50 158.152.1.76    N  8 1111 11 1111 10 10  1 \
@@ -1545,7 +1542,7 @@ meanings of the columns.
 4.2.20.2 Statistics log file format
 ...................................
 
-   An example line (which actually appears as a single line in the file)
+An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
      1998-07-22 05:40:50 158.152.1.76     6.261e-03 -3.247e-03 \
@@ -1606,7 +1603,7 @@ meanings of the columns.
 4.2.20.3 Tracking log file format
 .................................
 
-   An example line (which actually appears as a single line in the file)
+An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
      1998-07-22 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03
@@ -1639,7 +1636,7 @@ meanings of the columns.
 4.2.20.4 Real-time clock log file format
 ........................................
 
-   An example line (which actually appears as a single line in the file)
+An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
      1998-07-22 05:40:50     -0.037360 1       -0.037434\
@@ -1685,9 +1682,9 @@ meanings of the columns.
 4.2.21 logchange
 ----------------
 
-   This directive forces `chronyd' to send a message to syslog if it
-makes a system clock adjustment larger than a threshold value.  An
-example of use is
+This directive forces `chronyd' to send a message to syslog if it makes
+a system clock adjustment larger than a threshold value.  An example of
+use is
 
      logchange 0.5
 
@@ -1705,7 +1702,7 @@ handling, for example when summer time (daylight saving) starts or ends.
 4.2.22 logdir
 -------------
 
-   This directive allows the directory where log files are written to be
+This directive allows the directory where log files are written to be
 specified.
 
    An example of the use of this directive is
@@ -1715,8 +1712,8 @@ specified.
 4.2.23 mailonchange
 -------------------
 
-   This directive defines an email address to which mail should be sent
-if chronyd applies a correction exceeding a particular threshold to the
+This directive defines an email address to which mail should be sent if
+chronyd applies a correction exceeding a particular threshold to the
 system clock.
 
    An example of use of this directive is
@@ -1729,7 +1726,7 @@ seconds were applied to the system clock.
 4.2.24 manual
 -------------
 
-   The `manual' directive enables support at run-time for the `settime'
+The `manual' directive enables support at run-time for the `settime'
 command in chronyc (*note settime command::).  If no `manual' directive
 is included, any attempt to use the `settime' command in chronyc will
 be met with an error message.
@@ -1743,9 +1740,9 @@ manually entered time to be provided).
 4.2.25 maxupdateskew
 --------------------
 
-   One of `chronyd's' tasks is to work out how fast or slow the
-computer's clock runs relative to its reference sources.  In addition,
-it computes an estimate of the error bounds around the estimated value.
+One of `chronyd's' tasks is to work out how fast or slow the computer's
+clock runs relative to its reference sources.  In addition, it computes
+an estimate of the error bounds around the estimated value.
 
    If the range of error is too large, it probably indicates that the
 measurements have not settled down yet, and that the estimated gain or
@@ -1775,31 +1772,31 @@ the new master estimate.
 4.2.26 noclientlog
 ------------------
 
-   This directive, which takes no arguments, specifies that client
-accesses are not to be logged.  Normally they are logged, allowing
-statistics to be reported using the `clients' command in `chronyc'.
+This directive, which takes no arguments, specifies that client accesses
+are not to be logged.  Normally they are logged, allowing statistics to
+be reported using the `clients' command in `chronyc'.
 
 4.2.27 peer
 -----------
 
-   The syntax of this directive is identical to that for the `server'
+The syntax of this directive is identical to that for the `server'
 directive (*note server directive::), except that it is used to specify
 an NTP peer rather than an NTP server.
 
 4.2.28 pidfile
 --------------
 
-   chronyd always writes its process ID (pid) to a file, and checks
-this file on startup to see if another chronyd may already be running
-on the system.  By default, the file used is `/var/run/chronyd.pid'.
-The `pidfile' directive allows the name to be changed, e.g.
+chronyd always writes its process ID (pid) to a file, and checks this
+file on startup to see if another chronyd may already be running on the
+system.  By default, the file used is `/var/run/chronyd.pid'.  The
+`pidfile' directive allows the name to be changed, e.g.
 
      pidfile /var/tmp/chronyd.pid
 
 4.2.29 port
 -----------
 
-   This option allows you to configure the port used for the NTP service
+This option allows you to configure the port used for the NTP service
 on your machine.
 
    The compiled in default is udp/123, the standard NTP port.  It is
@@ -1817,7 +1814,7 @@ udp/11123.
 4.2.30 rtcdevice
 ----------------
 
-   The `rtcdevice' directive defines the name of the device file for
+The `rtcdevice' directive defines the name of the device file for
 accessing the real time clock.  By default this is `/dev/rtc/', unless
 the directive is used to set a different value.  This applies to Linux
 systems with devfs.  An example of use is
@@ -1827,9 +1824,9 @@ systems with devfs.  An example of use is
 4.2.31 rtcfile
 --------------
 
-   The `rtcfile' directive defines the name of the file in which
-`chronyd' can save parameters associated with tracking the accuracy of
-the system's real-time clock (RTC).
+The `rtcfile' directive defines the name of the file in which `chronyd'
+can save parameters associated with tracking the accuracy of the
+system's real-time clock (RTC).
 
    The syntax is illustrated in the following example
 
@@ -1859,9 +1856,9 @@ conditions apply:
 4.2.32 rtconutc
 ---------------
 
-   `chronyd' assumes by default that the real time clock (RTC) keeps
-local time (including any daylight saving changes).  This is convenient
-on PCs running Linux which are dual-booted with DOS or Windows.
+`chronyd' assumes by default that the real time clock (RTC) keeps local
+time (including any daylight saving changes).  This is convenient on
+PCs running Linux which are dual-booted with DOS or Windows.
 
    NOTE : IF YOU KEEP THE REAL TIME CLOCK ON LOCAL TIME AND YOUR
 COMPUTER IS OFF WHEN DAYLIGHT SAVING (SUMMER TIME) STARTS OR ENDS, THE
@@ -1879,7 +1876,7 @@ specifying the `-u' switch to the Linux `/sbin/clock' program.
 4.2.33 server
 -------------
 
-   The `server' directive allows NTP servers to be specified.  The
+The `server' directive allows NTP servers to be specified.  The
 client/server relationship is strictly hierarchical : a client may
 synchronise its system time to that of the server, but the server's
 system time will never be influenced by that of a client.
@@ -1987,17 +1984,18 @@ order):
      `online' (*note online command::) command when the link has been
      established, to enable measurements to start.)
 
+
 4.3 Running chronyc
 ===================
 
-   Chronyc is the program that can be used to reconfigure options within
+Chronyc is the program that can be used to reconfigure options within
 the `chronyd' program whilst it is running.  Chronyc can also be used
 to generate status reports about the operation of `chronyd'.
 
 4.3.1 Basic use
 ---------------
 
-   The program chronyc is run by entering
+The program chronyc is run by entering
 
      chronyc
 
@@ -2013,7 +2011,7 @@ terminate the program.)
 4.3.2 Command line options
 --------------------------
 
-   Chronyc supports the following command line options.
+Chronyc supports the following command line options.
 
 `-v'
      Displays the version number of chronyc on the terminal, and exists.
@@ -2036,7 +2034,7 @@ terminate the program.)
 4.3.3 Security with chronyc
 ---------------------------
 
-   Many of the commands available through chronyc have a fair amount of
+Many of the commands available through chronyc have a fair amount of
 power to reconfigure the run-time behaviour of `chronyd'.  Consequently,
 `chronyc' is quite dangerous for the integrity of the target system's
 clock performance.  Having access to `chronyd' via chronyc is more or
@@ -2085,14 +2083,14 @@ previously, because they affect `chronyd's' operation.
 4.3.4 Command reference
 -----------------------
 
-   This section describes each of the commands available within the
-chronyc program.  Chronyc offers the user a simple command-line driven
+This section describes each of the commands available within the chronyc
+program.  Chronyc offers the user a simple command-line driven
 interface.
 
 4.3.4.1 accheck
 ...............
 
-   This command allows you to check whether client NTP access is allowed
+This command allows you to check whether client NTP access is allowed
 from a particular host.
 
    Examples of use, showing a named host and a numeric IP address, are
@@ -2108,7 +2106,7 @@ via chronyc, or in `chronyd's' configuration file.
 4.3.4.2 activity
 ................
 
-   This command reports the number of servers/peers that are online and
+This command reports the number of servers/peers that are online and
 offline.  If the auto_offline option is used in specifying some of the
 servers/peers, the `activity' command may be useful for detecting when
 all of them have entered the offline state after the PPP link has been
@@ -2133,7 +2131,7 @@ disconnected.
 4.3.4.3 add peer
 ................
 
-   The `add peer' command allows a new NTP peer to be added whilst
+The `add peer' command allows a new NTP peer to be added whilst
 `chronyd' is running.
 
    Following the words `add peer', the syntax of the following
@@ -2147,7 +2145,7 @@ the configuration file (*note peer directive::).
 4.3.4.4 add server
 ..................
 
-   The `add server' command allows a new NTP server to be added whilst
+The `add server' command allows a new NTP server to be added whilst
 `chronyd' is running.
 
    Following the words `add server', the syntax of the following
@@ -2161,8 +2159,8 @@ in the configuration file (*note server directive::).
 4.3.4.5 allow
 .............
 
-   The effect of the allow command is identical to the `allow'
-directive in the configuration file (*note allow directive::).
+The effect of the allow command is identical to the `allow' directive in
+the configuration file (*note allow directive::).
 
    The syntax is illustrated in the following examples:
 
@@ -2179,13 +2177,13 @@ directive in the configuration file (*note allow directive::).
 4.3.4.6 allow all
 .................
 
-   The effect of the allow command is identical to the `allow all'
+The effect of the allow command is identical to the `allow all'
 directive in the configuration file (*note allow directive::).
 
 4.3.4.7 burst
 .............
 
-   The `burst' command tells `chronyd' to make a set of measurements to
+The `burst' command tells `chronyd' to make a set of measurements to
 each of its sources over a short duration (rather than the usual
 periodic measurements that it makes).  After such a burst, `chronyd'
 will revert to the previous state for each source.  This might be either
@@ -2247,9 +2245,9 @@ arbitrary.
 4.3.4.8 clients
 ...............
 
-   This command shows a list of all clients that have accessed the
-server, through either the NTP or command/monitoring ports.  There are
-no arguments.
+This command shows a list of all clients that have accessed the server,
+through either the NTP or command/monitoring ports.  There are no
+arguments.
 
    An example of the output is
 
@@ -2293,7 +2291,7 @@ packet of that type has ever been received.
 4.3.4.9 cmdaccheck
 ..................
 
-   This command is similar to the `accheck' command, except that it is
+This command is similar to the `accheck' command, except that it is
 used to check whether command access is permitted from a named host.
 
    Examples of use are as follows:
@@ -2304,38 +2302,37 @@ used to check whether command access is permitted from a named host.
 4.3.4.10 cmdallow
 .................
 
-   This is similar to the `allow' command, except that it is used to
-allow particular hosts or subnets to use the chronyc program to interact
-with `chronyd' on the current host.
+This is similar to the `allow' command, except that it is used to allow
+particular hosts or subnets to use the chronyc program to interact with
+`chronyd' on the current host.
 
 4.3.4.11 cmdallow all
 .....................
 
-   This is similar to the `allow all' command, except that it is used
+This is similar to the `allow all' command, except that it is used
 toallow particular hosts or subnets to use the chronyc program to
 interactwith `chronyd' on the current host.
 
 4.3.4.12 cmddeny
 ................
 
-   This is similar to the `deny' command, except that it is used to
-allow particular hosts or subnets to use the chronyc program to interact
-with `chronyd' on the current host.
+This is similar to the `deny' command, except that it is used to allow
+particular hosts or subnets to use the chronyc program to interact with
+`chronyd' on the current host.
 
 4.3.4.13 cmddeny all
 ....................
 
-   This is similar to the `deny all' command, except that it is used to
+This is similar to the `deny all' command, except that it is used to
 allow particular hosts or subnets to use the chronyc program to
 interact with `chronyd' on the current host.
 
 4.3.4.14 cyclelogs
 ..................
 
-   The `cyclelogs' command causes all of `chronyd's' open log files to
-be closed and re-opened.  This allows them to be renamed so that they
-can be periodically purged.  An example of how to do this is shown
-below.
+The `cyclelogs' command causes all of `chronyd's' open log files to be
+closed and re-opened.  This allows them to be renamed so that they can
+be periodically purged.  An example of how to do this is shown below.
 
      % mv /var/log/chrony/measurements.log /var/log/chrony/measurements1.log
      % chronyc
@@ -2352,7 +2349,7 @@ below.
 4.3.4.15 delete
 ...............
 
-   The `delete' command allows an NTP server or peer to be removed from
+The `delete' command allows an NTP server or peer to be removed from
 the current set of sources.
 
    The syntax is illustrated in the examples below.
@@ -2366,8 +2363,8 @@ to be deleted.
 4.3.4.16 deny
 .............
 
-   The effect of the allow command is identical to the `deny' directive
-in the configuration file (*note deny directive::).
+The effect of the allow command is identical to the `deny' directive in
+the configuration file (*note deny directive::).
 
    The syntax is illustrated in the following examples:
 
@@ -2381,13 +2378,13 @@ in the configuration file (*note deny directive::).
 4.3.4.17 deny all
 .................
 
-   The effect of the allow command is identical to the `deny all'
+The effect of the allow command is identical to the `deny all'
 directive in the configuration file (*note deny directive::).
 
 4.3.4.18 dump
 .............
 
-   The `dump' command causes `chronyd' to write its current history of
+The `dump' command causes `chronyd' to write its current history of
 measurements for each of its sources to dump files, either for
 inspection or to support the `-r' option when `chronyd' is restarted.
 
@@ -2402,20 +2399,19 @@ done in the configuration file, see *Note dumpdir directive::.
 4.3.4.19 exit
 .............
 
-   The exit command exits from chronyc and returns the user to the shell
+The exit command exits from chronyc and returns the user to the shell
 (same as the quit command).
 
 4.3.4.20 help
 .............
 
-   The help command displays a summary of the commands and their
-arguments.
+The help command displays a summary of the commands and their arguments.
 
 4.3.4.21 local
 ..............
 
-   The `local' command allows `chronyd' to be told that it is to appear
-as a reference source, even if it is not itself properly synchronised to
+The `local' command allows `chronyd' to be told that it is to appear as
+a reference source, even if it is not itself properly synchronised to
 an external source.  (This can be used on isolated networks, to allow
 one computer to be a master time server with the other computers slaving
 to it.)  The `local' command is somewhat equivalent to the `local'
@@ -2434,7 +2430,7 @@ sets the stratum at which it should claim to be synchronised.
 4.3.4.22 makestep
 .................
 
-   Normally chronyd will cause the system to gradually correct any time
+Normally chronyd will cause the system to gradually correct any time
 offset, by slowing down or speeding up the clock as required.  In
 certain situations, the system clock may be so far adrift that this
 slewing process would take a very long time to correct the system clock.
@@ -2453,7 +2449,7 @@ version of chrony.
 4.3.4.23 manual
 ...............
 
-   The manual command enables and disables use of the `settime' command
+The manual command enables and disables use of the `settime' command
 (*note settime command::), and is used to modify the behaviour of the
 manual clock driver.
 
@@ -2508,7 +2504,7 @@ system clock is left running as it was before the command was entered.
 4.3.4.24 maxdelay
 .................
 
-   This allows the `maxdelay' option for one of the sources to be
+This allows the `maxdelay' option for one of the sources to be
 modified, in the same way as specifying the `maxdelay' option for the
 `server' directive in the configuration file (*note server directive::).
 
@@ -2528,7 +2524,7 @@ discarded.)
 4.3.4.25 maxdelayratio
 ......................
 
-   This allows the `maxdelayratio' option for one of the sources to be
+This allows the `maxdelayratio' option for one of the sources to be
 modified, in the same way as specifying the `maxdelayratio' option for
 the `server' directive in the configuration file (*note server
 directive::).
@@ -2550,7 +2546,7 @@ will be discarded.
 4.3.4.26 maxpoll
 ................
 
-   The `maxpoll' command is used to modify the minimum polling interval
+The `maxpoll' command is used to modify the minimum polling interval
 for one of the current set of sources.  It is equivalent to the
 `maxpoll' option in the `server' directive in the configuration file
 (*note server directive::).
@@ -2577,13 +2573,13 @@ the next measurement has been made.
 4.3.4.27 maxupdateskew
 ......................
 
-   This command has the same effect as the `maxupdateskew' directive in
+This command has the same effect as the `maxupdateskew' directive in
 the configuration file, see *Note maxupdateskew directive::.
 
 4.3.4.28 minpoll
 ................
 
-   The `minpoll' command is used to modify the minimum polling interval
+The `minpoll' command is used to modify the minimum polling interval
 for one of the current set of sources.  It is equivalent to the
 `minpoll' option in the `server' directive in the configuration file
 (*note server directive::).
@@ -2610,7 +2606,7 @@ the next measurement has been made.
 4.3.4.29 offline
 ................
 
-   The `offline' command is used to warn `chronyd' that the network
+The `offline' command is used to warn `chronyd' that the network
 connection to a particular host or hosts is about to be lost.  It should
 be used on computers with a dial-up or similar connection to their time
 sources, to warn `chronyd' that the connection is about to be broken.
@@ -2671,8 +2667,8 @@ masked-address the host is processed).
 4.3.4.30 online
 ...............
 
-   The `online' command is opposite in function to the `offline'
-command.  It is used to advise `chronyd' that network connectivity to a
+The `online' command is opposite in function to the `offline' command.
+It is used to advise `chronyd' that network connectivity to a
 particular source or sources has been restored.
 
    The syntax is identical to that of the `offline' command, see *Note
@@ -2681,7 +2677,7 @@ offline command::.
 4.3.4.31 password
 .................
 
-   The password command is used to allow chronyc to send privileged
+The password command is used to allow chronyc to send privileged
 commands to `chronyd'.  The password can either be entered on the
 command line, or can be entered without echoing.  The syntax for
 entering the password on the command line is as follows
@@ -2704,13 +2700,13 @@ commandkey directive::).
 4.3.4.32 quit
 .............
 
-   The quit command exits from chronyc and returns the user to the shell
+The quit command exits from chronyc and returns the user to the shell
 (same as the exit command).
 
 4.3.4.33 rtcdata
 ................
 
-   The `rtcdata' command displays the current real time clock RTC
+The `rtcdata' command displays the current real time clock RTC
 parameters.
 
    An example output is shown below.
@@ -2763,8 +2759,8 @@ parameters.
 4.3.4.34 settime
 ................
 
-   The `settime' command allows the current time to be entered
-manually, if this option has been configured into `chronyd'.  (It may be
+The `settime' command allows the current time to be entered manually,
+if this option has been configured into `chronyd'.  (It may be
 configured either with the `manual' directive in the configuration file
 (*note manual directive::), or with the `manual' command of chronyc
 (*note manual command::).
@@ -2806,7 +2802,7 @@ documentation (bundled, for example, with the source for GNU tar).
 4.3.4.35 sources
 ................
 
-   This command displays information about the current time sources that
+This command displays information about the current time sources that
 `chronyd' is accessing.
 
    The optional argument `-v' can be specified, meaning _verbose_.  In
@@ -2874,6 +2870,7 @@ of the columns.
      Positive offsets indicate that the local clock is fast of the
      source.
 
+
    ---------- Footnotes ----------
 
    (1) In the current version this will never be shown, because
@@ -2882,8 +2879,8 @@ of the columns.
 4.3.4.36 sourcestats
 ....................
 
-   The `sourcestats' command displays information about the drift rate
-and offset estimatation process for each of the sources currently being
+The `sourcestats' command displays information about the drift rate and
+offset estimatation process for each of the sources currently being
 examined by `chronyd'.
 
    The optional argument `-v' can be specified, meaning _verbose_.  In
@@ -2933,10 +2930,11 @@ of the columns.
 `Std Dev'
      This is the estimated sample standard deviation.
 
+
 4.3.4.37 tracking
 .................
 
-   The `tracking' command displays parameters about the system's clock
+The `tracking' command displays parameters about the system's clock
 performance.  An example of the output is shown below.
 
      Reference ID    : 1.2.3.4 (a.b.c)
@@ -3045,12 +3043,13 @@ performance.  An example of the output is shown below.
 
           clock_error <= root_dispersion + (0.5 * |root_delay|)
 
+
 4.3.4.38 trimrtc
 ................
 
-   The `trimrtc' command is used to correct the system's real time
-clock (RTC) to the main system clock.  It has no effect if the error
-between the two clocks is currently estimated at less than a second (the
+The `trimrtc' command is used to correct the system's real time clock
+(RTC) to the main system clock.  It has no effect if the error between
+the two clocks is currently estimated at less than a second (the
 resolution of the RTC is only 1 second).
 
    The command takes no arguments.  It performs the following steps (if
@@ -3084,7 +3083,7 @@ across machine reboots.
 4.3.4.39 writertc
 .................
 
-   The `writertc' command writes the currently estimated error and
+The `writertc' command writes the currently estimated error and
 gain/loss rate parameters for the RTC to the RTC file (specified with
 the `rtcfile' directive (*note rtcfile directive::)).  This information
 is also written automatically when `chronyd' is killed (with SIGHUP,
@@ -3093,14 +3092,14 @@ SIGINT, SIGQUIT or SIGTERM).
 Appendix A Porting guide
 ************************
 
-   This appendix discusses issues that have arisen in writing the
+This appendix discusses issues that have arisen in writing the
 system-specific parts of the existing ports.  This will provide useful
 information for those attempting to write ports to other systems.
 
 A.1 System driver files
 =======================
 
-   The system specific parts of the software are contained in files with
+The system specific parts of the software are contained in files with
 names like `sys_linux.c'.
 
    The following functions are required in a system driver file:
@@ -3124,13 +3123,13 @@ measured relative to the system when running uncompensated.
 A.2 Quirks of particular systems
 ================================
 
-   These sections describe quirks in each system type that needed to be
+These sections describe quirks in each system type that needed to be
 investigated to port the software to each system type.
 
 A.2.1 Linux
 -----------
 
-   The following quirks have been found in developing the Linux port.
+The following quirks have been found in developing the Linux port.
 
   1. In order to avoid floating point arithmetic, the kernel uses
      shifting and adding to approximate a scaling of 100/128.  This
@@ -3150,7 +3149,7 @@ A.2.1 Linux
 A.2.2 Solaris 2.5
 -----------------
 
-   The following quirks have been found in developing the Solaris port.
+The following quirks have been found in developing the Solaris port.
 
   1. The `adjtime()' system call with a zero argument does not cancel an
      adjustment that is in progress - it just reports the remaining
@@ -3165,7 +3164,7 @@ A.2.2 Solaris 2.5
 A.2.3 SunOS 4.1.4
 -----------------
 
-   The following quirks have been found in developing the SunOS port.
+The following quirks have been found in developing the SunOS port.
 
   1. The `adjtime()' system call truncates its argument to a multiple of
      the system's `tickadj' variable.  (`chronyd' sets that to 100,
@@ -3178,7 +3177,6 @@ Appendix B GNU General Public License
 *************************************
 
                       GNU GENERAL PUBLIC LICENSE
-
                          Version 2, June 1991
 
    Copyright (C) 1989, 1991 Free Software Foundation, Inc.   59 Temple
@@ -3525,9 +3523,7 @@ applications with the library.  If this is what you want to do, use the
 GNU Library General Public License instead of this License.  Table of Contents
 *****************
 
-
-
-
+User guide for the chrony suite
 1 Introduction
   1.1 Overview
   1.2 Acknowledgements
@@ -3540,11 +3536,9 @@ GNU Library General Public License instead of this License.  Table of Contents
   1.5 Distribution rights and (lack of) warranty
   1.6 Bug reporting and suggestions
   1.7 Contributions
-
 2 Installation
   2.1 Support for the readline library
   2.2 Extra options for package builders
-
 3 Typical operating scenarios
   3.1 Computers connected to the internet
   3.2 Infrequent connection to true NTP servers
@@ -3555,7 +3549,6 @@ GNU Library General Public License instead of this License.  Table of Contents
     3.4.1 Assumptions/how the software works
     3.4.2 Typical configuration files.
   3.5 Other important configuration options
-
 4 Usage reference
   4.1 Starting chronyd
   4.2 The chronyd configuration file
@@ -3640,15 +3633,14 @@ GNU Library General Public License instead of this License.  Table of Contents
       4.3.4.37 tracking
       4.3.4.38 trimrtc
       4.3.4.39 writertc
-
 Appendix A Porting guide
   A.1 System driver files
   A.2 Quirks of particular systems
     A.2.1 Linux
     A.2.2 Solaris 2.5
     A.2.3 SunOS 4.1.4
-
 Appendix B GNU General Public License
+
 
 
 

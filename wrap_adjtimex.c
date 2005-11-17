@@ -36,41 +36,8 @@
 
 #define _LOOSE_KERNEL_NAMES
 
-#include <sys/timex.h> /* Includes definitions from linux/timex.h */
-#include <asm/param.h>
-
+#include "chrony_timex.h"
 #include "wrap_adjtimex.h"
-
-/* From linux/timex.h
- *
- * The SHIFT_SCALE define establishes the decimal point of the time_phase
- * variable which serves as an extension to the low-order bits of the
- * system clock variable. The SHIFT_UPDATE define establishes the decimal
- * point of the time_offset variable which represents the current offset
- * with respect to standard time. The FINENSEC define represents 1 nsec in
- * scaled units.
- * 
- * SHIFT_USEC defines the scaling (shift) of the time_freq and
- * time_tolerance variables, which represent the current frequency
- * offset and maximum frequency tolerance.
- * 
- * FINENSEC is 1 ns in SHIFT_UPDATE units of the time_phase variable.
- */
-#define SHIFT_SCALE 22          /* phase scale (shift) */
-#define SHIFT_UPDATE (SHIFT_KG + MAXTC) /* time offset scale (shift) */
-#define SHIFT_USEC 16           /* frequency offset scale (shift) */
-#define FINENSEC (1L << (SHIFT_SCALE - 10)) /* ~1 ns in phase units */
-
-#define MAXPHASE 512000L        /* max phase error (us) */
-#define MAXFREQ (512L << SHIFT_USEC)  /* max frequency error (ppm) */
-#define MAXTIME (200L << PPS_AVG) /* max PPS error (jitter) (200 us) */
-#define MINSEC 16L              /* min interval between updates (s) */
-#define MAXSEC 1200L            /* max interval between updates (s) */
-#define NTP_PHASE_LIMIT (MAXPHASE << 5) /* beyond max. dispersion */
-
-/* This doesn't seem to be in any include files !! */
-
-extern int adjtimex(struct timex *);
 
 int
 TMX_SetTick(long tick)

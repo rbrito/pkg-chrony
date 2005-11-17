@@ -26,12 +26,6 @@ chrony for DEBIAN
  you should read the documentation and create an appropriate configuration
  (you should read the documentation anyway).
 
- The standard Debian installation does not use the real time clock
- facilities.  If you want to use them you will need to edit the config
- files and scripts. You will also need to make sure hwclock (util-linux
- package) is kept out of chrony's way (see the hwclock README files in 
- the util-linux documentation for more information).
-
  The scripts /etc/ppp/ip-up.d/chrony, /etc/ppp/ip-down.d/chrony, and
  /etc/cron.weekly/chrony read key 1 from /etc/chrony/chrony.keys and use it
  as the password to send chronyc commands.  Thus you can change the
@@ -46,3 +40,5 @@ chrony for DEBIAN
 
  John Hasler <john@dhh.gt.org>, 5 Oct 2003
 
+
+ -- John Hasler <john@dhh.gt.org>, Sun Oct  9 12:57:57 2005

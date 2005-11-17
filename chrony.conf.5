@@ -10,11 +10,10 @@ chrony.conf \- chronyd configuration file
 clocks. \fIchronyd\fR is a background daemon program that can be started at
 boot time.
 
-If you are not happy with the default pool.ntp.org servers that Debian
-provides as defaults, you need to edit the configuration file.  The 
-(compiled-in) default location for this file is
-\fB/etc/chrony/chrony.conf\fR.  Assuming that your ntp servers are called
-`a.b.c' and `d.e.f', your \fBchrony.conf\fR file could contain
+Assuming that you have found some servers, you need to set up a
+configuration file to run \fIchrony\fR.  The (compiled-in) default location
+for this file is \fB/etc/chrony.conf\fR.  Assuming that your ntp servers
+are called `a.b.c' and `d.e.f', your \fBchrony.conf\fR file could contain
 as a minimum
 
      server a.b.c
@@ -23,7 +22,7 @@ as a minimum
 
 However, you will probably want to include some of the other directives
 described in detail in the documentation supplied with the distribution
-(\fIinfo chrony\fR). The following directives will be
+(\fIchrony.txt\fR and \fIchrony.texi\fR). The following directives will be
 particularly useful : `driftfile', `commandkey', `keyfile'.  The smallest
 useful configuration file would look something like
 
@@ -34,13 +33,11 @@ useful configuration file would look something like
      commandkey 1
      driftfile /etc/chrony/chrony.drift
 
-See the info document (info chrony) and /usr/share/doc/chrony for
-information on other useful options.
 
 .SH "SEE ALSO"
 .BR chrony(1),
 .BR chronyc(1),
-.BR chronyd(8)
+.BR chronyd(1)
 
 .I http://chrony.sunsite.dk/
 
@@ -49,4 +46,4 @@ Richard Curnow <rc@rc0.org.uk>
 
 This man-page was written by Jan Schaumann <jschauma@netmeister.org> as part of "The Missing
 Man Pages Project".  Please see \fIhttp://www.netmeister.org/misc/m2p2/index.html\fR
-for details.  Patched for Debian by John Hasler.
+for details.
