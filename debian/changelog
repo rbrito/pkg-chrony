@@ -1,3 +1,14 @@
+chrony (1.21-2) unstable; urgency=high
+  
+  * Patched io_linux.h to add missing architectures.
+    Closes: #339764: chrony - FTBFS: #error "I don't know the values of the
+    _IOC_* constants for your architecture"
+  
+  * Fixed brown-bag error in rules.
+    Closes: #339853: /usr/sbin/chronyd is missing
+  
+ -- John Hasler <jhasler@debian.org>  Sat, 19 Nov 2005 10:12:49 -0600
+
 chrony (1.21-1) unstable; urgency=low
 
   * New upstream release
@@ -14,9 +25,10 @@ chrony (1.21-1) unstable; urgency=low
   
   * There are lots more minor things to fix but I'm uploading now to close
     the serious bugs.  I'll upload another version with some improvements
-    in a few weeks.
- -- John Hasler <jhasler@debian.org>  Thu, 17 Nov 2005 15:32:28 -0600
-
+    in a few weeks. 
+   
+ -- John Hasler <jhasler@debian.org>  Tue, 15 Nov 2005 18:39:49 -0600
+  
 chrony (1.20-8) unstable; urgency=high
 
   * Added test for /usr/bin/mail in postinst.
