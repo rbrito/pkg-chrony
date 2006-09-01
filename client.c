@@ -1383,10 +1383,10 @@ process_cmd_sources(char *line)
   int n_sources, i;
   int verbose = 0;
 
-  long orig_latest_meas, latest_meas, est_offset;
+  int32_t orig_latest_meas, latest_meas, est_offset; /* Was long JGH */
   unsigned long ip_addr;
-  unsigned long latest_meas_err, est_offset_err;
-  unsigned long latest_meas_ago;
+  uint32_t latest_meas_err, est_offset_err; /* Was unsigned long JGH */
+  uint32_t latest_meas_ago;  /* Was unsigned long JGH */
   unsigned short poll, stratum;
   unsigned short state, mode;
   double resid_freq, resid_skew;
@@ -1485,14 +1485,14 @@ process_cmd_sources(char *line)
           }
 
           printf(" %-25s    %2d   %2d   ", hostname_buf, stratum, poll);
-          print_seconds(latest_meas_ago);
+          print_seconds((unsigned long)latest_meas_ago); /* Added cast JGH */
           printf("  ");
-          print_signed_microseconds(latest_meas);
+          print_signed_microseconds((long)latest_meas); /* Added cast JGH */
           printf("[");
-          print_signed_microseconds(orig_latest_meas);
+          print_signed_microseconds((long)orig_latest_meas); /* Added cast JGH */
           printf("]");
           printf(" +/- ");
-          print_microseconds(latest_meas_err);
+          print_microseconds((unsigned long)latest_meas_err); /* Added cast JGH */
           printf("\n");
         }
       }

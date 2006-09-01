@@ -2,13 +2,15 @@ Source: chrony
 Section: admin
 Priority: extra
 Maintainer: John Hasler <jhasler@debian.org>
-Standards-Version: 3.6.2.1
+Standards-Version: 3.7.2.1
 Build-Depends: debhelper (>= 4), libreadline5-dev | libreadline-dev, texinfo, bison
 
 Package: chrony
 Architecture: any
-Depends: ${shlibs:Depends}
-Conflicts: ntp, ntpsimple, ntprefclock
+Depends: ${shlibs:Depends}, ucf
+Conflicts: ntp, ntp-simple, ntp-refclock, time-daemon
+Provides: time-daemon
+Replaces: time-daemon
 Description: Sets your computer's clock from time servers on the Net
  It consists of a pair of programs :
  `chronyd'.  This is a daemon which runs in background on the system.  It

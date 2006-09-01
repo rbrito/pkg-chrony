@@ -20,7 +20,7 @@ build-stamp:
 clean:
 	dh_testdir
 	dh_testroot
-	rm -f build-stamp install-stamp
+	rm -f build-stamp install-stamp debian/substvars
 
 	# Add here commands to clean up after the build process.
 	-$(MAKE) distclean
@@ -55,8 +55,9 @@ binary-arch: build install
 	dh_installcron
 	dh_installmanpages
 	dh_installchangelogs 
-	cp chrony.conf debian/chrony/etc/chrony
-	cp chrony.keys debian/chrony/etc/chrony
+	cp chrony.conf debian/chrony/usr/share/chrony
+	cp debian/chrony.conf.md5sum debian/chrony/usr/share/chrony
+#	cp chrony.keys debian/chrony/etc/chrony
 	cp chrony.info debian/chrony/usr/share/info
 #	cp chrony.info-1 debian/chrony/usr/share/info
 #	cp chrony.info-2 debian/chrony/usr/share/info
@@ -69,7 +70,7 @@ binary-arch: build install
 	dh_strip
 	dh_compress
 	dh_fixperms
-	chmod 640 debian/chrony/etc/chrony/chrony.keys
+#	chmod 640 debian/chrony/etc/chrony/chrony.keys
 	chmod 755 debian/chrony/etc/ppp/ip-up.d/chrony debian/chrony/etc/ppp/ip-down.d/chrony
 	dh_installdeb
 	dh_shlibdeps

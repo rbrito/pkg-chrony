@@ -1,3 +1,40 @@
+chrony (1.21z-3) unstable; urgency=low
+
+  * Changed upstream version number from 1.21 to 1.21z to satisfy Debian
+    archive software.
+  
+  * Replaced impure chrony_1.21.orig.tar.gz.
+    Closes: #340030: chrony: Tarball is impure
+  
+  * Now Provides, Conflicts, Replaces time-daemon
+    Closes: #330839: time-daemon pseudopackage
+
+  * Corrected typos.
+    Closes: #321121: chrony: typo in 'Conflicts:' field: s/ntpsimple/ntp-simple/ and s/ntprefclock/ntp-refclock/
+
+  * Rewrote postinst and postrm to use ucf.  Wrote preinst to protect chrony.conf from dpkg.
+    Closes: #351332: chrony: conffile change prompt prevents smooth upgrade from sarge to etch
+  
+  * Deleted last few lines of chrony.conf as they no longer apply.
+  
+  * Deleted .arch-ids from contrib and examples.
+  
+  * Fixed typo in chronyc.1
+    Closes: #349871: chrony: typo in chrnoyc.1 results in missing word
+  
+  * Corrected references in man pages.
+    Closes: #345034: chrony: man pages refer to wrong sections
+  
+  * Added "allow 172.16/12" to chrony.conf.
+    Closes: #252952: chrony: default allow should also have 172.16/12
+  
+  * Channged server lines in chrony.conf to follow ntp.org current recommendation.
+    Closes: #243534: chrony: new pool.ntp.org setup doesn't work well
+  
+  * Fixed FSF address in debian/copyright.
+  
+ -- John Hasler <jhasler@debian.org>  Fri,  1 Sep 2006 10:52:52 -0500
+
 chrony (1.21-2) unstable; urgency=high
   
   * Patched io_linux.h to add missing architectures.

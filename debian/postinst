@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-# postinst for chrony John Hasler jhasler@debian.org 2000-2005
+# postinst for Chrony John Hasler jhasler@debian.org 2000-2006
 # Any possessor of a copy of this program may treat it as if it
 # were in the public domain.  I waive all rights.
 
@@ -12,45 +12,40 @@ if [ -x /usr/bin/update-menus ] ; then
     /usr/bin/update-menus 
 fi
 
-# If chrony.keys is the dist file generate a random passord and put it there.
-
-if [ "`cat /etc/chrony/chrony.keys`" = "1 password_here" ] ; then
-    PASSWORD=`head -c 8 /dev/urandom | tr '\0-\377' 'a-zA-Z0-9a-zA-Z0-9a-zA-Z0-9a-zA-Z0-9@@@@####'`
-    echo "1 $PASSWORD" > /etc/chrony/chrony.keys
-    MAILPASSWORD="The password for chronyc is in /etc/chrony/chrony.keys."
-fi
-
 update-rc.d chrony defaults 83 >/dev/null
 
-# If chrony.conf is the dist file figure out whether or not we are on UTC
-# and put an appropriate line in chrony.conf.
+cp /usr/share/chrony/chrony.conf /etc/chrony/chrony.conf.new
 
-if [ -f /etc/default/rcS -a -f /etc/chrony/chrony.conf ] ; then 
-    if tail -1 /etc/chrony/chrony.conf | grep -q '^# POSTINSTMARKER$' ; then
-	. /etc/default/rcS
-	case "$UTC" in
-	    no|"") echo "# rtconutc" >> /etc/chrony/chrony.conf
-                   MAILUTC="Chrony has been configured to assume that your real-time clock is on local time.
+# Fix up chrony.conf.new.
+. /etc/default/rcS
+
+case "$UTC" in
+    no|"") echo "# rtconutc" >> /etc/chrony/chrony.conf.new
+	MAILUTC="Chrony has been configured to assume that your real-time clock is on local time.
 If this is not correct edit /etc/chrony/chrony.conf.  The comments explain
 what to do."
-		   ;;
-	    yes)   echo "rtconutc" >> /etc/chrony/chrony.conf
-                   MAILUTC="Chrony has been configured to assume that your real-time clock is on UTC time.
+	;;
+    yes)   echo "rtconutc" >> /etc/chrony/chrony.conf.new
+	MAILUTC="Chrony has been configured to assume that your real-time clock is on UTC time.
 If this is not correct edit /etc/chrony/chrony.conf.  The comments explain
 what to do."
-		   ;;
-	    *)     echo "# Can't tell how your clock is set: assuming local time." >> /etc/chrony/chrony.conf
-                   MAILUTC="Can't tell how your clock is set: assuming local time.
+	;;
+    *)     echo "# Can't tell how your clock is set: assuming local time." >> /etc/chrony/chrony.conf.new
+	MAILUTC="Can't tell how your clock is set: assuming local time.
 If this is not correct edit /etc/chrony/chrony.conf.  The comments explain
 what to do."
-		   ;;
-	esac
-    fi
-fi
+	;;
+esac
 
-invoke-rc.d chrony start
+if [ -z "$2" ] ; then
 
-if [ \( "$MAILPASSWORD" -o "$MAILUTC" \) -a \( -x /usr/bin/mail \) ] ; then
+# As this a new install generate a key.
+    KEYFILE=`tempfile -m 640 -n /etc/chrony/chrony.keys`
+    PASSWORD=`head -c 8 /dev/urandom | tr '\0-\377' 'a-zA-Z0-9a-zA-Z0-9a-zA-Z0-9a-zA-Z0-9@@@@####'`
+    echo "1 $PASSWORD" > $KEYFILE
+    MAILPASSWORD="The password for chronyc is in $KEYFILE."
+
+# And tell root about the key and the rtc setting.    
     /usr/bin/mail -s "Chrony" root <<EOF
 
 $MAILPASSWORD
@@ -74,6 +69,18 @@ comments explain what to do.
 
 EOF
 
+else
+    
+# If we are upgrading from an old version retrieve the files saved by the preinst.
+# If we are upgrading from a recent version no need to do anything.
+    
+    if dpkg --compare-versions "$2" lt-nl chrony-1.21-3 ; then
+	    mv /etc/chrony/chrony.keys."$2" /etc/chrony/chrony.keys
+            mv /etc/chrony/chrony.conf."$2" /etc/chrony/chrony.conf
+        fi
 fi
+ucf --sum-file /usr/share/chrony/chrony.conf.md5sum /etc/chrony/chrony.conf.new /etc/chrony/chrony.conf
+rm /etc/chrony/chrony.conf.new
 
+invoke-rc.d chrony start
 exit 0
