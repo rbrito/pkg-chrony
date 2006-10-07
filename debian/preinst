@@ -10,7 +10,7 @@ case "$1" in
 # If we are upgrading from an old version protect the keys and
 # conf files from dpkg.
 
-        if dpkg --compare-versions "$2" lt-nl chrony-1.21-3 ; then
+        if dpkg --compare-versions "$2" lt-nl 1.21-3 ; then
             mv /etc/chrony/chrony.keys /etc/chrony/chrony.keys."$2"
 	    mv /etc/chrony/chrony.conf /etc/chrony/chrony.conf."$2"
         fi

@@ -39,14 +39,16 @@ esac
 
 if [ -z "$2" ] ; then
 
-# As this a new install generate a key.
+# As this a new install generate a key.  Remove any keyfile left by a failed install.
+    rm -rf /etc/chrony/chrony.keys
     KEYFILE=`tempfile -m 640 -n /etc/chrony/chrony.keys`
     PASSWORD=`head -c 8 /dev/urandom | tr '\0-\377' 'a-zA-Z0-9a-zA-Z0-9a-zA-Z0-9a-zA-Z0-9@@@@####'`
     echo "1 $PASSWORD" > $KEYFILE
     MAILPASSWORD="The password for chronyc is in $KEYFILE."
 
 # And tell root about the key and the rtc setting.    
-    /usr/bin/mail -s "Chrony" root <<EOF
+    if `which /usr/bin/mail > /dev/null`; then
+	/usr/bin/mail -s "Chrony" root <<EOF
 
 $MAILPASSWORD
 
@@ -68,13 +70,14 @@ disable real-time clock updating edit /etc/chrony/chrony.conf.  The
 comments explain what to do.
 
 EOF
+    fi
 
 else
     
 # If we are upgrading from an old version retrieve the files saved by the preinst.
 # If we are upgrading from a recent version no need to do anything.
     
-    if dpkg --compare-versions "$2" lt-nl chrony-1.21-3 ; then
+    if dpkg --compare-versions "$2" lt-nl 1.21-3 ; then
 	    mv /etc/chrony/chrony.keys."$2" /etc/chrony/chrony.keys
             mv /etc/chrony/chrony.conf."$2" /etc/chrony/chrony.conf
         fi

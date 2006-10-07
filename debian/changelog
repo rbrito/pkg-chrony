@@ -1,3 +1,19 @@
+chrony (1.21z-4) unstable; urgency=low
+
+  * Added test for /usr/bin/mail to postinst.
+    Closes: #386651: chrony: Requires /usr/bin/mail but doesn't depend on it
+    Closes: #390280: chrony: missing dependency on mail
+  
+  * Added LSB headers to initscript
+  
+  * Corrected erroneous use of 'dpkg --compare-version' in preinst and postinst.
+    Closes: #386733: fails to configure (bad upgrade check)
+
+  * Added rm to postinst to remove keyfile possibly left by a failed install.
+    Closes: #390278: usage of tempfile /etc/chrony/chrony.keys is doubtful
+  
+ -- John Hasler <jhasler@debian.org>  Sat,  7 Oct 2006 13:39:49 -0500
+
 chrony (1.21z-3) unstable; urgency=low
 
   * Changed upstream version number from 1.21 to 1.21z to satisfy Debian
