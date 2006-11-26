@@ -1,3 +1,17 @@
+chrony (1.21z-5) unstable; urgency=high
+  
+  * Applied postinst patch from Lionel Elie Mamane to test for the
+    existence of old .keys and .conf files before renaming them.  
+    Closes: #397759: fails to configure: mv: cannot stat `/etc/chrony/chrony.keys.1.21-2':
+    No such file or directory
+
+  * Added burst command to /etc/ppp/ip-up.d/chrony to give chronyd a kick in the butt.
+    Shouldn't need that, though.
+    Initscript now calls /etc/ppp/ip-up.d/chrony if a default route exists.
+    Closes: #397739: Not connecting to sources after reboot - dialup
+  
+ -- John Hasler <jhasler@debian.org>  Sun, 26 Nov 2006 08:07:20 -0600
+
 chrony (1.21z-4) unstable; urgency=low
 
   * Added test for /usr/bin/mail to postinst.

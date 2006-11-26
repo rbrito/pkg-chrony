@@ -78,9 +78,13 @@ else
 # If we are upgrading from a recent version no need to do anything.
     
     if dpkg --compare-versions "$2" lt-nl 1.21-3 ; then
+	if [ -f /etc/chrony/chrony.keys."$2" ]; then
 	    mv /etc/chrony/chrony.keys."$2" /etc/chrony/chrony.keys
-            mv /etc/chrony/chrony.conf."$2" /etc/chrony/chrony.conf
-        fi
+	fi
+	if [ -f /etc/chrony/chrony.conf."$2" ]; then
+	    mv /etc/chrony/chrony.conf."$2" /etc/chrony/chrony.conf
+	fi
+    fi
 fi
 ucf --sum-file /usr/share/chrony/chrony.conf.md5sum /etc/chrony/chrony.conf.new /etc/chrony/chrony.conf
 rm /etc/chrony/chrony.conf.new

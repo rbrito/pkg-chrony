@@ -10,6 +10,8 @@ PASSWORD=`awk '$1 ~ /^'$KEY'$/ {print $2; exit}' /etc/chrony/chrony.keys`
 /usr/bin/chronyc << EOF
 password $PASSWORD
 online
+burst 5/10
+quit
 EOF
 touch /var/run/chrony-ppp-up
 exit 0

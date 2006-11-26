@@ -30,6 +30,8 @@ test -f $DAEMON || exit 0
 case "$1" in
   start)
     start-stop-daemon --start --verbose --exec $DAEMON
+    sleep 1
+    route 2>/dev/null | grep -q default && /etc/ppp/ip-up.d/chrony > /dev/null || true
     ;;
   stop)
     start-stop-daemon --stop --verbose --oknodo --exec $DAEMON
@@ -44,6 +46,8 @@ case "$1" in
         start-stop-daemon --stop --quiet --exec $DAEMON
         sleep 1
         start-stop-daemon --start --quiet --exec $DAEMON -- -r
+        sleep 1
+        route 2>/dev/null | grep -q default && /etc/ppp/ip-up.d/chrony > /dev/null || true
         echo "$NAME."
         ;;
   *)
