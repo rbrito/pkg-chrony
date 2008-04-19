@@ -1,15 +1,41 @@
-chrony (1.21z-5+etch1) oldstable-security; urgency=high
+chrony (1.23-1) experimental; urgency=low
 
-  * Non-maintainer upload by the Security Team.
-  * This update addresses the following security issues:
-    - CVE-2010-0292: chronyd replies to all cmdmon packets from unauthorized
-      hosts with.
-    - CVE-2010-0293: missing memory limit for to keep client information which
-      can lead to memory exhaustion through clients with spoofed IPs
-    - CVE-2010-0294: missing syslog limit could lead to filling up the disc
-      by triggering various log events in a loop. 
+  * New upstream release
+    This is 1.23 with Debian patches applied (including some for LP64).
+    I'm uploading this to Experimental to get it tested on x86_64 to see
+    if  #474294 is fixed.
+  
+ -- John Hasler <jhasler@debian.org>  Sat, 19 Apr 2008 14:49:15 -0500
 
- -- Nico Golde <nion@debian.org>  Mon,  1 Feb 2010 12:40:11 +0000
+chrony (1.21z-6) unstable; urgency=low
+
+  * Applied patches from Eric Lammerts <eric@lammerts.org> and Goswin von
+    Brederlow <brederlo@informatik.uni-tuebingen.de> to cast the value
+    returned by ntohl to int32_t and so cause correct sign-extension near
+    line 1655 in client.c.  Also fixed similar bugs in the same area.  I'm
+    not sure this entirely fixes the chronyc number display problem,
+    though.  I've not closed #348412 here because chrony is still not
+    fully LP64 compliant.
+    Closes: #195620: Strange "System time : xxx seconds slow of
+    NTP time" output
+
+  * Replaced addrfilt.c with addrfilt.c from upstream git repository.
+    This fixes the recursive structure definition problems.
+
+  * Replaced 'route' with 'netstat -r' in the initscript.
+
+  * Applied patch for configure script from Nathanael Nerode
+    <neroden@gcc.gnu.org> to delete the superfluous "lncurses" at line
+    327.
+    Closes: #392273: Recursive dependency disease: chrony shouldn't depend
+    on ncurses
+
+  * Added test to reject servers claiming stratum less than 1 in
+    ntp_core.c "Test 7".  Bill Unruh <unruh@physics.ubc.ca> has run across
+    a server that sometimes claims to be stratum 0, which causes
+    considerable confusion.
+
+ -- John Hasler <jhasler@debian.org>  Fri, 16 Feb 2007 17:47:40 -0600
 
 chrony (1.21z-5) unstable; urgency=high
   

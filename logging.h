@@ -53,7 +53,6 @@ typedef enum {
   LOGF_Local,
   LOGF_Util,
   LOGF_Main,
-  LOGF_ClientLog,
   LOGF_Configure,
   LOGF_CmdMon,
   LOGF_Acquire,
@@ -78,15 +77,12 @@ extern void LOG_Finalise(void);
 extern void LOG_Line_Function(LOG_Severity severity, LOG_Facility facility, const char *format, ...);
 
 /* Logging function for fatal errors */
-extern volatile void LOG_Fatal_Function(LOG_Facility facility, const char *format, ...);
+extern void LOG_Fatal_Function(LOG_Facility facility, const char *format, ...);
 
 /* Position in code reporting function */
 extern void LOG_Position(const char *filename, int line_number, const char *function_name);
 
 extern void LOG_GoDaemon(void);
-
-/* Return zero once per 10 seconds */
-extern int LOG_RateLimited(void);
 
 /* Line logging macro.  If the compiler is GNU C, we take advantage of
    being able to get the function name also. */

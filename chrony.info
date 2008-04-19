@@ -1,4 +1,4 @@
-This is chrony.info, produced by makeinfo version 4.7 from chrony.texi.
+This is chrony.info, produced by makeinfo version 4.11 from chrony.texi.
 
 INFO-DIR-SECTION Net Utilities
 START-INFO-DIR-ENTRY
@@ -2585,7 +2585,7 @@ will revert to the previous state for each source.  This might be either
 online, if the source was being periodically measured in the normal way,
 or offline, if the source had been indicated as being offline.
 (Switching a source between the online and offline states is described
-in *Note online command::, *Note offline command::).
+in *note online command::, *note offline command::).
 
    The syntax of the burst command is as follows
 
@@ -2822,7 +2822,7 @@ directive::.
 
    To use the `dump', you probably want to configure the name of the
 directory into which the dump files will be written.  This can only be
-done in the configuration file, see *Note dumpdir directive::.
+done in the configuration file, see *note dumpdir directive::.
 
 
 File: chrony.info,  Node: exit command,  Next: help command,  Prev: dump command,  Up: Chronyc command reference
@@ -2852,7 +2852,7 @@ a reference source, even if it is not itself properly synchronised to
 an external source.  (This can be used on isolated networks, to allow
 one computer to be a master time server with the other computers slaving
 to it.)  The `local' command is somewhat equivalent to the `local'
-directive in the configuration file, see *Note local directive::.
+directive in the configuration file, see *note local directive::.
 
    The syntax is as shown in the following examples.
 
@@ -3029,7 +3029,7 @@ File: chrony.info,  Node: maxupdateskew command,  Next: minpoll command,  Prev: 
 ......................
 
 This command has the same effect as the `maxupdateskew' directive in
-the configuration file, see *Note maxupdateskew directive::.
+the configuration file, see *note maxupdateskew directive::.
 
 
 File: chrony.info,  Node: minpoll command,  Next: offline command,  Prev: maxupdateskew command,  Up: Chronyc command reference
@@ -3072,7 +3072,7 @@ connection to a particular host or hosts is about to be lost.  It should
 be used on computers with a dial-up or similar connection to their time
 sources, to warn `chronyd' that the connection is about to be broken.
 
-   An example of how to use `offline' in this case is shown in *Note
+   An example of how to use `offline' in this case is shown in *note
 Advising chronyd of internet availability::.
 
    Another case where `offline' could be used is where a computer
@@ -3135,7 +3135,7 @@ The `online' command is opposite in function to the `offline' command.
 It is used to advise `chronyd' that network connectivity to a
 particular source or sources has been restored.
 
-   The syntax is identical to that of the `offline' command, see *Note
+   The syntax is identical to that of the `offline' command, see *note
 offline command::.
 
 
@@ -3759,8 +3759,8 @@ patent must be licensed for everyone's free use or not licensed at all.
    The precise terms and conditions for copying, distribution and
 modification follow.
 
-   		    GNU GENERAL PUBLIC LICENSE    TERMS AND CONDITIONS FOR COPYING,
-DISTRIBUTION AND MODIFICATION
+   		    GNU GENERAL PUBLIC LICENSE    TERMS AND CONDITIONS
+FOR COPYING, DISTRIBUTION AND MODIFICATION
 
    0. This License applies to any program or other work which contains
 a notice placed by the copyright holder saying it may be distributed
@@ -4002,7 +4002,7 @@ does.>     Copyright (C) 19yy  <name of author>
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+(at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -4050,123 +4050,123 @@ GNU Library General Public License instead of this License.
 
 
 Tag Table:
-Node: Top315
-Node: Introduction855
-Node: Overview1432
-Node: Acknowledgements2959
-Node: Availability3614
-Node: Getting the software3920
-Node: Platforms4170
-Node: Other time synchronisation packages5355
-Node: Comparison with xntpd5645
-Node: Comparison with timed8800
-Node: Distribution and warranty10775
-Node: Bug reporting11125
-Node: Contributing12576
-Node: Installation14373
-Node: readline support17686
-Node: package builders18839
-Node: Typical scenarios20120
-Node: Computers on the net20838
-Node: Infrequent connection22696
-Node: Configuration for infrequent connections23222
-Node: Advising chronyd of internet availability26042
-Node: Isolated networks27404
-Node: Dial-up home PCs29389
-Node: Dial-up overview29772
-Node: Dial-up configuration35337
-Node: Configuration options overview38620
-Node: Usage reference39785
-Node: Starting chronyd40135
-Node: Configuration file44065
-Node: comments in config file47088
-Node: acquisitionport directive47525
-Node: allow directive48368
-Node: bindaddress directive50806
-Node: bindcmdaddress directive52202
-Node: broadcast directive53159
-Node: cmdallow directive54831
-Node: cmddeny directive55493
-Node: commandkey directive55948
-Node: cmdport directive56688
-Node: deny directive57202
-Node: driftfile directive57639
-Node: dumpdir directive58951
-Node: dumponexit directive60185
-Node: initstepslew directive60547
-Node: keyfile directive63362
-Node: local directive64488
-Node: linux_hz directive66008
-Node: linux_freq_scale directive66729
-Node: log directive67733
-Node: measurements log68831
-Node: statistics log70815
-Node: tracking log73342
-Node: RTC log74557
-Node: logchange directive76391
-Node: logdir directive77247
-Node: mailonchange directive77564
-Node: manual directive78083
-Node: maxupdateskew directive78808
-Node: noclientlog directive80276
-Node: peer directive80646
-Node: pidfile directive80975
-Node: port directive81425
-Node: rtcdevice directive82063
-Node: rtcfile directive82502
-Node: rtconutc directive83807
-Node: server directive84752
-Node: Running chronyc90205
-Node: Chronyc basic use90794
-Node: Chronyc command line options91380
-Node: Security with chronyc92302
-Node: Chronyc command reference94094
-Node: accheck command97080
-Node: activity command97622
-Node: add peer command98791
-Node: add server command99340
-Node: allow command99902
-Node: allow all command100462
-Node: burst command100750
-Node: clients command103295
-Node: cmdaccheck command105119
-Node: cmdallow command105508
-Node: cmdallow all command105855
-Node: cmddeny command106209
-Node: cmddeny all command106553
-Node: cyclelogs command106906
-Node: delete command107695
-Node: deny command108135
-Node: deny all command108568
-Node: dump command108851
-Node: exit command109547
-Node: help command109791
-Node: local command110011
-Node: makestep command110866
-Node: manual command111743
-Node: maxdelay command113868
-Node: maxdelayratio command114685
-Node: maxpoll command115626
-Node: maxupdateskew command116560
-Node: minpoll command116869
-Node: offline command117794
-Node: online command120379
-Node: password command120810
-Node: quit command121748
-Node: rtcdata command121999
-Node: settime command124160
-Node: sources command126223
-Ref: sources command-Footnote-1129440
-Node: sourcestats command129556
-Node: tracking command131686
-Node: trimrtc command136994
-Node: writertc command138569
-Node: Porting guide139013
-Node: System driver files139621
-Node: Quirks of particular systems140556
-Node: Linux porting quirks140951
-Node: Solaris 2.5 porting quirks141955
-Node: SunOS 4.1.4 porting quirks142655
-Node: GPL143240
+Node: Top316
+Node: Introduction856
+Node: Overview1433
+Node: Acknowledgements2960
+Node: Availability3615
+Node: Getting the software3921
+Node: Platforms4171
+Node: Other time synchronisation packages5356
+Node: Comparison with xntpd5646
+Node: Comparison with timed8801
+Node: Distribution and warranty10776
+Node: Bug reporting11126
+Node: Contributing12577
+Node: Installation14374
+Node: readline support17687
+Node: package builders18840
+Node: Typical scenarios20121
+Node: Computers on the net20839
+Node: Infrequent connection22697
+Node: Configuration for infrequent connections23223
+Node: Advising chronyd of internet availability26043
+Node: Isolated networks27405
+Node: Dial-up home PCs29390
+Node: Dial-up overview29773
+Node: Dial-up configuration35338
+Node: Configuration options overview38621
+Node: Usage reference39786
+Node: Starting chronyd40136
+Node: Configuration file44066
+Node: comments in config file47089
+Node: acquisitionport directive47526
+Node: allow directive48369
+Node: bindaddress directive50807
+Node: bindcmdaddress directive52203
+Node: broadcast directive53160
+Node: cmdallow directive54832
+Node: cmddeny directive55494
+Node: commandkey directive55949
+Node: cmdport directive56689
+Node: deny directive57203
+Node: driftfile directive57640
+Node: dumpdir directive58952
+Node: dumponexit directive60186
+Node: initstepslew directive60548
+Node: keyfile directive63363
+Node: local directive64489
+Node: linux_hz directive66009
+Node: linux_freq_scale directive66730
+Node: log directive67734
+Node: measurements log68832
+Node: statistics log70816
+Node: tracking log73343
+Node: RTC log74558
+Node: logchange directive76392
+Node: logdir directive77248
+Node: mailonchange directive77565
+Node: manual directive78084
+Node: maxupdateskew directive78809
+Node: noclientlog directive80277
+Node: peer directive80647
+Node: pidfile directive80976
+Node: port directive81426
+Node: rtcdevice directive82064
+Node: rtcfile directive82503
+Node: rtconutc directive83808
+Node: server directive84753
+Node: Running chronyc90206
+Node: Chronyc basic use90795
+Node: Chronyc command line options91381
+Node: Security with chronyc92303
+Node: Chronyc command reference94095
+Node: accheck command97081
+Node: activity command97623
+Node: add peer command98792
+Node: add server command99341
+Node: allow command99903
+Node: allow all command100463
+Node: burst command100751
+Node: clients command103296
+Node: cmdaccheck command105120
+Node: cmdallow command105509
+Node: cmdallow all command105856
+Node: cmddeny command106210
+Node: cmddeny all command106554
+Node: cyclelogs command106907
+Node: delete command107696
+Node: deny command108136
+Node: deny all command108569
+Node: dump command108852
+Node: exit command109548
+Node: help command109792
+Node: local command110012
+Node: makestep command110867
+Node: manual command111744
+Node: maxdelay command113869
+Node: maxdelayratio command114686
+Node: maxpoll command115627
+Node: maxupdateskew command116561
+Node: minpoll command116870
+Node: offline command117795
+Node: online command120380
+Node: password command120811
+Node: quit command121749
+Node: rtcdata command122000
+Node: settime command124161
+Node: sources command126224
+Ref: sources command-Footnote-1129441
+Node: sourcestats command129557
+Node: tracking command131687
+Node: trimrtc command136995
+Node: writertc command138570
+Node: Porting guide139014
+Node: System driver files139622
+Node: Quirks of particular systems140557
+Node: Linux porting quirks140952
+Node: Solaris 2.5 porting quirks141956
+Node: SunOS 4.1.4 porting quirks142656
+Node: GPL143241
 
 End Tag Table

@@ -46,7 +46,7 @@ DNS_Name2IPAddress(const char *name)
   if (host == NULL) {
     result = DNS_Failed_Address;
   } else {
-    address0 = host->h_addr_list[0];
+    address0 = (unsigned char *)host->h_addr_list[0]; /* Added cast JGH */
     result = ((((unsigned long)address0[0])<<24) |
 	      (((unsigned long)address0[1])<<16) |
 	      (((unsigned long)address0[2])<<8) |

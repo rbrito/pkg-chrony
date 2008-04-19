@@ -40,8 +40,6 @@ static int initialised = 0;
 
 static int is_detached = 0;
 
-static time_t last_limited = 0;
-
 #ifdef WINNT
 static FILE *logfile;
 #endif
@@ -118,7 +116,7 @@ LOG_Line_Function(LOG_Severity severity, LOG_Facility facility, const char *form
 
 /* ================================================== */
 
-volatile void
+void
 LOG_Fatal_Function(LOG_Facility facility, const char *format, ...)
 {
   char buf[2048];
@@ -213,22 +211,6 @@ LOG_GoDaemon(void)
   }
 
 #endif
-}
-
-/* ================================================== */
-
-int
-LOG_RateLimited(void)
-{
-  time_t now;
-
-  now = time(NULL);
-
-  if (last_limited + 10 > now && last_limited <= now)
-    return 1;
-
-  last_limited = now;
-  return 0;
 }
 
 /* ================================================== */

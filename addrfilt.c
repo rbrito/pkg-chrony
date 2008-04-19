@@ -6,7 +6,7 @@
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
- * Copyright (C) Richard P. Curnow  1997-2002
+ * Copyright (C) Richard P. Curnow  1997,1998,1999,2000,2001,2002,2005
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -49,8 +49,6 @@ typedef struct _TableNode {
   State state;
   struct _TableNode *extended;
 } TableNode;
-
-typedef struct _TableNode ExtendedTable[TABLE_SIZE];
 
 struct ADF_AuthTableInst {
   TableNode base;
@@ -99,7 +97,7 @@ close_node(TableNode *node)
 
   if (node->extended != NULL) {
     for (i=0; i<TABLE_SIZE; i++) {
-      child_node = node->extended + i;
+      child_node = &(node->extended[i]);
       close_node(child_node);
     }
     Free(node->extended);
@@ -122,11 +120,10 @@ open_node(TableNode *node)
 
   if (node->extended == NULL) {
 
-
-    node->extended = (TableNode *) MallocArray(ExtendedTable, TABLE_SIZE);
+    node->extended = MallocArray(struct _TableNode, TABLE_SIZE);
 
     for (i=0; i<TABLE_SIZE; i++) {
-      child_node = node->extended + i;
+      child_node = &(node->extended[i]);
       child_node->state = AS_PARENT;
       child_node->extended = NULL;
     }
@@ -167,7 +164,7 @@ set_subnet(TableNode *start_node,
         if (!(node->extended)) {
           open_node(node);
         }
-        node = node->extended + subnet;
+        node = &(node->extended[subnet]);
         bits_to_go -= NBITS;
       }
 
@@ -186,7 +183,7 @@ set_subnet(TableNode *start_node,
         if (!(node->extended)) {
           open_node(node);
         }
-        node = node->extended + subnet;
+        node = &(node->extended[subnet]);
         bits_to_go -= NBITS;
       }
 
@@ -198,7 +195,7 @@ set_subnet(TableNode *start_node,
       }
       
       for (i=subnet, j=0; j<N; i++, j++) {
-        this_node = node->extended + i;
+        this_node = &(node->extended[i]);
         if (delete_children) {
           close_node(this_node);
         }
@@ -282,7 +279,7 @@ check_ip_in_node(TableNode *start_node, unsigned long ip)
     if (node->extended) {
       subnet = get_subnet(residual);
       residual = get_residual(residual);
-      node = node->extended + subnet;
+      node = &(node->extended[subnet]);
     } else {
       /* Make decision on this node */
       finished = 1;

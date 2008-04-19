@@ -146,7 +146,7 @@ read_line(void)
 static unsigned long
 get_address(const char *hostname)
 {
-  unsigned char *address0;
+  char *address0;
   struct hostent *host;
   unsigned long result;
 
@@ -746,7 +746,7 @@ static int
 accheck_getaddr(char *line, unsigned long *addr)
 {
   unsigned long a, b, c, d, ip;
-  unsigned char *p, *q;
+  char *p, *q;
   p = line;
   while (*p && isspace(*p)) p++;
   if (!*p) {
@@ -1124,7 +1124,7 @@ static int
 submit_request(CMD_Request *request, CMD_Reply *reply, int *reply_auth_ok)
 {
   unsigned long tx_sequence;
-  int where_from_len;
+  socklen_t where_from_len;
   struct sockaddr_in where_from;
   int bad_length, bad_sender, bad_sequence, bad_header;
   int select_status;
@@ -1652,7 +1652,7 @@ process_cmd_tracking(char *line)
     ref_time.tv_usec = ntohl(reply.data.tracking.ref_time_us);
     ref_time_tm = *gmtime((time_t *)&ref_time.tv_sec);
     printf("Ref time (UTC)  : %s", asctime(&ref_time_tm));
-    correction_tv.tv_sec = ntohl(reply.data.tracking.current_correction_s);
+    correction_tv.tv_sec = (int32_t)ntohl(reply.data.tracking.current_correction_s);
     correction_tv.tv_usec = ntohl(reply.data.tracking.current_correction_us);
     correction = (double) correction_tv.tv_sec + 1.0e-6 * correction_tv.tv_usec;
     printf("System time     : %.6f seconds %s of NTP time\n", fabs(correction),
@@ -2319,7 +2319,11 @@ process_line(char *line)
   /* Check for line being blank */
   p = line;
   while (*p && isspace((unsigned char)*p)) p++;
-  if (!*p) return quit;
+  if (!*p) {
+    fflush(stderr);
+    fflush(stdout);
+    return quit;
+  };
 
   if (!strncmp(p, "offline", 7)) {
     do_normal_submit = process_cmd_offline(&tx_message, p+7);
@@ -2480,7 +2484,8 @@ process_line(char *line)
       }
     }
   }
-
+  fflush(stderr);
+  fflush(stdout);
   return quit;
 }
 
