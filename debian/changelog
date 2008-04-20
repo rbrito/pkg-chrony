@@ -1,3 +1,13 @@
+chrony (1.23-2) experimental; urgency=low
+
+  * Added default IOC's to io_linux.h.
+    Closes: #477043: chrony_1.23-1(ia64/experimental): FTBFS: IOC 
+    constants unknown on ia64
+    Closes: #476963: chrony_1.23-1(hppa/experimental): FTBFS: "I don't 
+    know the values of the _IOC_* constants for your architecture" 
+  
+ -- John Hasler <jhasler@debian.org>  Sun, 20 Apr 2008 13:29:29 -0500
+
 chrony (1.23-1) experimental; urgency=low
 
   * New upstream release

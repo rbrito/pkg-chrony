@@ -13,7 +13,7 @@
 # Required-Stop:     $local_fs
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Decription:  Controls chronyd NTP time daemon
+# Short-Description:  Controls chronyd NTP time daemon
 # Description:       Chronyd is the NTP time daemon in the Chrony package
 #              
 ### END INIT INFO

@@ -1,7 +1,7 @@
-?package(chrony):needs="text" section="Apps/System"\
+?package(chrony):needs="text" section="Applications/System/Administration"\
   title="chronyc"\
   command="/usr/bin/chronyc"
 
-?package(chrony):needs="dwww" section="Apps/System"\
+?package(chrony):needs="dwww" section="Applications/System/Administration"\
   title="chrony"\
   command="/usr/share/doc/chrony/chrony.html"
