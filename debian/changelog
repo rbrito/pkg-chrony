@@ -1,3 +1,23 @@
+chrony (1.23-3) unstable; urgency=high
+
+  * Rewrote UTI_NormaliseTimeval()in util.c to use divide/remainder
+    instead of loops at the suggestion of Gabor Gombas.  This prevents the
+    problem of the loop running until the sun goes out when the function
+    is called with a very large value for tv_usec on 64-bit architectures.
+    Also fixed some other spots where the same loop was being used.
+  
+    Closes: #474294 Goes into endless loop
+    Closes: #447011 chronyd stalls with 100% CPU usage
+     
+    I still don't know why the function is being called with such a 
+    large value, however.
+
+  * Changed default servers in chrony,conf to Debian servers.
+  
+    Closes: #434483: chrony: Should use NTP servers in Debian pool
+  
+ -- John Hasler <jhasler@debian.org>  Sat, 26 Apr 2008 11:47:44 -0500
+
 chrony (1.23-2) experimental; urgency=low
 
   * Added default IOC's to io_linux.h.

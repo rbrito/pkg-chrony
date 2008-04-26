@@ -1,5 +1,7 @@
-chrony (1.23-2) experimental; urgency=low
+chrony (1.23-3) unstable; urgency=high
 
     New upstream release.
 
- -- John Hasler <jhasler@debian.org>  Sun, 20 Apr 2008 13:29:29 -0500
+    Changed default chrony.conf to use Debian servers.  
+  
+ -- John Hasler <jhasler@debian.org>  Sat, 26 Apr 2008 18:29:29 -0500
