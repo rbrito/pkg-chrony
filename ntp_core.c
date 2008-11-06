@@ -320,6 +320,9 @@ create_instance(NTP_Remote_Address *remote_addr, NTP_Mode mode, SourceParameters
 
   result->local_rx.tv_sec = 0;
   result->local_rx.tv_usec = 0;
+  result->local_tx.tv_sec = 0;   /* JGH */
+  result->local_tx.tv_usec = 0;  /* JGH */
+
 
   return result;
 

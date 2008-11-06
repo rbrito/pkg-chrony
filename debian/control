@@ -2,7 +2,7 @@ Source: chrony
 Section: admin
 Priority: extra
 Maintainer: John Hasler <jhasler@debian.org>
-Standards-Version: 3.7.2.1
+Standards-Version: 3.8.0.1
 Build-Depends: debhelper (>= 4), libreadline5-dev | libreadline-dev, texinfo, bison
 
 Package: chrony

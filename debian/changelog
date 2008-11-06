@@ -1,3 +1,33 @@
+chrony (1.23-4) unstable; urgency=low
+
+  * Fixed dependency of init script on Pppconfig ip-up.d script by moving
+    those lines into the init script.
+  
+  * Added checks to try to make sure that Chronyd is really, really running.
+    Changed Netstat call to use -n, added code to kill it if it hangs.
+    Added code to kill Chronyc if it can't contact Chronyd.
+    Discussed the HPET/rtc problem in NEWS.Debian.
+  
+    Closes: #504000: init script hangs for a while might break upgrade
+
+  * Added missing initialization to create_instance() in ntp_core.c.
+    This was why UTI_NormaliseTimeval() was being called with huge
+    values at times.
+
+  * See comment on #195620 in 1.21z-6 below.  If you know of more LP64
+    bugs reopen #348412 with a patch.
+  
+    Closes: #348412: chronyc not LP64 compliant
+  
+  * Added comment about sources being discarded to chrony.conf as suggested
+    by Andreas Hübner in  #268289.
+  
+  * This is normal behavior.
+   
+    Closes: #287060: trimrtc takes 40 seconds to take effect
+  
+ -- John Hasler <jhasler@debian.org>  Thu, 06 Nov 2008 10:38:58 -0600
+
 chrony (1.23-3) unstable; urgency=high
 
   * Rewrote UTI_NormaliseTimeval()in util.c to use divide/remainder

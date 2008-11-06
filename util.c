@@ -185,7 +185,7 @@ UTI_AverageDiffTimevals (struct timeval *earlier,
   }
 
   tvhalf.tv_sec = tvdiff.tv_sec / 2;
-  tvhalf.tv_usec = tvdiff.tv_usec / 2 + (tvdiff.tv_sec % 2);
+  tvhalf.tv_usec = tvdiff.tv_usec / 2 + (tvdiff.tv_sec % 2) * 500000; /* JGH */
   
   average->tv_sec  = earlier->tv_sec  + tvhalf.tv_sec;
   average->tv_usec = earlier->tv_usec + tvhalf.tv_usec;

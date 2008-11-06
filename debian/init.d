@@ -1,11 +1,9 @@
 #! /bin/sh
 #
-# This file was automatically customized by debmake on Fri,  6 Nov 1998 23:00:08 -0600
-#
 # Written by Miquel van Smoorenburg <miquels@drinkel.ow.org>.
 # Modified for Debian GNU/Linux by Ian Murdock <imurdock@gnu.ai.mit.edu>.
 # Modified for Debian by Christoph Lameter <clameter@debian.org>
-# Modified for chrony by John Hasler <jhasler@debian.org> 1998-2006
+# Modified for chrony by John Hasler <jhasler@debian.org> 1998-2008
 
 ### BEGIN INIT INFO
 # Provides:          time-daemon
@@ -25,35 +23,51 @@ FLAGS="defaults"
 NAME="chronyd"
 DESC="time daemon"
 
+putonline ()
+{ # Do we have a default route?  If so put chronyd online.
+    (sleep 5; kill `pidof netstat` 2> /dev/null) &
+    if netstat -rn 2>/dev/null | grep UG | cut -f 1 -d ' ' | grep -q '0\.0\.0\.0'
+    then
+	sleep 1  # Chronyd can take a while to start.
+	KEY=$(awk '$1 ~ /^commandkey$/ { print $2; exit}' /etc/chrony/chrony.conf)
+	PASSWORD=`awk '$1 ~ /^'$KEY'$/ {print $2; exit}' /etc/chrony/chrony.keys`
+	# Make sure chronyc can't hang us up.
+	(sleep 5; kill `pidof chronyc` 2> /dev/null) &
+	/usr/bin/chronyc > /dev/null << EOF
+password $PASSWORD
+online
+burst 5/10
+quit
+EOF
+	touch /var/run/chrony-ppp-up
+    fi
+}
+
 test -f $DAEMON || exit 0
 
 case "$1" in
-  start)
-    start-stop-daemon --start --verbose --exec $DAEMON
-    sleep 1
-    netstat -r 2>/dev/null | grep -q default && /etc/ppp/ip-up.d/chrony > /dev/null || true
-    ;;
-  stop)
-    start-stop-daemon --stop --verbose --oknodo --exec $DAEMON
-    ;;
-  restart|force-reload)
-        #
-        #       If the "reload" option is implemented, move the "force-reload"
-        #       option to the "reload" entry above. If not, "force-reload" is
-        #       just the same as "restart".
-        #                                                                                   
-        echo -n "Restarting $DESC: "
-        start-stop-daemon --stop --quiet --exec $DAEMON
-        sleep 1
-        start-stop-daemon --start --quiet --exec $DAEMON -- -r
-        sleep 1
-        netstat -r 2>/dev/null | grep -q default && /etc/ppp/ip-up.d/chrony > /dev/null || true
-        echo "$NAME."
-        ;;
-  *)
-    echo "Usage: /etc/init.d/chrony {start|stop|restart|force-reload}"
-    exit 1
-    ;;
+    start)
+	start-stop-daemon --start --verbose --exec $DAEMON || { echo "$DAEMON already running."; exit 1; }
+	/bin/pidof $DAEMON > /dev/null || { echo "$DAEMON failed to start."; exit 1; }
+	putonline
+	;;
+    stop)
+	start-stop-daemon --stop --verbose --oknodo --exec $DAEMON
+	rm -f /var/run/chrony-ppp-up
+	;;
+    restart|force-reload)
+	echo -n "Restarting $DESC: "
+	start-stop-daemon --stop --quiet --exec $DAEMON
+	sleep 1
+	start-stop-daemon --start --quiet --exec $DAEMON -- -r
+	/bin/pidof $DAEMON > /dev/null || { echo "$DAEMON failed to restart."; exit 1; }
+	putonline
+	echo "$NAME."
+	;;
+    *)
+	echo "Usage: /etc/init.d/chrony {start|stop|restart|force-reload}"
+	exit 1
+	;;
 esac
 
 exit 0
