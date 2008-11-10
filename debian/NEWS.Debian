@@ -1,7 +1,7 @@
-chrony (1.23-3) unstable; urgency=high
+chrony (1.23-4) unstable; urgency=low
 
-    New upstream release.
-
-    Changed default chrony.conf to use Debian servers.  
+  Chrony may hang or crash on some newer motherboards due to problems
+  with the rtc hardware.  If you run into this comment out the
+  rtcfile line in /etc/chrony/chrony.conf and restart chronyd.
   
- -- John Hasler <jhasler@debian.org>  Sat, 26 Apr 2008 18:29:29 -0500
+ -- John Hasler <jhasler@debian.org>  Thu, 6 Nov 2008 10:42:29 -0500

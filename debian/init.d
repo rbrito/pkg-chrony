@@ -23,27 +23,31 @@ FLAGS="defaults"
 NAME="chronyd"
 DESC="time daemon"
 
+test -f $DAEMON || exit 0
+
 putonline ()
 { # Do we have a default route?  If so put chronyd online.
-    (sleep 5; kill `pidof netstat` 2> /dev/null) &
-    if netstat -rn 2>/dev/null | grep UG | cut -f 1 -d ' ' | grep -q '0\.0\.0\.0'
+    if timelimit -q -s9 -t5 -- netstat -rn 2>/dev/null | grep UG | cut -f 1 -d ' ' | grep -q '0\.0\.0\.0' 
     then
 	sleep 1  # Chronyd can take a while to start.
 	KEY=$(awk '$1 ~ /^commandkey$/ { print $2; exit}' /etc/chrony/chrony.conf)
 	PASSWORD=`awk '$1 ~ /^'$KEY'$/ {print $2; exit}' /etc/chrony/chrony.keys`
 	# Make sure chronyc can't hang us up.
-	(sleep 5; kill `pidof chronyc` 2> /dev/null) &
-	/usr/bin/chronyc > /dev/null << EOF
+	if timelimit -q -s9 -t5 -- /usr/bin/chronyc > /dev/null << EOF
 password $PASSWORD
 online
 burst 5/10
 quit
 EOF
-	touch /var/run/chrony-ppp-up
+        then
+                touch /var/run/chrony-ppp-up
+                echo "$NAME is running and online."
+        else
+                rm -f /var/run/chrony-ppp-up
+                echo "$NAME is running and offline."    
+        fi
     fi
 }
-
-test -f $DAEMON || exit 0
 
 case "$1" in
     start)
@@ -60,9 +64,8 @@ case "$1" in
 	start-stop-daemon --stop --quiet --exec $DAEMON
 	sleep 1
 	start-stop-daemon --start --quiet --exec $DAEMON -- -r
-	/bin/pidof $DAEMON > /dev/null || { echo "$DAEMON failed to restart."; exit 1; }
+	/bin/pidof $DAEMON > /dev/null || { echo "$DAEMON failed to restart."; rm -f /var/run/chrony-ppp-up; exit 1; }
 	putonline
-	echo "$NAME."
 	;;
     *)
 	echo "Usage: /etc/init.d/chrony {start|stop|restart|force-reload}"

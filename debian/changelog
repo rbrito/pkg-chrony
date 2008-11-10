@@ -1,3 +1,20 @@
+chrony (1.23-5) unstable; urgency=low
+
+  * Replaced background kill with 'timelimit' in initscript.
+  
+    Closes: #505094: chrony: kills random netstat processes 
+
+  * Added 'Recommends: udev (>= 0.124-1)'
+  
+    Closes: #497113: /dev/rtc renamed to /dev/rtc0 with linux-image-2.6-*/2.6.26+15
+  
+  * Had previously applied patch from Nathanael Nerode to fix configure
+    bug but forgot to close the bug.
+  
+    Closes: #392273: Recursive dependency disease: chrony shouldn't depend on ncurses
+  
+ -- John Hasler <jhasler@debian.org>  Sun, 09 Nov 2008 20:19:22 -0600
+
 chrony (1.23-4) unstable; urgency=low
 
   * Fixed dependency of init script on Pppconfig ip-up.d script by moving

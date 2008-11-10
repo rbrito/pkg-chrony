@@ -7,7 +7,8 @@ Build-Depends: debhelper (>= 4), libreadline5-dev | libreadline-dev, texinfo, bi
 
 Package: chrony
 Architecture: any
-Depends: ${shlibs:Depends}, ucf
+Depends: ${shlibs:Depends}, ucf, timelimit
+Recommends: udev (>= 0.124-1)
 Conflicts: ntp, ntp-simple, ntp-refclock, time-daemon
 Provides: time-daemon
 Replaces: time-daemon
