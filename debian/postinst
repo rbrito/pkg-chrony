@@ -56,17 +56,20 @@ $MAILUTC
 
 In the chrony.conf included in this package:
 
-Chrony has been configured on the assumption that you are using either a dialup
-connection or a PPPoE DSL connection.  It will be brought online when PPP 
-comes up and offline when it goes down.  If this is not correct you should edit
-/etc/chrony/chrony.conf.  The comments explain what to do.  For more 
-information on configuring Chrony use the command  'info chrony'.
+Chrony has been configured on the assumption that you are using either a
+dialup connection or a PPPoE DSL connection.  It will be brought online
+when PPP comes up and offline when it goes down.  Code in
+/etc/init.d/chrony attempts to determine whether the network is up or down
+at boot time and sets chronyd on or off line accordingly.  If this is not
+correct you should edit /etc/chrony/chrony.conf.  The comments explain what
+to do.  For more information on configuring Chrony use the command 'info
+chrony'.
 
 You can also change the default time servers in  /etc/chrony/chrony.conf.
 
-Updating of the real-time clock has been enabled but some systems that use
+Updating of the real-time clock has been disabled because some systems that use
 either the genrtc driver or have HPET hardware clocks have problems.  To
-disable real-time clock updating edit /etc/chrony/chrony.conf.  The
+enable real-time clock updating edit /etc/chrony/chrony.conf.  The
 comments explain what to do.
 
 EOF

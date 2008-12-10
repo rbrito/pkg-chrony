@@ -1,3 +1,22 @@
+chrony (1.23-6) unstable; urgency=low
+
+  * Commented out rtcfile directive in chrony.conf because it can cause
+    lockups with certain combinations of motherboard and kernel (this is
+    a known kernel bug).
+
+    Closes: #508298: chronyd unreachable and does not work (clock drifts)
+  
+  * Chrony no longer uses the ppp/ip-up.d and ppp/ip-up.d files and the new
+    init.d file won't hang if chronyc hangs.
+  
+    Closes: #448481: /etc/ppp/ip-up.d/chrony doesn't work when bindaddress is set.
+  
+  * Cannot reproduce on current version on amd64.
+  
+    Closes: #412961: error in tracking report (on amd64?)
+  
+ -- John Hasler <jhasler@debian.org>  Wed, 10 Dec 2008 14:16:37 -0600
+
 chrony (1.23-5) unstable; urgency=low
 
   * Replaced background kill with 'timelimit' in initscript.

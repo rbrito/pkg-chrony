@@ -1,7 +1,6 @@
-chrony (1.23-4) unstable; urgency=low
+chrony (1.23-6) unstable; urgency=low
 
   Chrony may hang or crash on some newer motherboards due to problems
-  with the rtc hardware.  If you run into this comment out the
-  rtcfile line in /etc/chrony/chrony.conf and restart chronyd.
-  
- -- John Hasler <jhasler@debian.org>  Thu, 6 Nov 2008 10:42:29 -0500
+  with the rtc hardware.  Consequently I have commented out the rtcfile
+  line in /etc/chrony/chrony.conf.  Uncomment this line to enable this feature.
+ -- John Hasler <jhasler@debian.org>  Wed, 10 Dec 2008 10:42:29 -0500
