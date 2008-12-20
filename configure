@@ -248,7 +248,7 @@ case $SYSTEM in
             EXTRA_OBJECTS+=" rtc_linux.o"
             EXTRA_DEFS+=" -DFEAT_RTC=1"
         fi
-        SYSDEFS="-DLINUX"
+        SYSDEFS="-DLINUX -DHAVE_SCHED_SETSCHEDULER"
         echo "Configuring for " $SYSTEM
         if [ "${MACHINE}" = "alpha" ]; then
            echo "Enabling -mieee"

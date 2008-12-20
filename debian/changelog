@@ -1,3 +1,9 @@
+chrony (1.23-6rt) experimental; urgency=low
+
+  * Added support for SCHED_FIFO real-time scheduler.
+
+ -- John Hasler <jhasler@debian.org>  Fri, 19 Dec 2008 22:07:54 -0600
+
 chrony (1.23-6) unstable; urgency=low
 
   * Commented out rtcfile directive in chrony.conf because it can cause
@@ -6,7 +12,7 @@ chrony (1.23-6) unstable; urgency=low
 
     Closes: #508298: chronyd unreachable and does not work (clock drifts)
   
-  * Chrony no longer uses the ppp/ip-up.d and ppp/ip-up.d files and the new
+  * Chrony no longer uses the ppp/ip-up.d and ppp/ip-down.d files and the new
     init.d file won't hang if chronyc hangs.
   
     Closes: #448481: /etc/ppp/ip-up.d/chrony doesn't work when bindaddress is set.

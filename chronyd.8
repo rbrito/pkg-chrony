@@ -34,7 +34,11 @@ Information messages and warnings will be logged to syslog.
 
 .SH OPTIONS
 A summary of the options supported by \fBchronyd\fR is included below.
-
+.TP
+\fB\-P\fR \fIpriority\fR
+When run in this mode, the program will enable the SCHED_FIFO real-time
+scheduler at the specified priority.  This capability is supported only
+on Linux.
 .TP
 .B \-d
 When run in this mode, the program will not detach itself from the

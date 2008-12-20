@@ -37,7 +37,13 @@
 	(commands): Added "acquisitionport".
 	(CNF_GetAcquisitionPort): New function.
 
+
+2008-12-19 John G. Hasler <jhasler@debian.org>
+
+       Added real-time scheduler support (Linux only) using SCHED_FIFO.
   */
+
+
 
 #include "sysincl.h"
 
@@ -92,6 +98,10 @@ static void parse_pidfile(const char *);
 static void parse_broadcast(const char *);
 static void parse_linux_hz(const char *);
 static void parse_linux_freq_scale(const char *);
+
+#if defined(HAVE_SCHED_SETSCHEDULER)
+static void parse_sched_priority(const char *);
+#endif
 
 /* ================================================== */
 /* Configuration variables */
@@ -208,7 +218,10 @@ static const Command commands[] = {
   {"pidfile", 7, parse_pidfile},
   {"broadcast", 9, parse_broadcast},
   {"linux_hz", 8, parse_linux_hz},
-  {"linux_freq_scale", 16, parse_linux_freq_scale}
+  {"linux_freq_scale", 16, parse_linux_freq_scale},
+#if defined(HAVE_SCHED_SETSCHEDULER)
+  {"sched_priority", 14, parse_sched_priority}
+#endif
 };
 
 static int n_commands = (sizeof(commands) / sizeof(commands[0]));
@@ -362,6 +375,18 @@ parse_source(const char *line, NTP_Source_Type type)
   return;
 
 }
+
+/* ================================================== */
+
+#if defined(HAVE_SCHED_SETSCHEDULER)
+static void
+parse_sched_priority(const char *line)
+{
+  if (SchedPriority == 0) { /* Command-line switch must have priority */
+    sscanf(line, "%d", &SchedPriority);
+  }
+}
+#endif
 
 /* ================================================== */
 

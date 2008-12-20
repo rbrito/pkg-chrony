@@ -71,4 +71,8 @@ extern int CNF_AllowLocalReference(int *stratum);
 
 extern void CNF_SetupAccessRestrictions(void);
 
+#if defined(HAVE_SCHED_SETSCHEDULER)
+extern int SchedPriority;
+#endif
+
 #endif /* GOT_CONF_H */
