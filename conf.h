@@ -75,4 +75,8 @@ extern void CNF_SetupAccessRestrictions(void);
 extern int SchedPriority;
 #endif
 
+#if defined(HAVE_MLOCKALL)
+extern int LockAll;
+#endif
+
 #endif /* GOT_CONF_H */

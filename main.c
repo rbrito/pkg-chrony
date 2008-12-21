@@ -61,7 +61,10 @@
 int SchedPriority = 0;
 #endif
 
-
+#if defined(HAVE_MLOCKALL)
+#  include <sys/mman.h>
+int LockAll = 0;
+#endif
 
 /* ================================================== */
 
@@ -245,9 +248,16 @@ int main
       return_value = sscanf(*argv, "%d", &SchedPriority);
       if (return_value != 1 || SchedPriority < 1 || SchedPriority > 99) { 
 	SchedPriority = 0;
+	LOG(LOGS_WARN, LOGF_Main, "Bad scheduler priority: [%s]", *argv);
       }
-#endif
+#endif /* HAVE_SCHED_SETCHEDULER */
 
+#if defined(HAVE_MLOCKALL)
+      /* Detect lockall switch */
+    } else if (!strcmp("-m", *argv)) {
+      LockAll = 1;
+#endif /* HAVE_MLOCKALL */
+      
     } else if (!strcmp("-r", *argv)) {
       reload = 1;
     } else if (!strcmp("-s", *argv)) {
@@ -350,6 +360,17 @@ int main
     }
   }
 #endif /* HAVE_SCHED_SETSCHEDULER */
+
+#if defined(HAVE_MLOCKALL)
+  if (LockAll == 1 ) {
+    if (mlockall(MCL_CURRENT|MCL_FUTURE) < 0) {
+      LOG(LOGS_ERR, LOGF_Main, "mlockall() failed");
+    }
+    else {
+      LOG(LOGS_INFO, LOGF_Main, "Successfully locked into RAM");
+    }
+  }
+#endif /* HAVE_MLOCKALL */
 
   /* The program normally runs under control of the main loop in
      the scheduler. */

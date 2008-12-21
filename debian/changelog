@@ -1,3 +1,9 @@
+chrony (1.23-6rt1) experimental; urgency=low
+
+  * Added support for mlockall().
+
+ -- John Hasler <jhasler@debian.org>  Sun, 21 Dec 2008 12:33:09 -0600
+
 chrony (1.23-6rt) experimental; urgency=low
 
   * Added support for SCHED_FIFO real-time scheduler.
