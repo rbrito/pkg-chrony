@@ -1,3 +1,16 @@
+chrony (1.21z-5+etch1) oldstable-security; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * This update addresses the following security issues:
+    - CVE-2010-0292: chronyd replies to all cmdmon packets from unauthorized
+      hosts with.
+    - CVE-2010-0293: missing memory limit for to keep client information which
+      can lead to memory exhaustion through clients with spoofed IPs
+    - CVE-2010-0294: missing syslog limit could lead to filling up the disc
+      by triggering various log events in a loop. 
+
+ -- Nico Golde <nion@debian.org>  Mon,  1 Feb 2010 12:40:11 +0000
+
 chrony (1.21z-5) unstable; urgency=high
   
   * Applied postinst patch from Lionel Elie Mamane to test for the
