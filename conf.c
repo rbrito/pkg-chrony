@@ -37,17 +37,7 @@
 	(commands): Added "acquisitionport".
 	(CNF_GetAcquisitionPort): New function.
 
-
-2008-12-19 John G. Hasler <jhasler@debian.org>
-
-       Added real-time scheduler support (Linux only) using SCHED_FIFO.
-
-2008-12-21 John G. Hasler <jhasler@debian.org>
-       Added mlockall() support.
-
   */
-
-
 
 #include "sysincl.h"
 
@@ -93,6 +83,7 @@ static void parse_cmddeny(const char *);
 static void parse_cmdport(const char *);
 static void parse_rtconutc(const char *);
 static void parse_noclientlog(const char *);
+static void parse_clientloglimit(const char *);
 static void parse_logchange(const char *);
 static void parse_mailonchange(const char *);
 static void parse_bindaddress(const char *);
@@ -102,14 +93,6 @@ static void parse_pidfile(const char *);
 static void parse_broadcast(const char *);
 static void parse_linux_hz(const char *);
 static void parse_linux_freq_scale(const char *);
-
-#if defined(HAVE_SCHED_SETSCHEDULER)
-static void parse_sched_priority(const char *);
-#endif
-
-#if defined(HAVE_MLOCKALL)
-static void parse_lockall(const char *);
-#endif
 
 /* ================================================== */
 /* Configuration variables */
@@ -163,6 +146,9 @@ static double mail_change_threshold = 0.0;
 /* Flag indicating that we don't want to log clients, e.g. to save
    memory */
 static int no_client_log = 0;
+
+/* Limit memory allocated for the clients log */
+static unsigned long client_log_limit = 524288;
 
 /* IP address (host order) for binding the NTP socket to.  0 means INADDR_ANY
    will be used */
@@ -218,6 +204,7 @@ static const Command commands[] = {
   {"cmdport", 7, parse_cmdport},
   {"rtconutc", 8, parse_rtconutc},
   {"noclientlog", 11, parse_noclientlog},
+  {"clientloglimit", 14, parse_clientloglimit},
   {"logchange", 9, parse_logchange},
   {"mailonchange", 12, parse_mailonchange},
   {"bindaddress", 11, parse_bindaddress},
@@ -226,15 +213,7 @@ static const Command commands[] = {
   {"pidfile", 7, parse_pidfile},
   {"broadcast", 9, parse_broadcast},
   {"linux_hz", 8, parse_linux_hz},
-  {"linux_freq_scale", 16, parse_linux_freq_scale},
-#if defined(HAVE_SCHED_SETSCHEDULER)
-  {"sched_priority", 14, parse_sched_priority},
-#endif
-
-#if defined(HAVE_MLOCKALL)
-  {"lock_all", 8, parse_lockall}
-#endif
-
+  {"linux_freq_scale", 16, parse_linux_freq_scale}
 };
 
 static int n_commands = (sizeof(commands) / sizeof(commands[0]));
@@ -388,28 +367,6 @@ parse_source(const char *line, NTP_Source_Type type)
   return;
 
 }
-
-/* ================================================== */
-
-#if defined(HAVE_SCHED_SETSCHEDULER)
-static void
-parse_sched_priority(const char *line)
-{
-  if (SchedPriority == 0) { /* Command-line switch must have priority */
-    sscanf(line, "%d", &SchedPriority);
-  }
-}
-#endif
-
-#if defined(HAVE_MLOCKALL)
-static void
-parse_lockall(const char *line)
-{
-  LockAll = 1;
-}
-#endif
-
-
 
 /* ================================================== */
 
@@ -678,6 +635,21 @@ static void
 parse_noclientlog(const char *line)
 {
   no_client_log = 1;
+}
+
+/* ================================================== */
+
+static void
+parse_clientloglimit(const char *line)
+{
+  if (sscanf(line, "%lu", &client_log_limit) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read clientlog memory limit at line %d", line_number);
+  }
+
+  if (client_log_limit == 0) {
+    /* unlimited */
+    client_log_limit = (unsigned long)-1;
+  }
 }
 
 /* ================================================== */
@@ -1239,6 +1211,14 @@ int
 CNF_GetNoClientLog(void)
 {
   return no_client_log;
+}
+
+/* ================================================== */
+
+unsigned long
+CNF_GetClientLogLimit(void)
+{
+  return client_log_limit;
 }
 
 /* ================================================== */

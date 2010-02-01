@@ -25,13 +25,8 @@
 
   =======================================================================
 
-2008-12-19 John G. Hasler <jhasler@debian.org>
-
-       Added real-time scheduler support (Linux only) using SCHED_FIFO.
-
   The main program
   */
-
 
 #include "sysincl.h"
 
@@ -55,16 +50,6 @@
 #include "rtc.h"
 #include "clientlog.h"
 #include "broadcast.h"
-
-#if defined(HAVE_SCHED_SETSCHEDULER)
-#  include <sched.h>
-int SchedPriority = 0;
-#endif
-
-#if defined(HAVE_MLOCKALL)
-#  include <sys/mman.h>
-int LockAll = 0;
-#endif
 
 /* ================================================== */
 
@@ -221,13 +206,6 @@ int main
 (int argc, char **argv)
 {
   char *conf_file = NULL;
-
-#if defined(HAVE_SCHED_SETSCHEDULER)
-  int return_value = 0;
-  int pmax, pmin;
-  struct sched_param sched;
-#endif
-
   int debug = 0;
   int do_init_rtc = 0;
   int other_pid;
@@ -240,24 +218,6 @@ int main
     if (!strcmp("-f", *argv)) {
       ++argv, --argc;
       conf_file = *argv;
-
-#if defined(HAVE_SCHED_SETSCHEDULER)
-      /* Get real-time scheduler priority */
-    } else if (!strcmp("-P", *argv)) {
-      ++argv, --argc;
-      return_value = sscanf(*argv, "%d", &SchedPriority);
-      if (return_value != 1 || SchedPriority < 1 || SchedPriority > 99) { 
-	SchedPriority = 0;
-	LOG(LOGS_WARN, LOGF_Main, "Bad scheduler priority: [%s]", *argv);
-      }
-#endif /* HAVE_SCHED_SETCHEDULER */
-
-#if defined(HAVE_MLOCKALL)
-      /* Detect lockall switch */
-    } else if (!strcmp("-m", *argv)) {
-      LockAll = 1;
-#endif /* HAVE_MLOCKALL */
-      
     } else if (!strcmp("-r", *argv)) {
       reload = 1;
     } else if (!strcmp("-s", *argv)) {
@@ -302,7 +262,6 @@ int main
 
   CNF_ReadFile(conf_file);
 
-
   if (do_init_rtc) {
     RTC_TimePreInit();
   }
@@ -339,38 +298,6 @@ int main
   signal(SIGQUIT, signal_cleanup);
   signal(SIGHUP, signal_cleanup);
 #endif /* WINNT */
-
-#if defined(HAVE_SCHED_SETSCHEDULER)
-  /* Install SCHED_FIFO real-time scheduler with specified priority */
-  if (SchedPriority > 0) {
-    sched.sched_priority = SchedPriority;
-    pmax = sched_get_priority_max(SCHED_FIFO);
-    pmin = sched_get_priority_min(SCHED_FIFO);
-    if ( SchedPriority > pmax ) {
-      sched.sched_priority = pmax;
-    }
-    else if ( SchedPriority < pmin ) {
-      sched.sched_priority = pmin;
-    }
-    if ( sched_setscheduler(0, SCHED_FIFO, &sched) == -1 ) {
-      LOG(LOGS_ERR, LOGF_Main, "sched_setscheduler() failed");
-    }
-    else {
-      LOG(LOGS_INFO, LOGF_Main, "Enabled SCHED_FIFO with priority %d", sched.sched_priority);
-    }
-  }
-#endif /* HAVE_SCHED_SETSCHEDULER */
-
-#if defined(HAVE_MLOCKALL)
-  if (LockAll == 1 ) {
-    if (mlockall(MCL_CURRENT|MCL_FUTURE) < 0) {
-      LOG(LOGS_ERR, LOGF_Main, "mlockall() failed");
-    }
-    else {
-      LOG(LOGS_INFO, LOGF_Main, "Successfully locked into RAM");
-    }
-  }
-#endif /* HAVE_MLOCKALL */
 
   /* The program normally runs under control of the main loop in
      the scheduler. */

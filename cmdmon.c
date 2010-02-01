@@ -654,7 +654,7 @@ transmit_reply(CMD_Reply *msg, struct sockaddr_in *where_to)
   status = sendto(sock_fd, (void *) msg, tx_message_length, 0,
                   (struct sockaddr *) where_to, sizeof(struct sockaddr_in));
 
-  if (status < 0) {
+  if (status < 0 && !LOG_RateLimited()) {
     remote_ip = ntohl(where_to->sin_addr.s_addr);
     remote_port = ntohs(where_to->sin_port);
     LOG(LOGS_WARN, LOGF_CmdMon, "Could not send response to %s:%hu", UTI_IPToDottedQuad(remote_ip), remote_port);
@@ -1593,6 +1593,7 @@ read_from_cmd_socket(void *anything)
   int valid_ts;
   int authenticated;
   int localhost;
+  int allowed;
   unsigned short rx_command;
   unsigned long rx_message_token;
   unsigned long tx_message_token;
@@ -1642,20 +1643,43 @@ read_from_cmd_socket(void *anything)
 
   localhost = (remote_ip == 0x7f000001UL);
 
-  if ((!ADF_IsAllowed(access_auth_table, remote_ip)) &&
-      (!localhost)) {
+  allowed = ADF_IsAllowed(access_auth_table, remote_ip) || localhost;
+
+  if ((read_length < offsetof(CMD_Request, data)) ||
+      (rx_message.version != PROTO_VERSION_NUMBER) ||
+      (rx_message.pkt_type != PKT_TYPE_CMD_REQUEST) ||
+      (rx_message.res1 != 0) ||
+      (rx_message.res2 != 0)) {
+
+    /* We don't know how to process anything like this */
+    if (allowed)
+      CLG_LogCommandAccess(remote_ip, CLG_CMD_BAD_PKT, cooked_now.tv_sec);
+    
+    return;
+  }
+
+  if (read_length != expected_length) {
+    if (!LOG_RateLimited()) {
+      LOG(LOGS_WARN, LOGF_CmdMon, "Read incorrectly sized packet from %s:%hu", UTI_IPToDottedQuad(remote_ip), remote_port);
+    }
+    if (allowed)
+      CLG_LogCommandAccess(remote_ip, CLG_CMD_BAD_PKT, cooked_now.tv_sec);
+    /* For now, just ignore the packet.  We may want to send a reply
+       back eventually */
+    return;
+  }
+
+  if (!allowed) {
     /* The client is not allowed access, so don't waste any more time
        on him.  Note that localhost is always allowed access
        regardless of the defined access rules - otherwise, we could
        shut ourselves out completely! */
 
-    /* We ought to find another way to log this, there is an attack
-       here against the host because an adversary can just keep
-       hitting us with bad packets until our log file(s) fill up. */
-
-    LOG(LOGS_WARN, LOGF_CmdMon, "Command packet received from unauthorised host %s port %d",
-        UTI_IPToDottedQuad(remote_ip),
-        remote_port);
+    if (!LOG_RateLimited()) {
+      LOG(LOGS_WARN, LOGF_CmdMon, "Command packet received from unauthorised host %s port %d",
+          UTI_IPToDottedQuad(remote_ip),
+          remote_port);
+    }
 
     tx_message.status = htons(STT_NOHOSTACCESS);
     transmit_reply(&tx_message, &where_from);
@@ -1663,25 +1687,6 @@ read_from_cmd_socket(void *anything)
     return;
   }
 
-
-  if (read_length != expected_length) {
-    LOG(LOGS_WARN, LOGF_CmdMon, "Read incorrectly sized packet from %s:%hu", UTI_IPToDottedQuad(remote_ip), remote_port);
-    CLG_LogCommandAccess(remote_ip, CLG_CMD_BAD_PKT, cooked_now.tv_sec);
-    /* For now, just ignore the packet.  We may want to send a reply
-       back eventually */
-    return;
-  }
-
-  if ((rx_message.version != PROTO_VERSION_NUMBER) ||
-      (rx_message.pkt_type != PKT_TYPE_CMD_REQUEST) ||
-      (rx_message.res1 != 0) ||
-      (rx_message.res2 != 0)) {
-
-    /* We don't know how to process anything like this */
-    CLG_LogCommandAccess(remote_ip, CLG_CMD_BAD_PKT, cooked_now.tv_sec);
-    
-    return;
-  }
 
   rx_command = ntohs(rx_message.command);
 
@@ -1759,7 +1764,7 @@ read_from_cmd_socket(void *anything)
       tx_message_length = PKL_ReplyLength(prev_tx_message);
       status = sendto(sock_fd, (void *) prev_tx_message, tx_message_length, 0,
                       (struct sockaddr *) &where_from, sizeof(where_from));
-      if (status < 0) {
+      if (status < 0 && !LOG_RateLimited()) {
         LOG(LOGS_WARN, LOGF_CmdMon, "Could not send response to %s:%hu", UTI_IPToDottedQuad(remote_ip), remote_port);
       }
       return;
@@ -1809,7 +1814,7 @@ read_from_cmd_socket(void *anything)
     tx_message.status = htons(STT_INVALID);
     tx_message.reply = htons(RPY_NULL);
   } else {
-    int allowed = 0;
+    allowed = 0;
 
     /* Check level of authority required to issue the command */
     switch(permissions[rx_command]) {
@@ -1879,7 +1884,7 @@ read_from_cmd_socket(void *anything)
 
         case REQ_LOGON:
           /* If the log-on fails, record the reason why */
-          if (!issue_token) {
+          if (!issue_token && !LOG_RateLimited()) {
             LOG(LOGS_WARN, LOGF_CmdMon,
                 "Bad command logon from %s port %d (md5_ok=%d valid_ts=%d)\n",
                 UTI_IPToDottedQuad(remote_ip),

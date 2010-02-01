@@ -1,14 +1,15 @@
-chrony (1.23-6rt1) experimental; urgency=low
+chrony (1.23-6+lenny1) stable-security; urgency=high
 
-  * Added support for mlockall().
+  * Non-maintainer upload by the Security Team.
+  * This update addresses the following security issues:
+    - CVE-2010-0292: chronyd replies to all cmdmon packets from unauthorized
+      hosts with.
+    - CVE-2010-0293: missing memory limit for to keep client information which
+      can lead to memory exhaustion through clients with spoofed IPs
+    - CVE-2010-0294: missing syslog limit could lead to filling up the disc
+      by triggering various log events in a loop.
 
- -- John Hasler <jhasler@debian.org>  Sun, 21 Dec 2008 12:33:09 -0600
-
-chrony (1.23-6rt) experimental; urgency=low
-
-  * Added support for SCHED_FIFO real-time scheduler.
-
- -- John Hasler <jhasler@debian.org>  Fri, 19 Dec 2008 22:07:54 -0600
+ -- Nico Golde <nion@debian.org>  Mon, 01 Feb 2010 12:24:34 +0000
 
 chrony (1.23-6) unstable; urgency=low
 
@@ -18,7 +19,7 @@ chrony (1.23-6) unstable; urgency=low
 
     Closes: #508298: chronyd unreachable and does not work (clock drifts)
   
-  * Chrony no longer uses the ppp/ip-up.d and ppp/ip-down.d files and the new
+  * Chrony no longer uses the ppp/ip-up.d and ppp/ip-up.d files and the new
     init.d file won't hang if chronyc hangs.
   
     Closes: #448481: /etc/ppp/ip-up.d/chrony doesn't work when bindaddress is set.
