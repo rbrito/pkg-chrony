@@ -1776,14 +1776,27 @@ This directive, which takes no arguments, specifies that client accesses
 are not to be logged.  Normally they are logged, allowing statistics to
 be reported using the `clients' command in `chronyc'.
 
-4.2.27 peer
+4.2.27 clientloglimit
+---------------------
+
+This directive specifies the maximum size of the memory allocated to
+log client accesses.  When the limit is reached, only information for
+clients that have already been logged will be updated.  If 0 is
+specified, the memory size will be unlimited.  The default is 524288
+bytes.
+
+   An example of the use of this directive is
+
+     clientloglimit 1048576
+
+4.2.28 peer
 -----------
 
 The syntax of this directive is identical to that for the `server'
 directive (*note server directive::), except that it is used to specify
 an NTP peer rather than an NTP server.
 
-4.2.28 pidfile
+4.2.29 pidfile
 --------------
 
 chronyd always writes its process ID (pid) to a file, and checks this
@@ -1793,7 +1806,7 @@ system.  By default, the file used is `/var/run/chronyd.pid'.  The
 
      pidfile /var/tmp/chronyd.pid
 
-4.2.29 port
+4.2.30 port
 -----------
 
 This option allows you to configure the port used for the NTP service
@@ -1811,7 +1824,7 @@ mode and never be available as a server to xntpd clients.
    This would change the NTP port served by chronyd on the computer to
 udp/11123.
 
-4.2.30 rtcdevice
+4.2.31 rtcdevice
 ----------------
 
 The `rtcdevice' directive defines the name of the device file for
@@ -1821,7 +1834,7 @@ systems with devfs.  An example of use is
 
      rtcdevice /dev/misc/rtc
 
-4.2.31 rtcfile
+4.2.32 rtcfile
 --------------
 
 The `rtcfile' directive defines the name of the file in which `chronyd'
@@ -1853,7 +1866,7 @@ conditions apply:
      `/dev/rtc' at all.
 
 
-4.2.32 rtconutc
+4.2.33 rtconutc
 ---------------
 
 `chronyd' assumes by default that the real time clock (RTC) keeps local
@@ -1873,7 +1886,7 @@ saving starts or ends.
 keep UTC.  The directive takes no arguments.  It is equivalent to
 specifying the `-u' switch to the Linux `/sbin/clock' program.
 
-4.2.33 server
+4.2.34 server
 -------------
 
 The `server' directive allows NTP servers to be specified.  The
@@ -3582,13 +3595,14 @@ User guide for the chrony suite
     4.2.24 manual
     4.2.25 maxupdateskew
     4.2.26 noclientlog
-    4.2.27 peer
-    4.2.28 pidfile
-    4.2.29 port
-    4.2.30 rtcdevice
-    4.2.31 rtcfile
-    4.2.32 rtconutc
-    4.2.33 server
+    4.2.27 clientloglimit
+    4.2.28 peer
+    4.2.29 pidfile
+    4.2.30 port
+    4.2.31 rtcdevice
+    4.2.32 rtcfile
+    4.2.33 rtconutc
+    4.2.34 server
   4.3 Running chronyc
     4.3.1 Basic use
     4.3.2 Command line options

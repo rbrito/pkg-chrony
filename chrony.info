@@ -1,4 +1,4 @@
-This is chrony.info, produced by makeinfo version 4.11 from chrony.texi.
+This is chrony.info, produced by makeinfo version 4.13 from chrony.texi.
 
 INFO-DIR-SECTION Net Utilities
 START-INFO-DIR-ENTRY
@@ -1153,6 +1153,7 @@ directives can occur in any order in the file.
 * manual directive::            Allow manual entry using chronyc's settime cmd.
 * maxupdateskew directive::     Stop bad estimates upsetting machine clock
 * noclientlog directive::       Prevent chronyd from gathering data about clients
+* clientloglimit directive::    Set client log memory limit
 * peer directive::              Specify an NTP peer
 * pidfile directive::           Specify the file where chronyd's pid is written
 * port directive::              Set port to use for NTP packets
@@ -2056,7 +2057,7 @@ has large error bounds, the existing master estimate will dominate in
 the new master estimate.
 
 
-File: chrony.info,  Node: noclientlog directive,  Next: peer directive,  Prev: maxupdateskew directive,  Up: Configuration file
+File: chrony.info,  Node: noclientlog directive,  Next: clientloglimit directive,  Prev: maxupdateskew directive,  Up: Configuration file
 
 4.2.26 noclientlog
 ------------------
@@ -2066,9 +2067,25 @@ are not to be logged.  Normally they are logged, allowing statistics to
 be reported using the `clients' command in `chronyc'.
 
 
-File: chrony.info,  Node: peer directive,  Next: pidfile directive,  Prev: noclientlog directive,  Up: Configuration file
+File: chrony.info,  Node: clientloglimit directive,  Next: peer directive,  Prev: noclientlog directive,  Up: Configuration file
 
-4.2.27 peer
+4.2.27 clientloglimit
+---------------------
+
+This directive specifies the maximum size of the memory allocated to
+log client accesses.  When the limit is reached, only information for
+clients that have already been logged will be updated.  If 0 is
+specified, the memory size will be unlimited.  The default is 524288
+bytes.
+
+   An example of the use of this directive is
+
+     clientloglimit 1048576
+
+
+File: chrony.info,  Node: peer directive,  Next: pidfile directive,  Prev: clientloglimit directive,  Up: Configuration file
+
+4.2.28 peer
 -----------
 
 The syntax of this directive is identical to that for the `server'
@@ -2078,7 +2095,7 @@ an NTP peer rather than an NTP server.
 
 File: chrony.info,  Node: pidfile directive,  Next: port directive,  Prev: peer directive,  Up: Configuration file
 
-4.2.28 pidfile
+4.2.29 pidfile
 --------------
 
 chronyd always writes its process ID (pid) to a file, and checks this
@@ -2091,7 +2108,7 @@ system.  By default, the file used is `/var/run/chronyd.pid'.  The
 
 File: chrony.info,  Node: port directive,  Next: rtcdevice directive,  Prev: pidfile directive,  Up: Configuration file
 
-4.2.29 port
+4.2.30 port
 -----------
 
 This option allows you to configure the port used for the NTP service
@@ -2112,7 +2129,7 @@ udp/11123.
 
 File: chrony.info,  Node: rtcdevice directive,  Next: rtcfile directive,  Prev: port directive,  Up: Configuration file
 
-4.2.30 rtcdevice
+4.2.31 rtcdevice
 ----------------
 
 The `rtcdevice' directive defines the name of the device file for
@@ -2125,7 +2142,7 @@ systems with devfs.  An example of use is
 
 File: chrony.info,  Node: rtcfile directive,  Next: rtconutc directive,  Prev: rtcdevice directive,  Up: Configuration file
 
-4.2.31 rtcfile
+4.2.32 rtcfile
 --------------
 
 The `rtcfile' directive defines the name of the file in which `chronyd'
@@ -2160,7 +2177,7 @@ conditions apply:
 
 File: chrony.info,  Node: rtconutc directive,  Next: server directive,  Prev: rtcfile directive,  Up: Configuration file
 
-4.2.32 rtconutc
+4.2.33 rtconutc
 ---------------
 
 `chronyd' assumes by default that the real time clock (RTC) keeps local
@@ -2183,7 +2200,7 @@ specifying the `-u' switch to the Linux `/sbin/clock' program.
 
 File: chrony.info,  Node: server directive,  Prev: rtconutc directive,  Up: Configuration file
 
-4.2.33 server
+4.2.34 server
 -------------
 
 The `server' directive allows NTP servers to be specified.  The
@@ -4079,94 +4096,95 @@ Node: Configuration options overview38621
 Node: Usage reference39786
 Node: Starting chronyd40136
 Node: Configuration file44066
-Node: comments in config file47089
-Node: acquisitionport directive47526
-Node: allow directive48369
-Node: bindaddress directive50807
-Node: bindcmdaddress directive52203
-Node: broadcast directive53160
-Node: cmdallow directive54832
-Node: cmddeny directive55494
-Node: commandkey directive55949
-Node: cmdport directive56689
-Node: deny directive57203
-Node: driftfile directive57640
-Node: dumpdir directive58952
-Node: dumponexit directive60186
-Node: initstepslew directive60548
-Node: keyfile directive63363
-Node: local directive64489
-Node: linux_hz directive66009
-Node: linux_freq_scale directive66730
-Node: log directive67734
-Node: measurements log68832
-Node: statistics log70816
-Node: tracking log73343
-Node: RTC log74558
-Node: logchange directive76392
-Node: logdir directive77248
-Node: mailonchange directive77565
-Node: manual directive78084
-Node: maxupdateskew directive78809
-Node: noclientlog directive80277
-Node: peer directive80647
-Node: pidfile directive80976
-Node: port directive81426
-Node: rtcdevice directive82064
-Node: rtcfile directive82503
-Node: rtconutc directive83808
-Node: server directive84753
-Node: Running chronyc90206
-Node: Chronyc basic use90795
-Node: Chronyc command line options91381
-Node: Security with chronyc92303
-Node: Chronyc command reference94095
-Node: accheck command97081
-Node: activity command97623
-Node: add peer command98792
-Node: add server command99341
-Node: allow command99903
-Node: allow all command100463
-Node: burst command100751
-Node: clients command103296
-Node: cmdaccheck command105120
-Node: cmdallow command105509
-Node: cmdallow all command105856
-Node: cmddeny command106210
-Node: cmddeny all command106554
-Node: cyclelogs command106907
-Node: delete command107696
-Node: deny command108136
-Node: deny all command108569
-Node: dump command108852
-Node: exit command109548
-Node: help command109792
-Node: local command110012
-Node: makestep command110867
-Node: manual command111744
-Node: maxdelay command113869
-Node: maxdelayratio command114686
-Node: maxpoll command115627
-Node: maxupdateskew command116561
-Node: minpoll command116870
-Node: offline command117795
-Node: online command120380
-Node: password command120811
-Node: quit command121749
-Node: rtcdata command122000
-Node: settime command124161
-Node: sources command126224
-Ref: sources command-Footnote-1129441
-Node: sourcestats command129557
-Node: tracking command131687
-Node: trimrtc command136995
-Node: writertc command138570
-Node: Porting guide139014
-Node: System driver files139622
-Node: Quirks of particular systems140557
-Node: Linux porting quirks140952
-Node: Solaris 2.5 porting quirks141956
-Node: SunOS 4.1.4 porting quirks142656
-Node: GPL143241
+Node: comments in config file47149
+Node: acquisitionport directive47586
+Node: allow directive48429
+Node: bindaddress directive50867
+Node: bindcmdaddress directive52263
+Node: broadcast directive53220
+Node: cmdallow directive54892
+Node: cmddeny directive55554
+Node: commandkey directive56009
+Node: cmdport directive56749
+Node: deny directive57263
+Node: driftfile directive57700
+Node: dumpdir directive59012
+Node: dumponexit directive60246
+Node: initstepslew directive60608
+Node: keyfile directive63423
+Node: local directive64549
+Node: linux_hz directive66069
+Node: linux_freq_scale directive66790
+Node: log directive67794
+Node: measurements log68892
+Node: statistics log70876
+Node: tracking log73403
+Node: RTC log74618
+Node: logchange directive76452
+Node: logdir directive77308
+Node: mailonchange directive77625
+Node: manual directive78144
+Node: maxupdateskew directive78869
+Node: noclientlog directive80337
+Node: clientloglimit directive80717
+Node: peer directive81250
+Node: pidfile directive81582
+Node: port directive82032
+Node: rtcdevice directive82670
+Node: rtcfile directive83109
+Node: rtconutc directive84414
+Node: server directive85359
+Node: Running chronyc90812
+Node: Chronyc basic use91401
+Node: Chronyc command line options91987
+Node: Security with chronyc92909
+Node: Chronyc command reference94701
+Node: accheck command97687
+Node: activity command98229
+Node: add peer command99398
+Node: add server command99947
+Node: allow command100509
+Node: allow all command101069
+Node: burst command101357
+Node: clients command103902
+Node: cmdaccheck command105726
+Node: cmdallow command106115
+Node: cmdallow all command106462
+Node: cmddeny command106816
+Node: cmddeny all command107160
+Node: cyclelogs command107513
+Node: delete command108302
+Node: deny command108742
+Node: deny all command109175
+Node: dump command109458
+Node: exit command110154
+Node: help command110398
+Node: local command110618
+Node: makestep command111473
+Node: manual command112350
+Node: maxdelay command114475
+Node: maxdelayratio command115292
+Node: maxpoll command116233
+Node: maxupdateskew command117167
+Node: minpoll command117476
+Node: offline command118401
+Node: online command120986
+Node: password command121417
+Node: quit command122355
+Node: rtcdata command122606
+Node: settime command124767
+Node: sources command126830
+Ref: sources command-Footnote-1130047
+Node: sourcestats command130163
+Node: tracking command132293
+Node: trimrtc command137601
+Node: writertc command139176
+Node: Porting guide139620
+Node: System driver files140228
+Node: Quirks of particular systems141163
+Node: Linux porting quirks141558
+Node: Solaris 2.5 porting quirks142562
+Node: SunOS 4.1.4 porting quirks143262
+Node: GPL143847
 
 End Tag Table

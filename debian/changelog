@@ -1,15 +1,14 @@
-chrony (1.23-6+lenny1) stable-security; urgency=high
+chrony (1.23-7) unstable; urgency=high
 
-  * Non-maintainer upload by the Security Team.
-  * This update addresses the following security issues:
-    - CVE-2010-0292: chronyd replies to all cmdmon packets from unauthorized
-      hosts with.
-    - CVE-2010-0293: missing memory limit for to keep client information which
-      can lead to memory exhaustion through clients with spoofed IPs
-    - CVE-2010-0294: missing syslog limit could lead to filling up the disc
-      by triggering various log events in a loop.
+  * Applied patches from upstream to fix remote DOS:
+  
+    CVE-2010-0292 Don't reply to invalid cmdmon packets
 
- -- Nico Golde <nion@debian.org>  Mon, 01 Feb 2010 12:24:34 +0000
+    CVE-2010-0293 Limit client log memory size
+
+    CVE-2010-0294 Limit rate of syslog messages 
+
+ -- John G. Hasler <jhasler@newsguy.com>  Tue, 02 Feb 2010 19:37:50 -0600
 
 chrony (1.23-6) unstable; urgency=low
 
