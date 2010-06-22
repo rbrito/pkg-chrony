@@ -7,6 +7,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Miroslav Lichvar  2009
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +20,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -53,7 +54,7 @@
 #define TABLE_SIZE (1UL<<NBITS)
 
 typedef struct _Node {
-  unsigned long ip_addr;
+  IPAddr ip_addr;
   unsigned long client_hits;
   unsigned long peer_hits;
   unsigned long cmd_hits_bad;
@@ -69,8 +70,10 @@ typedef struct _Subnet {
 
 /* ================================================== */
 
-/* Table for the class A subnet */
-static Subnet top_subnet;
+/* Table for the IPv4 class A subnet */
+static Subnet top_subnet4;
+/* Table for IPv6 */
+static Subnet top_subnet6;
 
 /* Table containing pointers directly to all nodes that have been
    allocated. */
@@ -81,8 +84,6 @@ static int n_nodes = 0;
 
 /* Number of entries for which the table has been sized. */
 static int max_nodes = 0;
-
-#define NODE_TABLE_INCREMENT 4
 
 /* Flag indicating whether facility is turned on or not */
 static int active = 0;
@@ -95,6 +96,34 @@ static unsigned long alloc_limit;
 static unsigned long alloced;
 
 /* ================================================== */
+
+static void
+split_ip6(IPAddr *ip, uint32_t *dst)
+{
+  int i;
+
+  for (i = 0; i < 4; i++)
+    dst[i] = ip->addr.in6[i * 4 + 0] << 24 |
+             ip->addr.in6[i * 4 + 1] << 16 |
+             ip->addr.in6[i * 4 + 2] << 8 |
+             ip->addr.in6[i * 4 + 3];
+}
+
+/* ================================================== */
+
+inline static uint32_t
+get_subnet(uint32_t *addr, unsigned int where)
+{
+  int off;
+
+  off = where / 32;
+  where %= 32;
+
+  return (addr[off] >> (32 - NBITS - where)) & ((1UL << NBITS) - 1);
+}
+
+/* ================================================== */
+
 
 static void
 clear_subnet(Subnet *subnet)
@@ -125,7 +154,8 @@ clear_node(Node *node)
 void
 CLG_Initialise(void)
 {
-  clear_subnet(&top_subnet);
+  clear_subnet(&top_subnet4);
+  clear_subnet(&top_subnet6);
   if (CNF_GetNoClientLog()) {
     active = 0;
   } else {
@@ -186,13 +216,12 @@ create_node(Subnet *parent_subnet, int the_entry)
 
   if (n_nodes == max_nodes) {
     if (nodes) {
-      max_nodes += NODE_TABLE_INCREMENT;
+      assert(max_nodes > 0);
+      max_nodes *= 2;
       nodes = ReallocArray(Node *, max_nodes, nodes);
     } else {
-      if (max_nodes != 0) {
-        CROAK("max_nodes should be 0");
-      }
-      max_nodes = NODE_TABLE_INCREMENT;
+      assert(max_nodes == 0);
+      max_nodes = 16;
       nodes = MallocArray(Node *, max_nodes);
     }
     alloced += sizeof (Node *) * (max_nodes - n_nodes);
@@ -206,29 +235,20 @@ create_node(Subnet *parent_subnet, int the_entry)
    expanding subnet tables and node entries as we go if necessary. */
 
 static void *
-find_subnet(Subnet *subnet, CLG_IP_Addr addr, int bits_left)
+find_subnet(Subnet *subnet, uint32_t *addr, int addr_len, int bits_consumed)
 {
-  unsigned long this_subnet, new_subnet, mask, shift;
-  unsigned long new_bits_left;
-  
-  shift = 32 - NBITS;
-  mask = (1UL<<shift) - 1;
-  this_subnet = addr >> shift;
-  new_subnet = (addr & mask) << NBITS;
-  new_bits_left = bits_left - NBITS;
+  uint32_t this_subnet;
 
-#if 0
-  fprintf(stderr, "fs addr=%08lx bl=%d ma=%08lx this=%08lx newsn=%08lx nbl=%d\n",
-          addr, bits_left, mask, this_subnet, new_subnet, new_bits_left);
-#endif
+  this_subnet = get_subnet(addr, bits_consumed);
+  bits_consumed += NBITS;
 
-  if (new_bits_left > 0) {
+  if (bits_consumed < 32 * addr_len) {
     if (!subnet->entry[this_subnet]) {
       if (alloc_limit_reached)
         return NULL;
       create_subnet(subnet, this_subnet);
     }
-    return find_subnet((Subnet *) subnet->entry[this_subnet], new_subnet, new_bits_left);
+    return find_subnet((Subnet *) subnet->entry[this_subnet], addr, addr_len, bits_consumed);
   } else {
     if (!subnet->entry[this_subnet]) {
       if (alloc_limit_reached)
@@ -245,30 +265,21 @@ find_subnet(Subnet *subnet, CLG_IP_Addr addr, int bits_left)
    one of the parents does not exist - never open a node out */
 
 static void *
-find_subnet_dont_open(Subnet *subnet, CLG_IP_Addr addr, int bits_left)
+find_subnet_dont_open(Subnet *subnet, uint32_t *addr, int addr_len, int bits_consumed)
 {
-  unsigned long this_subnet, new_subnet, mask, shift;
-  unsigned long new_bits_left;
+  uint32_t this_subnet;
 
-  if (bits_left == 0) {
+  if (bits_consumed >= 32 * addr_len) {
     return subnet;
   } else {
     
-    shift = 32 - NBITS;
-    mask = (1UL<<shift) - 1;
-    this_subnet = addr >> shift;
-    new_subnet = (addr & mask) << NBITS;
-    new_bits_left = bits_left - NBITS;
+    this_subnet = get_subnet(addr, bits_consumed);
+    bits_consumed += NBITS;
 
-#if 0
-    fprintf(stderr, "fsdo addr=%08lx bl=%d this=%08lx newsn=%08lx nbl=%d\n",
-            addr, bits_left, this_subnet, new_subnet, new_bits_left);
-#endif
-    
     if (!subnet->entry[this_subnet]) {
       return NULL;
     } else {
-      return find_subnet_dont_open((Subnet *) subnet->entry[this_subnet], new_subnet, new_bits_left);
+      return find_subnet_dont_open((Subnet *) subnet->entry[this_subnet], addr, addr_len, bits_consumed);
     }
   }
 }
@@ -276,14 +287,28 @@ find_subnet_dont_open(Subnet *subnet, CLG_IP_Addr addr, int bits_left)
 /* ================================================== */
 
 void
-CLG_LogNTPClientAccess (CLG_IP_Addr client, time_t now)
+CLG_LogNTPClientAccess (IPAddr *client, time_t now)
 {
+  uint32_t ip6[4];
   Node *node;
+
   if (active) {
-    node = (Node *) find_subnet(&top_subnet, client, 32);
+    switch (client->family) {
+      case IPADDR_INET4:
+        node = (Node *) find_subnet(&top_subnet4, &client->addr.in4, 1, 0);
+        break;
+      case IPADDR_INET6:
+        split_ip6(client, ip6);
+        node = (Node *) find_subnet(&top_subnet6, ip6, 4, 0);
+        break;
+      default:
+        assert(0);
+    }
+
     if (node == NULL)
       return;
-    node->ip_addr = client;
+
+    node->ip_addr = *client;
     ++node->client_hits;
     node->last_ntp_hit = now;
   }
@@ -292,14 +317,28 @@ CLG_LogNTPClientAccess (CLG_IP_Addr client, time_t now)
 /* ================================================== */
 
 void
-CLG_LogNTPPeerAccess(CLG_IP_Addr client, time_t now)
+CLG_LogNTPPeerAccess(IPAddr *client, time_t now)
 {
+  uint32_t ip6[4];
   Node *node;
+
   if (active) {
-    node = (Node *) find_subnet(&top_subnet, client, 32);
+    switch (client->family) {
+      case IPADDR_INET4:
+        node = (Node *) find_subnet(&top_subnet4, &client->addr.in4, 1, 0);
+        break;
+      case IPADDR_INET6:
+        split_ip6(client, ip6);
+        node = (Node *) find_subnet(&top_subnet6, ip6, 4, 0);
+        break;
+      default:
+        assert(0);
+    }
+
     if (node == NULL)
       return;
-    node->ip_addr = client;
+
+    node->ip_addr = *client;
     ++node->peer_hits;
     node->last_ntp_hit = now;
   }
@@ -308,14 +347,28 @@ CLG_LogNTPPeerAccess(CLG_IP_Addr client, time_t now)
 /* ================================================== */
 
 void
-CLG_LogCommandAccess(CLG_IP_Addr client, CLG_Command_Type type, time_t now)
+CLG_LogCommandAccess(IPAddr *client, CLG_Command_Type type, time_t now)
 {
+  uint32_t ip6[4];
   Node *node;
+
   if (active) {
-    node = (Node *) find_subnet(&top_subnet, client, 32);
+    switch (client->family) {
+      case IPADDR_INET4:
+        node = (Node *) find_subnet(&top_subnet4, &client->addr.in4, 1, 0);
+        break;
+      case IPADDR_INET6:
+        split_ip6(client, ip6);
+        node = (Node *) find_subnet(&top_subnet6, ip6, 4, 0);
+        break;
+      default:
+        assert(0);
+    }
+
     if (node == NULL)
       return;
-    node->ip_addr = client;
+
+    node->ip_addr = *client;
     node->last_cmd_hit = now;
     switch (type) {
       case CLG_CMD_AUTH:
@@ -328,7 +381,7 @@ CLG_LogCommandAccess(CLG_IP_Addr client, CLG_Command_Type type, time_t now)
         ++node->cmd_hits_bad;
         break;
       default:
-        CROAK("Impossible");
+        assert(0);
         break;
     }
   }
@@ -337,16 +390,32 @@ CLG_LogCommandAccess(CLG_IP_Addr client, CLG_Command_Type type, time_t now)
 /* ================================================== */
 
 CLG_Status
-CLG_GetSubnetBitmap(CLG_IP_Addr subnet, int bits, CLG_Bitmap result)
+CLG_GetSubnetBitmap(IPAddr *subnet, int bits, CLG_Bitmap result)
 {
   Subnet *s;
+  uint32_t ip6[4];
   unsigned long i;
   unsigned long word, bit, mask;
 
-  if ((bits == 0) || (bits == 8) || (bits == 16) || (bits == 24)) {
+  if (bits >= 0 && bits % 8 == 0) {
     memset (result, 0, TABLE_SIZE/8);
     if (active) {
-      s = find_subnet_dont_open(&top_subnet, subnet, bits);
+      switch (subnet->family) {
+        case IPADDR_INET4:
+          if (bits >= 32)
+            return CLG_BADSUBNET;
+          s = find_subnet_dont_open(&top_subnet4, &subnet->addr.in4, 1, 32 - bits);
+          break;
+        case IPADDR_INET6:
+          if (bits >= 128)
+            return CLG_BADSUBNET;
+          split_ip6(subnet, ip6);
+          s = find_subnet_dont_open(&top_subnet6, ip6, 4, 128 - bits);
+          break;
+        default:
+          return CLG_BADSUBNET;
+      }
+
       if (s) {
         for (i=0; i<256; i++) {
           if (s->entry[i]) {
@@ -371,15 +440,26 @@ CLG_GetSubnetBitmap(CLG_IP_Addr subnet, int bits, CLG_Bitmap result)
 /* ================================================== */
 
 CLG_Status
-CLG_GetClientAccessReportByIP(unsigned long ip, RPT_ClientAccess_Report *report, time_t now)
+CLG_GetClientAccessReportByIP(IPAddr *ip, RPT_ClientAccess_Report *report, time_t now)
 {
+  uint32_t ip6[4];
   Node *node;
 
   if (!active) {
     return CLG_INACTIVE;
   } else {
-    node = (Node *) find_subnet_dont_open(&top_subnet, ip, 32);
-  
+    switch (ip->family) {
+      case IPADDR_INET4:
+        node = (Node *) find_subnet_dont_open(&top_subnet4, &ip->addr.in4, 1, 0);
+        break;
+      case IPADDR_INET6:
+        split_ip6(ip, ip6);
+        node = (Node *) find_subnet_dont_open(&top_subnet6, ip6, 4, 0);
+        break;
+      default:
+        return CLG_EMPTYSUBNET;
+    }
+
     if (!node) {
       return CLG_EMPTYSUBNET;
     } else {

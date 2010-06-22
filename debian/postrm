@@ -4,8 +4,8 @@ set -e
 # Any possessor of a copy of this program may treat it as if it
 # were in the public domain.  I waive all rights.
 rm -f /var/lib/chrony/*
-if [ -x /usr/bin/update-menus ] ; then 
-	/usr/bin/update-menus
+if [ -x update-menus ] ; then 
+	update-menus
 fi
 
 if [ "$1" = "purge" ] ; then

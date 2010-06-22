@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -31,13 +31,15 @@
 #ifndef GOT_ACQUIRE_H
 #define GOT_ACQUIRE_H
 
+#include "addressing.h"
+
 typedef struct ACQ_SourceRecord *ACQ_Source;
 
 extern void ACQ_Initialise(void);
 
 extern void ACQ_Finalise(void);
 
-extern void ACQ_StartAcquisition(int n, unsigned long *ip_addrs, int init_slew_threshold,
+extern void ACQ_StartAcquisition(int n, IPAddr *ip_addrs, int init_slew_threshold,
                                  void (*after_hook)(void *), void *anything);
 
 extern void ACQ_AccumulateSample(ACQ_Source acq_source, double offset, double root_distance);

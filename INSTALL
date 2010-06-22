@@ -32,13 +32,17 @@ for Bourne-family shells, or
 for C-family shells.
 
 If the software cannot (yet) be built on your system, an error message
-will be shown.  Otherwise, the files `options.h' and `Makefile' will
-be generated.
+will be shown.  Otherwise, `Makefile' will be generated.
 
-By default, chronyc will be built to make use of the readline library.  If you
-don't want this, specify the --disable-readline flag to configure.  If you have
-readline and/or ncurses installed in a non-standard location, please refer to
-the chrony.txt file for information.
+If editline or readline library is available, chronyc will be built
+with line editing support.  If you don't want this, specify the
+--disable-readline flag to configure.  Please refer to the chrony.txt
+file for more information.
+
+If a `timepps.h' header is available, chronyd will be built with PPS
+API reference clock driver.  If the header is installed in a location
+that isn't normally searched by the compiler, you can add it to the
+searched locations by setting CPPFLAGS variable to -I/path/to/timepps.
 
 Now type
 
@@ -67,11 +71,11 @@ If you want chrony to appear in the top level info directory listing, you need
 to run the install-info command manually after this step.  install-info takes 2
 arguments.  The first is the path to the chrony.info file you have just
 installed.  This will be the argument you gave to --prefix when you configured
-(/usr/local by default), with /info/chrony.info on the end.  The second
+(/usr/local by default), with /share/info/chrony.info on the end.  The second
 argument is the location of the file called 'dir'.  This will typically be
-/usr/info/dir.  So the typical command line would be
+/usr/share/info/dir.  So the typical command line would be
 
-    install-info /usr/local/info/chrony.info /usr/info/dir
+    install-info /usr/local/share/info/chrony.info /usr/share/info/dir
 
 Now that the software is successfully installed, the next step is to
 set up a configuration file.  The contents of this depend on the

@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -42,7 +42,7 @@ extern void SST_Initialise(void);
 extern void SST_Finalise(void);
 
 /* This function creates a new instance of the statistics handler */
-extern SST_Stats SST_CreateInstance(unsigned long refid);
+extern SST_Stats SST_CreateInstance(unsigned long refid, IPAddr *addr);
 
 /* This function deletes an instance of the statistics handler. */
 extern void SST_DeleteInstance(SST_Stats inst);
@@ -140,7 +140,7 @@ extern int SST_LoadFromFile(SST_Stats inst, FILE *in);
 
 extern void SST_DoSourceReport(SST_Stats inst, RPT_SourceReport *report, struct timeval *now);
 
-extern void SST_DoSourcestatsReport(SST_Stats inst, RPT_SourcestatsReport *report);
+extern void SST_DoSourcestatsReport(SST_Stats inst, RPT_SourcestatsReport *report, struct timeval *now);
 
 typedef enum {
   SST_Skew_Decrease,

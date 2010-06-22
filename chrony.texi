@@ -109,8 +109,8 @@ the RFC did not make absolutely clear.  The core algorithms in
 
 @node Getting the software
 @subsection Getting the software
-Links on @uref{http://chrony.sunsite.dk/download.php, the
-chrony home page} describe how to obtain the software.
+Links on @uref{http://chrony.tuxfamily.org, the chrony home page}
+describe how to obtain the software.
 
 
 @node Platforms
@@ -125,8 +125,9 @@ different quirks in its behaviour.
 
 The software is known to work in the following environments:
 @itemize @bullet
-@item Linux/i386 and Linux/ppc.  The software is known to work on Linux 2.0.x,
-2.2.x and 2.4.x.  Prior to 2.0.31, the real time clock can't be used.
+@item Linux on i386, x86_64 and PowerPC architectures.  The software is known
+to work on Linux 2.0.x and newer.  Prior to 2.0.31, the real time clock can't
+be used.
 
 @item NetBSD
 @item BSD/386
@@ -204,17 +205,9 @@ Things @code{xntpd} can do that @code{chronyd} can't:
 
 @itemize @bullet
 @item
-@code{xntpd} supports a range of different hardware reference clocks
-(GPS, atomic etc) that can be connected to a computer to provide a
-`stratum-1' server.  @code{chronyd} does not support any such hardware
-@emph{yet}; I don't have access to any to do any development work.
-However, the software architecture should allow such equipment to be
-interfaced at a later date.
-
-@item
 @code{xntpd} supports effectively all of RFC1305, including broadcast /
-multicast clients, leap seconds, and extra encryption schemes for
-authenticating data packets.
+multicast clients and extra encryption schemes for authenticating
+data packets.
 
 @item
 @code{xntpd} has been ported to more types of computer / operating
@@ -276,29 +269,19 @@ version 2, reproduced in @xref{GPL}.
 @node Bug reporting
 @section Bug reporting and suggestions
 
-If you think you've found a bug in chrony, or have a suggestion, please let me
-know.  My primary current email address is @email{rc@@rc0.org.uk}.  If that
-fails, you could try finding me through one of the chrony mailing lists, or by
-looking up my name on a search engine.
+If you think you've found a bug in chrony, or have a suggestion, please let us
+know.  You can join chrony users mailing list by sending a message with the
+subject subscribe to @email{chrony-users-request@@chrony.tuxfamily.org}.  Only
+subscribers can post to the list.
 
-I can't promise a timescale to fix a bug; it depends a lot on the how complex
-the bug is to track down, as I have a lot of other calls on my time : 2 young
-children, my job, and indeed other free/open source software projects.
-However, I do intend to look into problems when time allows.
-
-Another source of information to try is the chrony users mailing list.  You can
-join this by sending an empty message to
-@email{chrony-users-subscribe@@sunsite.dk}.  Only subscribers can post to
-the list.
-
-When you are reporting a bug, please send me all the information you can.
+When you are reporting a bug, please send us all the information you can.
 Unfortunately, chrony has proven to be one of those programs where it is very
-difficult to reproduce bugs in a different environment.  So I may have to
+difficult to reproduce bugs in a different environment.  So we may have to
 interact with you quite a lot to obtain enough extra logging and tracing to
 pin-point the problem in some cases.  Please be patient and plan for this!
 
-Of course, if you can debug the problem yourself and send me a source code
-patch to fix it, I will be very grateful!
+Of course, if you can debug the problem yourself and send us a source code
+patch to fix it, we will be very grateful!
 
 @c }}}
 @c {{{ S:Contributions
@@ -309,7 +292,7 @@ Although chrony is now a fairly mature and established project, there are still
 areas that could be improved.  If you can program in C and have some expertise
 in these areas, you might be able to fill the gaps.
 
-Particular areas I know need addressing are :
+Particular areas that need addressing are :
 
 @enumerate
 @item Porting to other Unices
@@ -331,7 +314,7 @@ setsid() etc with so that chronyd can be automatically started in the system
 bootstrap.
 @end enumerate
 
-@item Hardware clock support
+@item More drivers for reference clock support
 
 @item Automation of the trimrtc and writertc mechanisms
 
@@ -394,13 +377,16 @@ setenv CFLAGS -O
 for C-family shells.
 
 If the software cannot (yet) be built on your system, an error message
-will be shown.  Otherwise, the files @file{options.h} and
-@file{Makefile} will be generated.
+will be shown.  Otherwise, @file{Makefile} will be generated.
 
-By default, chronyc will be built to make use of the readline library.  If you
-don't want this, specify the --disable-readline flag to configure.  If you have
-readline and/or ncurses installed in a non-standard location, please refer to
-@pxref{readline support} for information.
+If editline or readline library is available, chronyc will be built with line
+editing support.  If you don't want this, specify the --disable-readline flag
+to configure.  Please refer to @pxref{line editing support} for more information.
+
+If a @file{timepps.h} header is available, chronyd will be built with PPS API
+reference clock driver.  If the header is installed in a location that isn't
+normally searched by the compiler, you can add it to the searched locations by
+setting @code{CPPFLAGS} variable to @code{-I/path/to/timepps}.
 
 Now type
 
@@ -438,48 +424,57 @@ to run the @command{install-info} command manually after this step.
 @command{install-info} takes 2 arguments.  The first is the path to the
 @file{chrony.info} file you have just installed.  This will be the argument you
 gave to --prefix when you configured (@file{/usr/local} by default), with
-@file{/info/chrony.info} on the end.  The second argument is the location of
-the file called @file{dir}.  This will typically be @file{/usr/info/dir}.  So
+@file{/share/info/chrony.info} on the end.  The second argument is the location of
+the file called @file{dir}.  This will typically be @file{/usr/share/info/dir}.  So
 the typical command line would be
 
 @example
-install-info /usr/local/info/chrony.info /usr/info/dir
+install-info /usr/local/share/info/chrony.info /usr/share/info/dir
 @end example
     
 Now that the software is successfully installed, the next step is to
 set up a configuration file.  The contents of this depend on the
-network environment in which the computer operates.  The Debian
-package installs a simple configuration file suitable for a dial-up
-pc.  You should edit it to suit your situation.  Typical scenarios are
-described in the following section of the document.
+network environment in which the computer operates.  Typical scenarios
+are described in the following section of the document.
 @c }}}
 @menu
-* readline support::            If readline or ncurses in in a non-standard place
+* line editing support::        If libraries are in a non-standard place
 * package builders::            Extra options useful to package builders
 @end menu
-@c {{{ readline support
-@node readline support
-@section Support for the readline library
-By default, chronyc is built to make use of the readline library.  This allows
-you to use the cursor keys to replay and edit old commands.  If you don't want
-to use readline (in which case chronyc will use a minimal command line
-interface), invoke configure like this:
+@c {{{ line editing support
+@node line editing support
+@section Support for line editing libraries
+Chronyc can be built with support for line editing, this allows you to use the
+cursor keys to replay and edit old commands.  Two libraries are supported which
+provide such functionality, editline and GNU readline.
+
+Please note that readline since version 6.0 is licensed under GPLv3+ which is
+incompatible with chrony's license GPLv2.  You should use editline instead if
+you don't want to use older readline versions.
+
+The configure script will automatically enable the line editing support if one
+of the supported libraries is available.  If they are both available, the
+editline library will be used.
+
+If you don't want to use it (in which case chronyc will use a minimal command
+line interface), invoke configure like this:
 
 @example
 ./configure --disable-readline other-options...
 @end example
 
-If you have readline and/or ncurses installed in locations that aren't normally searched by the compiler and linker, you need extra options if you want readline to be used:
+If you have editline, readline or ncurses installed in locations that aren't
+normally searched by the compiler and linker, you need to use extra options:
 
 @table @samp
 @item --with-readline-includes=directory_name
 This defines the name of the directory above the one where @file{readline.h}
-is.  @file{readline.h} is assumed to be in a @file{readline} subdirectory of
-the named directory.
+is.  @file{readline.h} is assumed to be in @file{editline} or @file{readline}
+subdirectory of the named directory.
 
 @item --with-readline-library=directory_name
-This defines the directory containing the @file{libreadline.a} or
-@file{libreadline.so} file.
+This defines the directory containing the @file{libedit.a} or @file{libedit.so}
+file, or @file{libreadline.a} or @file{libreadline.so} file.
 
 @item --with-ncurses-library=directory_name
 This defines the directory containing the @file{libncurses.a} or
@@ -493,7 +488,7 @@ This defines the directory containing the @file{libncurses.a} or
 The configure and make procedures have some extra options that may be useful if
 you are building a distribution package for chrony.
 
-The --infodir=DIR option to configure specifies a different install directory
+The --infodir=DIR option to configure specifies an install directory
 for the info files.  This overrides the @file{info} subdirectory of the
 argument to the --prefix option.  For example, you might use
 
@@ -501,7 +496,7 @@ argument to the --prefix option.  For example, you might use
 ./configure --prefix=/usr --infodir=/usr/share/info
 @end example
 
-The --mandir=DIR option to configure specifies a different install directory
+The --mandir=DIR option to configure specifies an install directory
 for the man pages.  This overrides the @file{man} subdirectory of the
 argument to the --prefix option.
 
@@ -569,9 +564,8 @@ use their facilities.
 
 Assuming that you have found some servers, you need to set up a
 configuration file to run chrony.  The (compiled-in) default location
-for this file is @file{/etc/chrony.conf}.  In the Debian package the
-configuration files are in the directory @file{/etc/chrony}.  Assuming
-that your ntp servers are called @code{a.b.c} and @code{d.e.f}, your
+for this file is @file{/etc/chrony.conf}.  Assuming that your ntp
+servers are called @code{a.b.c} and @code{d.e.f}, your
 @file{chrony.conf} file could contain as a minimum
 
 @example
@@ -657,11 +651,9 @@ into your @file{/etc/hosts} file.  This will be OK as long as @samp{files}
 comes before @samp{dns} in the @samp{hosts} line of the
 @file{/etc/nsswitch.conf} file.
 
-In order to notify @code{chronyd} of the presence of the link, you
-will need to be able to log in to it with the program chronyc.  To do
-this, @code{chronyd} needs to be configured with an administrator
-password.  The Debian package puts a randomly generated key in
-@file{/etc/chrony/chrony.keys}.  You should change it.  To set up an
+In order to notify @code{chronyd} of the presence of the link, you will need to
+be able to log in to it with the program chronyc.  To do this, @code{chronyd}
+needs to be configured with an administrator password.  To set up an
 administrator password, you can create a file @file{/etc/chrony.keys}
 containing a single line
 
@@ -721,9 +713,6 @@ password xyzzy
 offline
 EOF
 @end example
-
-The Debian package puts scripts similar to those above in the
-directories @file{/etc/ppp/ip-up.d} and @file{/etc/ppp/ip-down.d}.
 
 @code{chronyd's} polling of the servers will now only occur whilst the
 machine is actually connected to the Internet.
@@ -973,9 +962,6 @@ if [ -f /usr/local/sbin/chronyd -a -f /etc/chrony.conf ]; then
 fi
 @end example
 
-The Debian package puts a script which handles this and shutdown in
-@file{/etc/init.d/chrony}.
-
 The placement of this command may be important on some systems.  In
 particular, @code{chronyd} may need to be started several seconds (about
 10 as a minimum) before any software that depends on the system clock
@@ -1055,8 +1041,6 @@ entering the command
 /usr/local/sbin/chronyd
 @end example
 
-The Debian package uses @file{/usr/sbin/chronyd}.
-
 Information messages and warnings will be logged to syslog.
 
 The command line options supported are as follows:
@@ -1101,10 +1085,23 @@ useful for dial-up systems that are shut down when not in use.  For this
 to work well, it relies on @code{chronyd} having been able to determine
 accurate statistics for the difference between the real time clock and
 system clock last time the computer was on.
-
+@item -u <user>
+When this option is used, chronyd will drop root privileges to the specified
+user.  So far, it works only on Linux when compiled with capabilities support.
 @item -v
 This option displays @code{chronyd's} version number to the terminal and
 exits.
+@item -P <priority>
+This option will select the SCHED_FIFO real-time scheduler at the
+specified priority (which must be between 0 and 100).  This mode is
+supported only on Linux.
+@item -m     
+This option will lock chronyd into RAM so that it will never be paged
+out.  This mode is only supported on Linux.
+@item -4
+With this option hostnames will be resolved only to IPv4 addresses.
+@item -6
+With this option hostnames will be resolved only to IPv6 addresses.
 @end table
 
 On systems that support an @file{/etc/rc.local} file for starting
@@ -1187,6 +1184,7 @@ directives can occur in any order in the file.
 * logchange directive::         Generate syslog messages if large offsets occur
 * logdir directive::            Specify directory for logging
 * mailonchange directive::      Send email if a clock correction above a threshold occurs
+* makestep directive::          Step system clock if large correction is needed
 * manual directive::            Allow manual entry using chronyc's settime cmd.
 * maxupdateskew directive::     Stop bad estimates upsetting machine clock
 * noclientlog directive::       Prevent chronyd from gathering data about clients
@@ -1194,10 +1192,14 @@ directives can occur in any order in the file.
 * peer directive::              Specify an NTP peer
 * pidfile directive::           Specify the file where chronyd's pid is written
 * port directive::              Set port to use for NTP packets
+* refclock directive::          Specify a reference clock
 * rtcdevice directive::         Specify name of enhanced RTC device (if not /dev/rtc)
 * rtcfile directive::           Specify the file where real-time clock data is stored
 * rtconutc directive::          Specify that the real time clock keeps UTC not local time
 * server directive::            Specify an NTP server
+* sched_priority directive::    Require real-time scheduling and specify a priority for it.
+* lock_all directive::          Require that chronyd be locked into RAM. 
+
 @end menu
 @c }}}
 @c {{{ comments in config file
@@ -1255,18 +1257,22 @@ allow 1.2
 allow 3.4.5
 allow 6.7.8/22
 allow 6.7.8.9/22
+allow 2001:db8::/32
+allow 0/0
+allow ::/0
 allow
 @end example
 
 The first command allows the named node to be an NTP client of this computer.
-The second command allows any node with an IP address of the form 1.2.x.y (with
+The second command allows any node with an IPv4 address of the form 1.2.x.y (with
 x and y arbitrary) to be an NTP client of this computer.  Likewise, the third
-command allows any node with an IP address of the form 3.4.5.x to have client
-NTP access.  The fourth and fifth forms allow access from any node with an IP
+command allows any node with an IPv4 address of the form 3.4.5.x to have client
+NTP access.  The fourth and fifth forms allow access from any node with an IPv4
 address of the form 6.7.8.x, 6.7.9.x, 6.7.10.x or 6.7.11.x (with x arbitrary),
 i.e. the value 22 is the number of bits defining the specified subnet.  (In the
-fifth form, the final byte is ignored).  The sixth form allows access by any
-node on the entire Internet.
+fifth form, the final byte is ignored).  The sixth form is used for IPv6
+addresses.  The seventh and eighth forms allow access by any IPv4 and IPv6 node
+respectively.  The ninth forms allows access by any node (IPv4 or IPv6).  
 
 A second form of the directive, @code{allow all}, has a greater effect,
 depending on the ordering of directives in the configuration file.  To
@@ -1332,6 +1338,9 @@ firewalls).  It is, therefore, not particularly useful.  Use of the
 @code{allow} and @code{deny} directives together with a network firewall is
 more likely to be successful.
 
+For each of IPv4 and IPv6 protocols, only one @code{bindaddress}
+directive can be specified. 
+
 @c }}}
 @c {{{ bindcmdaddress
 @node bindcmdaddress directive
@@ -1356,6 +1365,9 @@ interfaces.  It is, therefore, not particularly useful.  Use of the
 @code{cmdallow} and @code{cmddeny} directives together with a network firewall
 is more likely to be successful.
 
+For each of IPv4 and IPv6 protocols, only one @code{bindcmdaddress}
+directive can be specified. 
+
 @c }}}
 @c {{{ broadcast directive
 @node broadcast directive
@@ -1370,6 +1382,7 @@ The syntax is as follows
 @example
 broadcast 30 192.168.1.255
 broadcast 60 192.168.2.255 12123
+broadcast 60 ff02::101
 @end example
 
 In the first example, the destination port defaults to 123/udp (the normal NTP
@@ -1539,8 +1552,9 @@ An example of the command is
 dumpdir /var/log/chrony
 @end example
 
-A source whose IP address is 1.2.3.4 would have its measurement
-history saved in the file @file{/var/log/chrony/1.2.3.4.dat}.
+A source whose reference id (the IP address for IPv4 sources) is
+1.2.3.4 would have its measurement history saved in the file
+@file{/var/log/chrony/1.2.3.4.dat}.
 @c }}}
 @c {{{ dumponexit
 @node dumponexit directive
@@ -1743,6 +1757,10 @@ rate, and any slews made, to a file called tracking.log.
 
 @item rtc
 This option logs information about the system's real-time clock.
+
+@item refclocks
+This option logs the raw reference clock measurements to a file
+called refclocks.log.
 @end table
 
 The files are written to the directory specified by the logdir
@@ -1759,6 +1777,7 @@ log measurements statistics tracking
 * statistics log::              The format of the statistics log
 * tracking log::                The format of the tracking log
 * RTC log::                     The format of the RTC log
+* refclocks log::               The format of the refclocks log
 @end menu
 @c }}}
 @c {{{ measurements.log
@@ -1785,8 +1804,8 @@ expressed in UTC, not the local time zone.
 @item
 IP address of server/peer from which measurement comes [158.152.1.76]
 @item
-Leap status (@code{N} means normal, @code{-} means that the last minute
-of today has 61 seconds, @code{+} means that the last minute of the day
+Leap status (@code{N} means normal, @code{+} means that the last minute
+of today has 61 seconds, @code{-} means that the last minute of the day
 has 59 seconds, @code{?} means the remote computer is not currently
 synchronised.) [N]
 @item
@@ -1975,6 +1994,47 @@ seconds). [120]
 A banner is periodically written to the log file to indicate the
 meanings of the columns.
 @c }}}
+@c {{{ refclocks.log
+@node refclocks log
+@subsubsection Refclocks log file format
+
+An example line (which actually appears as a single line in the file)
+from the refclocks log file is shown below.
+
+@example
+2009-11-30 14:33:27.000000 PPS2    7 N 1  4.900000e-07 -6.741777e-07
+@end example
+
+The columns are as follows (the quantities in square brackets are the
+values from the example line above) :
+
+@enumerate 1
+@item
+Date [2009-11-30]
+@item
+Hour:Minute:Second.Microsecond [14:33:27.000000].  Note that the
+date/time pair is expressed in UTC, not the local time zone.
+@item
+Reference ID of refclock from which measurement comes. [PPS2]
+@item
+Sequence number of driver poll within one polling interval. [7]
+@item
+Leap status (@code{N} means normal, @code{+} means that the last minute
+of today has 61 seconds, @code{-} means that the last minute of the day
+has 59 seconds). [N]
+@item
+Flag indicating whether the sample comes from PPS source. (1 for yes,
+0 for no). [1]
+@item
+Local clock error measured by refclock driver. [4.900000e-07]
+@item
+Local clock error with applied corrections.  Positive indicates
+that the local clock is slow. [-6.741777e-07]
+@end enumerate
+
+A banner is periodically written to the log file to indicate the
+meanings of the columns.
+@c }}}
 @c }}}
 @c {{{ logchange
 @node logchange directive
@@ -2025,6 +2085,32 @@ mailonchange root@@localhost 0.5
 
 This would send a mail message to root if a change of more than 0.5
 seconds were applied to the system clock.
+@c }}}
+@c {{{ makestep
+@node makestep directive
+@subsection makestep
+Normally chronyd will cause the system to gradually correct any time
+offset, by slowing down or speeding up the clock as required.  In
+certain situations, the system clock may be so far adrift that this
+slewing process would take a very long time to correct the system clock.
+
+This directive forces @code{chronyd} to step system clock if the
+adjustment is larger than a threshold value, but only if there were no
+more clock updates since @code{chronyd} was started than a specified
+limit (a negative value can be used to disable the limit).
+
+This is particularly useful when using reference clocks, because the
+@code{initstepslew} directive (@pxref{initstepslew directive}) works
+only with NTP sources.
+
+An example of the use of this directive is
+
+@example
+makestep 1000 10
+@end example
+
+This would step system clock if the adjustment is larger than 1000
+seconds, but only in the first ten clock updates.
 @c }}}
 @c {{{ manual
 @node manual directive
@@ -2131,6 +2217,101 @@ port 11123
 This would change the NTP port served by chronyd on the computer to
 udp/11123.
 @c }}}
+@c {{{ refclock
+@node refclock directive
+@subsection refclock
+The @code{refclock} directive allows reference clocks to be specified.
+The directive is immediately followed by a refclock driver name and
+its parameter.
+
+There are currently three drivers implemented:
+
+@table @code
+@item PPS
+Pulse per second (PPS) API driver.  The parameter is a path to the PPS
+device.  Assert events are used by default.  Driver option
+@code{:clear} can be appended to the path to use clear events instead.
+
+PPS refclock needs another source (NTP or non-PPS refclock) or local
+directive (@pxref{local directive}) enabled to function.  For example:
+
+@example
+refclock SHM 0 offset 0.5 delay 0.1
+refclock PPS /dev/pps0
+@end example
+
+@item SHM
+NTP shared memory driver.  The parameter is the number of the
+shared memory segment that should be used for receiving timestamps, usually
+0, 1, 2 or 3.  For example:
+
+@example
+refclock SHM 1 poll 3 refid GPS1
+@end example
+
+A driver option in form @code{:perm=NNN} can be appended to the
+segment number to create the segment with permissions other than the
+default @code{0600}. 
+
+Software that can be used as a source of reference time includes
+@code{gpsd} and @code{shmpps}.
+@item SOCK
+Unix domain socket driver.  The parameter is a path to the socket
+which is used as the source of timestamps.  This is as a better
+alternative to SHM, it does not require polling, the offset
+resolution is not limited to microsecond and it supports PPS.
+The format for messages sent over the socket is declared in file
+@code{refclock_sock.c}.
+@end table
+
+The @code{refclock} command also supports a number of subfields (which
+may be defined in any order):
+
+@table @code
+@item poll
+Timestamps produced by refclock drivers are not used immediately, but
+they are stored and processed by a median filter in intervals
+specified by this option.  This is defined as a power of 2.  The
+default is 4 (16 seconds).  A shorter interval allows @code{chronyd}
+to react faster to frequency changes, but it may increase noise.
+@item dpoll
+Some drivers are not controlled by external events and thus require
+polling.  Again this is defined as a power of 2 and can be negative
+for sub-second intervals.  The default is 0 (1 second).
+@item refid
+This option is used to specify a reference id of the refclock, as up
+to four ASCII characters.  By default, first three characters from
+driver name and the number of the refclock are used as refid.  Each
+refclock has to use an unique refid.
+@item filter
+This option sets the length of the median filter which is used to
+reduce noise.  With each poll about half of the stored samples are
+discarded and one final sample is calculated as average of the
+remaining samples.  The default is 15.
+@item rate
+PPS signal frequency (in Hz).  This option only controls how the
+received pulses are aligned.  To actually receive more than one
+pulse per second, a negative @code{dpoll} has to be specified (-3 for
+5Hz signal).  The default is 1.
+@item lock
+This option can be used to lock a PPS refclock to another refclock
+whose reference id is specified by this option.  In this mode received
+pulses are aligned directly to unfiltered samples from the refclock.
+By default, pulses are aligned to local clock, but only when it is
+well synchronised.
+@item offset
+This option can be used to compensate a constant error.  The specified
+offset (in seconds) is applied to all samples produced by the
+refclock.  The default is 0.0.
+@item delay
+This option is used to specify how the refclock is assumed
+to be inaccurate (in seconds).  Increasing the value is useful to
+avoid having no majority in the source selection algorithm or to make
+the algorithm prefer other refclocks.  The default is 1e-9 (1
+nanosecond).
+@end table
+
+@c }}}
 @c {{{ rtcdevice
 @node rtcdevice directive
 @subsection rtcdevice
@@ -2203,6 +2384,37 @@ If the @code{rtconutc} directive appears, it means the RTC is required
 to keep UTC.  The directive takes no arguments.  It is equivalent to
 specifying the @code{-u} switch to the Linux @file{/sbin/clock} program.
 @c }}}
+@c {{{ sched_priority
+@node sched_priority directive
+@subsection sched_priority
+
+The @code{sched_priority} directive will select the SCHED_FIFO real-time
+scheduler at the specified priority (which must be between 0 and 100).
+This mode is supported only on Linux.
+
+This directive uses the Linux sched_setscheduler() system call to
+instruct the kernel to use the SCHED_FIFO first-in, first-out
+real-time scheduling policy for Chronyd with the specified priority.
+This means that whenever Chronyd is ready to run it will run,
+interrupting whatever else is running unless it is a higher priority
+real-time process.  This should not impact performance as Chronyd's
+resource requirements are modest, but it should result in lower and
+more consistent latency since Chronyd will not need to wait for the
+scheduler to get around to running it.  You should not use this unless
+you really need it.  The sched_setscheduler man page has more details.
+@c }}}
+@c {{{ lock_all
+@node lock_all directive
+@subsection lock_all
+
+The @code{lock_all} directive will lock chronyd into RAM so that it
+will never be paged out.  This mode is only supported on Linux.  This
+directive uses the Linux mlockall() system call to prevent Chronyd
+from ever being swapped out.  This should result in lower and more
+consistent latency.  It should not have significant impact on
+performance as Chronyd's memory usage is modest.  The mlockall man
+page has more details.
+@c }}}
 @c {{{ server
 @node server directive
 @subsection server
@@ -2212,9 +2424,8 @@ synchronise its system time to that of the server, but the server's
 system time will never be influenced by that of a client.
 
 The @code{server} directive is immediately followed by either the name
-of the server, or its IP address in dotted-quad notation.  The server
-command also supports a number of subfields (which may be defined in any
-order):
+of the server, or its IP address.  The server command also supports a
+number of subfields (which may be defined in any order):
 
 @table @code
 @item port
@@ -2370,6 +2581,12 @@ This option allows the user to specify the UDP port number which the
 target @code{chronyd} is using for its command & monitoring connections.
 This defaults to the compiled-in default; there would rarely be a need
 to change this.
+@item -n
+This option disables resolving IP addresses to hostnames.
+@item -4
+With this option hostnames will be resolved only to IPv4 addresses.
+@item -6
+With this option hostnames will be resolved only to IPv6 addresses.
 @end table
 @c }}}
 @c {{{ SS:Security with chronyc
@@ -2406,6 +2623,9 @@ Only the following commands can be used @emph{without} providing a
 password:
 
 @itemize @bullet
+@item @code{activity}
+@item @code{clients}
+@item @code{dns}
 @item @code{exit}
 @item @code{help}
 @item @code{password}
@@ -2445,6 +2665,7 @@ interface.
 * delete command::              Remove an NTP server or peer
 * deny command ::               Denying NTP client access
 * deny all command::            Denying NTP client access
+* dns command::                 Configure how are hostnames and IP addresses resolved
 * dump command::                Dump measurement histories to files
 * exit command::                Exit from chronyc
 * help command::                Generate help summary
@@ -2481,6 +2702,7 @@ follows:
 @example
 accheck a.b.c
 accheck 1.2.3.4
+accheck 2001:db8::1
 @end example
 
 This command can be used to examine the effect of a series of
@@ -2555,6 +2777,9 @@ allow 1.2
 allow 3.4.5
 allow 6.7.8/22
 allow 6.7.8.9/22
+allow 2001:db8:789a::/48
+allow 0/0
+allow ::/0
 allow
 @end example
 
@@ -2571,7 +2796,7 @@ directive in the configuration file (@pxref{allow directive}).
 @node burst command
 @subsubsection burst
 The @code{burst} command tells @code{chronyd} to make a set of measurements to
-each of its sources over a short duration (rather than the usual
+each of its NTP sources over a short duration (rather than the usual
 periodic measurements that it makes).  After such a burst, @code{chronyd} will
 revert to the previous state for each source.  This might be either
 online, if the source was being periodically measured in the normal way,
@@ -2583,6 +2808,7 @@ The syntax of the burst command is as follows
 
 @example
 burst <n-good-measurements>/<max-measurements> [<mask>/<masked-address>]
+burst <n-good-measurements>/<max-measurements> [<masked-address>/<masked-bits>]
 @end example
 
 The mask and masked-address arguments are optional, in which case
@@ -2604,18 +2830,21 @@ attempt to make, even if the required number of good measurements has
 not been obtained.
 
 @item mask
-This is a dotted quad argument (e.g. @code{255.255.255.0}) with which
-the IP address of each of @code{chronyd}'s sources is to be masked.
+This is an IP address with which the IP address of each of @code{chronyd}'s
+sources is to be masked.
 
 @item masked-address
-This is a dotted quad argument (e.g. @code{1.2.3.0}).  If the masked IP
-address of a source matches this value then the burst command is applied
-to that source.
+This is an IP address.  If the masked IP address of a source matches this value
+then the burst command is applied to that source.
+
+@item masked-bits
+This can be used with @code{masked-address} for CIDR notation, which is a
+shorter alternative to the form with mask.
+
 @end table
 
-If no mask or masked address arguments are provided, the default is
-@code{0.0.0.0} and @code{0.0.0.0} respectively, which will match every
-source.
+If no mask or masked address arguments are provided, every source will
+be matched.
 
 An example of the two-argument form of the command is 
 
@@ -2627,15 +2856,17 @@ This will cause @code{chronyd} to attempt to get two good measurements from
 each source, stopping after two have been obtained, but in no event will
 it try more than ten probes to the source.
 
-An example of the four-argument form of the command is
+Examples of the four-argument form of the command are
 
 @example
 burst 2/10 255.255.0.0/1.2.0.0
+burst 2/10 2001:db8:789a::/48
 @end example
 
-In this case, the two out of ten sampling will only be applied to
-sources whose IP addresses are of the form @code{1.2.x.y}, where x and y
-are arbitrary.
+In the first case, the two out of ten sampling will only be applied to
+sources whose IPv4 addresses are of the form @code{1.2.x.y}, where x and y
+are arbitrary. In the second case, the sampling will be applied to sources
+whose IPv6 addresses have first 48 bits equal to @code{2001:db8:789a}.
 @c }}}
 @c {{{ clients
 @node clients command
@@ -2700,6 +2931,7 @@ Examples of use are as follows:
 @example
 cmdaccheck a.b.c
 cmdaccheck 1.2.3.4
+cmdaccheck 2001:db8::1
 @end example
 @c }}}
 @c {{{ cmdallow
@@ -2762,6 +2994,7 @@ The syntax is illustrated in the examples below.
 @example
 delete foo.bar.com
 delete 1.2.3.4
+delete 2001:db8::1
 @end example
 
 There is one parameter, the name or IP address of the server or peer to
@@ -2781,6 +3014,9 @@ deny 1.2
 deny 3.4.5
 deny 6.7.8/22
 deny 6.7.8.9/22
+deny 2001:db8:789a::/48
+deny 0/0
+deny ::/0
 deny
 @end example
 @c }}}
@@ -2789,6 +3025,32 @@ deny
 @subsubsection deny all
 The effect of the allow command is identical to the @code{deny all}
 directive in the configuration file (@pxref{deny directive}).
+@c }}}
+@c {{{ dns
+@node dns command
+@subsubsection dns
+The @code{dns} command configures how are hostnames and IP addresses resolved in
+@code{chronyc}.  IP addresses can be resolved to hostnames when printing results
+of @code{sources}, @code{sourcestats}, @code{tracking} and @code{clients}
+commands.  Hostnames are resolved in commands that take an address as argument.
+
+There are five forms of the command:
+
+@table @code
+@item dns -n
+Disables resolving IP addresses to hostnames.  Raw IP addresses will be
+displayed.
+@item dns +n
+Enables resolving IP addresses to hostnames.  This is the default unless
+@code{chronyc} was started with @code{-n} option.
+@item dns -4
+Resolves hostnames only to IPv4 addresses.
+@item dns -6
+Resolves hostnames only to IPv6 addresses.
+@item dns -46
+Resolves hostnames to both address families.  This is the default unless
+@code{chronyc} was started with @code{-4} or @code{-6} option.
+@end table
 @c }}}
 @c {{{ dump
 @node dump command
@@ -2853,8 +3115,9 @@ BE WARNED - certain software will be seriously affected by such jumps to
 the system time.  (That is the reason why chronyd uses slewing
 normally.)
 
-The @code{makestep} command is currently only available on the Linux
-version of chrony.
+The @code{makestep} directive in the configuration file can be used
+to step the clock automatically when the adjustment is larger than a
+specified threshold, see @ref{makestep directive}.
 @c }}}
 @c {{{ manual
 @node manual command
@@ -2933,12 +3196,14 @@ The following examples illustrate the syntax
 @example
 maxdelay foo.bar.com 0.3
 maxdelay 1.2.3.4 0.0015
+maxdelay 2001:db8::1 0.0015
 @end example
 
 The first example sets the maximum network delay allowed for a
 measurement to the host @code{foo.bar.com} to 0.3 seconds.  The second
-example sets the maximum network delay for a measurement to the host
-with IP address @code{1.2.3.4} to 1.5 milliseconds.
+and third examples set the maximum network delay for a measurement to
+the host with IPv4 address @code{1.2.3.4} and the host with IPv6 address
+@code{2001:db8::1} to 1.5 milliseconds.
 
 (Any measurement whose network delay exceeds the specified value is
 discarded.)
@@ -2956,13 +3221,15 @@ The following examples illustrate the syntax
 @example
 maxdelayratio foo.bar.com 1.5
 maxdelayratio 1.2.3.4 2.0
+maxdelayratio 2001:db8::1 2.0
 @end example
 
 The first example sets the maximum network delay for a measurement to
 the host @code{foo.bar.com} to be 1.5 times the minimum delay found
 amongst the previous measurements that have been retained.  The second
-example sets the maximum network delay for a measurement to the host
-with IP address @code{1.2.3.4} to be double the retained minimum.
+and third examples set the maximum network delay for a measurement to
+the host with IPv4 address @code{1.2.3.4} and the host with IPv6
+address @code{2001:db8::1} to be double the retained minimum.
 
 As for @code{maxdelay}, any measurement whose network delay is too large
 will be discarded.
@@ -2981,7 +3248,7 @@ The syntax is as follows
 maxpoll <host> <new-maxpoll>
 @end example
 
-where the host can be specified as either a machine name or dotted-quad
+where the host can be specified as either a machine name or 
 IP address.  The new minimum poll is specified as a base-2 logarithm of
 the number of seconds between polls (e.g. specify 6 for 64 second
 sampling).
@@ -3018,7 +3285,7 @@ The syntax is as follows
 minpoll <host> <new-minpoll>
 @end example
 
-where the host can be specified as either a machine name or dotted-quad
+where the host can be specified as either a machine name or
 IP address.  The new minimum poll is specified as a base-2 logarithm of
 the number of seconds between polls (e.g. specify 6 for 64 second
 sampling).
@@ -3085,24 +3352,29 @@ the @code{offline} command being used, @code{chronyd} would assume that the
 source had failed and would attempt to pick another synchronisation
 source.
 
-There are two forms of the @code{offline} command.  The first form is a
+There are three forms of the @code{offline} command.  The first form is a
 wildcard, meaning all sources.  The second form allows a IP address mask
-and a masked address to be specified.  These forms are illustrated below.
+and a masked address to be specified.  The third form uses the CIDR
+notation.  These forms are illustrated below.
 
 @example
 offline
 offline 255.255.255.0/1.2.3.0
+offline 2001:db8:789a::/48
 @end example
 
 The second form means that the @code{offline} command is to be applied
-to any source whose IP address is in the 1.2.3 subnet.  (The host's
+to any source whose IPv4 address is in the @code{1.2.3} subnet.  (The host's
 address is logically and-ed with the mask, and if the result matches the
-masked-address the host is processed).
+masked-address the host is processed).  The third form means that the
+command is to be applied to all sources whose IPv6 addresses have first
+48 bits equal to @code{2001:db8:789a}.
 
 The wildcard form of the address is actually equivalent to
 
 @example
 offline 0.0.0.0/0.0.0.0
+offline ::/0
 @end example
 @c }}}
 @c {{{ online
@@ -3269,8 +3541,7 @@ The columns are as follows:
 @item M
 This indicates the mode of the source.  @code{^} means a server,
 @code{=} means a peer and @code{#} indicates a locally connected
-reference clock@footnote{In the current version this will never be
-shown, because @code{chronyd} has no support for reference clocks yet.}.
+reference clock.
 
 @item S
 This column indicates the state of the sources.  @code{*} indicates the
@@ -3283,7 +3554,8 @@ appears to have too much variability.  The @code{~} condition is also
 shown at start-up, until at least 3 samples have been gathered from it.
 
 @item Name/IP address
-This shows the name or the IP address of the source.
+This shows the name or the IP address of the source, or refid for
+reference clocks.
 
 @item Stratum
 This shows the stratum of the source, as reported in its most recently
@@ -3308,7 +3580,8 @@ source.  This is normally in seconds.  The letters @code{m}, @code{h},
 @item Last sample
 This column shows the offset between the local clock and the source at
 the last measurement.  The number in the square brackets shows the
-actual measured offset.  This may be suffixed by @code{us} (indicating
+actual measured offset.  This may be suffixed by @code{ns} (indicating
+nanoseconds), @code{us} (indicating
 microseconds), @code{ms} (indicating milliseconds), or @code{s}
 (indicating seconds).  The number to the left of the square brackets
 shows the original measurement, adjusted to allow for any slews applied
@@ -3336,9 +3609,9 @@ An example report is
 @example
 @group
 210 Number of sources = 1
-Name/IP Address            NP  NR  Span  Frequency   Freq Skew   Std Dev
-========================================================================
-abc.def.ghi                11   5   46m      -0.001       0.045     25us
+Name/IP Address            NP  NR  Span  Frequency  Freq Skew  Offset  Std Dev
+===============================================================================
+abc.def.ghi                11   5   46m     -0.001      0.045      1us    25us
 @end group
 @end example
 
@@ -3346,8 +3619,8 @@ The columns are as follows
 
 @table @code
 @item Name/IP Address
-This is the name or dotted-quad IP address of the NTP server (or peer)
-to which the rest of the line relates.
+This is the name or IP address of the NTP server (or peer) or refid of
+the refclock to which the rest of the line relates.
 
 @item NP
 This is the number of sample points currently being retained for the
@@ -3376,6 +3649,9 @@ million.  In this case, the computer's clock is estimated to be running
 This is the estimated error bounds on @code{Freq} (again in parts per
 million).
 
+@item Offset
+This is the estimated offset of the source.
+
 @item Std Dev
 This is the estimated sample standard deviation.
 
@@ -3391,7 +3667,7 @@ performance.  An example of the output is shown below.
 Reference ID    : 1.2.3.4 (a.b.c)
 Stratum         : 3
 Ref time (UTC)  : Sun May 17 06:13:11 1998
-System time     : 0.000000 seconds fast of NTP time
+System time     : 0.000000000 seconds fast of NTP time
 Frequency       : 331.898 ppm fast
 Residual freq   : 0.004 ppm
 Skew            : 0.154 ppm
@@ -3403,7 +3679,7 @@ The fields are explained as follows.
 
 @table @code
 @item Reference ID
-This is the IP address, and name if available, of the server to which
+This is the refid and name (or IP address) if available, of the server to which
 the computer is currently synchronised.  If this is @code{127.127.1.1}
 it means the computer is not synchronised to any external source and
 that you have the `local' mode operating (via the @code{local} command
@@ -3669,8 +3945,8 @@ the system clock is periodically reset to the real-time clock.
 @center GNU GENERAL PUBLIC LICENSE
 @center	Version 2, June 1991
 
- Copyright (C) 1989, 1991 Free Software Foundation, Inc.
- 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ Copyright (C) 1989, 1991 Free Software Foundation, Inc.,
+ 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.
 
@@ -3683,7 +3959,7 @@ software--to make sure the software is free for all its users.  This
 General Public License applies to most of the Free Software
 Foundation's software and to any other program whose authors commit to
 using it.  (Some other Free Software Foundation software is covered by
-the GNU Library General Public License instead.)  You can apply it to
+the GNU Lesser General Public License instead.)  You can apply it to
 your programs, too.
 
   When we speak of free software, we are referring to freedom, not
@@ -3947,7 +4223,7 @@ POSSIBILITY OF SUCH DAMAGES.
 
 		     END OF TERMS AND CONDITIONS
 
-	Appendix: How to Apply These Terms to Your New Programs
+	    How to Apply These Terms to Your New Programs
 
   If you develop a new program, and you want it to be of the greatest
 possible use to the public, the best way to achieve this is to make it
@@ -3959,7 +4235,7 @@ convey the exclusion of warranty; and each file should have at least
 the "copyright" line and a pointer to where the full notice is found.
 
     <one line to give the program's name and a brief idea of what it does.>
-    Copyright (C) 19yy  <name of author>
+    Copyright (C) <year>  <name of author>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -3971,16 +4247,16 @@ the "copyright" line and a pointer to where the full notice is found.
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 Also add information on how to contact you by electronic and paper mail.
 
 If the program is interactive, make it output a short notice like this
 when it starts in an interactive mode:
 
-    Gnomovision version 69, Copyright (C) 19yy name of author
+    Gnomovision version 69, Copyright (C) year name of author
     Gnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
     This is free software, and you are welcome to redistribute it
     under certain conditions; type `show c' for details.
@@ -4003,7 +4279,7 @@ necessary.  Here is a sample; alter the names:
 This General Public License does not permit incorporating your program into
 proprietary programs.  If your program is a subroutine library, you may
 consider it more useful to permit linking proprietary applications with the
-library.  If this is what you want to do, use the GNU Library General
+library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.
 @c }}}
 @contents

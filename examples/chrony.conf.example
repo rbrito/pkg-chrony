@@ -1,9 +1,8 @@
 #######################################################################
-# $Header: /cvs/src/chrony/examples/chrony.conf.example,v 1.2 2002/02/03 21:46:29 richard Exp $
 #
 # This is an example chrony configuration file.  You should copy it to
 # /etc/chrony.conf after uncommenting and editing the options that you
-# want to enable.  I have not included the more obscure options.  Refer
+# want to enable.  The more obscure options are not included.  Refer
 # to the documentation for these.
 #
 # Copyright 2002 Richard P. Curnow
@@ -19,7 +18,7 @@
 # 
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 # 
 #
 #######################################################################
@@ -157,8 +156,8 @@ commandkey 1
 ! logdir /var/log/chrony
 ! log measurements statistics tracking
 
-If you have real time clock support enabled (see below), you might want
-this line instead:
+# If you have real time clock support enabled (see below), you might want
+# this line instead:
 
 ! log measurements statistics tracking rtc
 
@@ -208,6 +207,12 @@ this line instead:
 # clients.
 
 ! noclientlog
+
+# The clientlog size is limited to 512KB by default.  If you have many
+# clients, especially in many different subnets, you might want to
+# increase the limit. 
+
+! clientloglimit 4194304
 
 #######################################################################
 ### REPORTING BIG CLOCK CHANGES
@@ -287,3 +292,21 @@ cmdallow 127.0.0.1
 ! rtcdevice /dev/misc/rtc
 
 #######################################################################
+### REAL TIME SCHEDULER
+# This directive tells chronyd to use the real-time FIFO scheduler with the
+# specified priority (which must be between 0 and 100).  This should result
+# in reduced latency.  You don't need it unless you really have a requirement
+# for extreme clock stability.  Works only on Linux.  Note that the "-P"
+# command-line switch will override this.
+
+! sched_priority 1
+
+#######################################################################
+### LOCKING CHRONYD INTO RAM
+# This directive tells chronyd to use the mlockall() syscall to lock itself
+# into RAM so that it will never be paged out.  This should result in reduced
+# latency.  You don't need it unless you really have a requirement
+# for extreme clock stability.  Works only on Linux.  Note that the "-m"
+# command-line switch will also enable this feature.
+
+! lock_all

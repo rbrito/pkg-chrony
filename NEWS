@@ -1,3 +1,40 @@
+New in version 1.24
+===================
+
+Security fixes
+--------------
+* Don't reply to invalid cmdmon packets (CVE-2010-0292)
+* Limit client log memory size (CVE-2010-0293)
+* Limit rate of syslog messages (CVE-2010-0294)
+
+Bug fixes/Enhancements
+----------------------
+* Support for reference clocks (SHM, SOCK, PPS drivers)
+* IPv6 support
+* Linux capabilities support (to drop root privileges)
+* Memory locking support on Linux
+* Real-time scheduler support on Linux
+* Leap second support on Linux
+* Support for editline library
+* Support for new Linux readonly adjtime
+* NTP client support for KoD RATE
+* Read kernel timestamps for received NTP packets
+* Reply to NTP requests with correct address on multihomed hosts
+* Retry name resolving after temporary failure
+* Fix makestep command, make it available on all systems
+* Add makestep directive for automatic clock stepping
+* Don't require _bigadj kernel symbol on NetBSD
+* Avoid blocking read in Linux RTC driver
+* Support for Linux on S/390 and PowerPC
+* Fix various bugs on 64-bit systems
+* Fix valgrind errors and compiler warnings
+* Improve configure to support common options and variables
+* Improve status checking and printing in chronyc
+* Return non-zero exit code on errors in chronyc
+* Reduce request timeout in chronyc
+* Print estimated offset in sourcestats
+* Changed chronyc protocol, incompatible with older versions
+
 New in version 1.23
 ===================
 

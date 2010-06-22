@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -132,7 +132,7 @@ timeout_handler(void *arbitrary)
 /* ================================================== */
 
 void 
-BRD_AddDestination(unsigned long addr, unsigned short port, int interval)
+BRD_AddDestination(IPAddr *addr, unsigned short port, int interval)
 {
   if (max_destinations == n_destinations) {
     /* Expand array */
@@ -144,7 +144,8 @@ BRD_AddDestination(unsigned long addr, unsigned short port, int interval)
     }
   }
 
-  destinations[n_destinations].addr.ip_addr = addr;
+  destinations[n_destinations].addr.ip_addr = *addr;
+  destinations[n_destinations].addr.local_ip_addr.family = IPADDR_UNSPEC;
   destinations[n_destinations].addr.port = port;
   destinations[n_destinations].interval = interval;
 

@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -59,6 +59,10 @@ extern void SCH_AddInputFileHandler
  SCH_ArbitraryArgument          /* An arbitrary passthrough argument to the handler */
 );
 extern void SCH_RemoveInputFileHandler(int fd);
+
+/* Get the time (cooked) when file descriptor became ready, intended for use
+   in file handlers */
+extern void SCH_GetFileReadyTime(struct timeval *tv);
 
 /* This queues a timeout to elapse at a given (raw) local time */
 extern SCH_TimeoutID SCH_AddTimeout(struct timeval *tv, SCH_TimeoutHandler, SCH_ArbitraryArgument);

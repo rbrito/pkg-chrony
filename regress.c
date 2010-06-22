@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -363,7 +363,7 @@ find_ordered_entry_with_flags(double *x, int n, int index, int *flags)
       l = u + 1;
       r = v;
       do {
-        while (x[l] < piv) l++;
+        while (x[l] < piv && l < v) l++;
         while (x[r] > piv) r--;
         if (r <= l) break;
         EXCH(x[l], x[r]);

@@ -7,6 +7,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Miroslav Lichvar  2009
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +20,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -300,6 +301,9 @@ create_instance(NTP_Remote_Address *remote_addr, NTP_Mode mode, SourceParameters
 
   result->tx_count = 0;
 
+  result->remote_orig.hi = 0;
+  result->remote_orig.lo = 0;
+
   result->score = 0;
 
   if (params->online) {
@@ -316,13 +320,14 @@ create_instance(NTP_Remote_Address *remote_addr, NTP_Mode mode, SourceParameters
   result->local_poll = params->minpoll;
 
   /* Create a source instance for this NTP source */
-  result->source = SRC_CreateNewInstance(remote_addr->ip_addr); /* Will need extra params eventually */
+  result->source = SRC_CreateNewInstance(UTI_IPToRefid(&remote_addr->ip_addr), SRC_NTP, &result->remote_addr.ip_addr);
 
   result->local_rx.tv_sec = 0;
   result->local_rx.tv_usec = 0;
-  result->local_tx.tv_sec = 0;   /* JGH */
-  result->local_tx.tv_usec = 0;  /* JGH */
-
+  result->local_tx.tv_sec = 0;
+  result->local_tx.tv_usec = 0;
+  result->local_ntp_tx.hi = 0;
+  result->local_ntp_tx.lo = 0;
 
   return result;
 
@@ -624,7 +629,7 @@ transmit_timeout(void *arg)
 
 #ifdef TRACEON
   LOG(LOGS_INFO, LOGF_NtpCore, "Transmit timeout for [%s:%d]",
-      UTI_IPToDottedQuad(inst->remote_addr.ip_addr), inst->remote_addr.port);
+      UTI_IPToString(&inst->remote_addr.ip_addr), inst->remote_addr.port);
 #endif
 
   /* Check whether we need to 'warm up' the link to the other end by
@@ -812,8 +817,12 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
   int valid_data;
   int valid_header;
 
+  /* Kiss-of-Death packets */
+  int kod_rate = 0;
+  int valid_kod;
+
   /* Variables used for doing logging */
-  static char sync_stats[4] = {'N', '-', '+', '?'};
+  static char sync_stats[4] = {'N', '+', '-', '?'};
 
   /* The estimated offset predicted from previous samples.  The
      convention here is that positive means local clock FAST of
@@ -1018,6 +1027,14 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
     test8 = 1;
   }
 
+  /* Check for Kiss-of-Death */
+  if (message->stratum > NTP_MAX_STRATUM && !source_is_synchronized) {
+      if (!memcmp(&message->reference_id, "RATE", 4))
+        kod_rate = 1;
+  }
+
+  valid_kod = test1 && test2 && test5;
+
   valid_data = test1 && test2 && test3 && test4 && test4a && test4b;
   valid_header = test5 && test6 && test7 && test8;
 
@@ -1029,8 +1046,8 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
       message->lvm, message->stratum, message->poll, message->precision);
   LOG(LOGS_INFO, LOGF_NtpCore, "Root delay=%08lx (%f), dispersion=%08lx (%f)",
       message->root_delay, pkt_root_delay, message->root_dispersion, pkt_root_dispersion);
-  LOG(LOGS_INFO, LOGF_NtpCore, "Ref id=[%s], ref_time=%08lx.%08lx [%s]",
-      UTI_IPToDottedQuad(ntohl(message->reference_id)),
+  LOG(LOGS_INFO, LOGF_NtpCore, "Ref id=[%lx], ref_time=%08lx.%08lx [%s]",
+      ntohl(message->reference_id),
       message->reference_ts.hi, message->reference_ts.lo,
       UTI_TimestampToString(&message->reference_ts));
   LOG(LOGS_INFO, LOGF_NtpCore, "Originate=%08lx.%08lx [%s]",
@@ -1052,9 +1069,11 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
 
   LOG(LOGS_INFO, LOGF_NtpCore, "test5=%d test6=%d test7=%d test8=%d valid_header=%d",
       test5, test6, test7, test8, valid_header);
+
+  LOG(LOGS_INFO, LOGF_NtpCore, "kod_rate=%d valid_kod=%d", kod_rate, valid_kod);
 #endif
 
-  if (valid_header) {
+  if (valid_header && valid_data) {
     inst->tx_count = 0;
     SRC_SetReachable(inst->source);
   }
@@ -1219,6 +1238,19 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
 
   }
 
+  /* Reduce polling if KoD RATE was received */
+  if (kod_rate && valid_kod) {
+    if (inst->remote_poll > inst->minpoll) {
+      inst->minpoll = inst->remote_poll;
+      if (inst->minpoll > inst->maxpoll)
+        inst->maxpoll = inst->minpoll;
+      if (inst->minpoll > inst->local_poll)
+        inst->local_poll = inst->minpoll;
+      LOG(LOGS_INFO, LOGF_NtpCore, "Received KoD RATE from %s, minpoll set to %d", UTI_IPToString(&inst->remote_addr.ip_addr), inst->minpoll);
+    }
+    /* Back off for a while */
+    delay_time += (double) (4 * (1UL << inst->minpoll));
+  }
 
   if (requeue_transmit) {
     /* Get rid of old timeout and start a new one */
@@ -1239,7 +1271,7 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
 
     fprintf(logfile, "%s %-15s %1c %2d %1d%1d%1d%1d %1d%1d %1d%1d%1d%1d %2d %2d %2d %10.3e %10.3e %10.3e %10.3e %10.3e\n",
             UTI_TimeToLogForm(sample_time.tv_sec),
-            UTI_IPToDottedQuad(inst->remote_addr.ip_addr),
+            UTI_IPToString(&inst->remote_addr.ip_addr),
             sync_stats[pkt_leap],
             message->stratum,
             test1, test2, test3, test4,
@@ -1328,9 +1360,9 @@ process_known
          one of the secondaries to flywheel it. The behaviour coded here
          is required in the secondaries to make this possible. */
 
-      if (ADF_IsAllowed(access_auth_table, inst->remote_addr.ip_addr)) {
+      if (ADF_IsAllowed(access_auth_table, &inst->remote_addr.ip_addr)) {
 
-        CLG_LogNTPClientAccess(inst->remote_addr.ip_addr, (time_t) now->tv_sec);
+        CLG_LogNTPClientAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
 
         if (do_auth) {
           auth_key_id = ntohl(message->auth_keyid);
@@ -1363,7 +1395,7 @@ process_known
 
       } else if (!LOG_RateLimited()) {
         LOG(LOGS_WARN, LOGF_NtpCore, "NTP packet received from unauthorised host %s port %d",
-            UTI_IPToDottedQuad(inst->remote_addr.ip_addr),
+            UTI_IPToString(&inst->remote_addr.ip_addr),
             inst->remote_addr.port);
       }
 
@@ -1374,7 +1406,7 @@ process_known
       switch(inst->mode) {
         case MODE_ACTIVE:
           /* Ordinary symmetric peering */
-          CLG_LogNTPPeerAccess(inst->remote_addr.ip_addr, (time_t) now->tv_sec);
+          CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
           receive_packet(message, now, inst, do_auth);
           break;
         case MODE_PASSIVE:
@@ -1384,7 +1416,7 @@ process_known
         case MODE_CLIENT:
           /* This is where we have the remote configured as a server and he has
              us configured as a peer - fair enough. */
-          CLG_LogNTPPeerAccess(inst->remote_addr.ip_addr, (time_t) now->tv_sec);
+          CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
           receive_packet(message, now, inst, do_auth);
           break;
         case MODE_SERVER:
@@ -1405,7 +1437,7 @@ process_known
       switch(inst->mode) {
         case MODE_ACTIVE:
           /* Slightly bizarre combination, but we can still process it */
-          CLG_LogNTPPeerAccess(inst->remote_addr.ip_addr, (time_t) now->tv_sec);
+          CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
           receive_packet(message, now, inst, do_auth);
           break;
         case MODE_PASSIVE:
@@ -1433,7 +1465,7 @@ process_known
         case MODE_ACTIVE:
           /* This would arise if we have the remote configured as a peer and
              he does not have us configured */
-          CLG_LogNTPPeerAccess(inst->remote_addr.ip_addr, (time_t) now->tv_sec);
+          CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
           receive_packet(message, now, inst, do_auth);
           break;
         case MODE_PASSIVE:
@@ -1495,19 +1527,19 @@ NCR_ProcessNoauthUnknown(NTP_Packet *message, struct timeval *now, NTP_Remote_Ad
   NTP_Mode my_mode;
   int my_poll;
 
-  if (ADF_IsAllowed(access_auth_table, remote_addr->ip_addr)) {
+  if (ADF_IsAllowed(access_auth_table, &remote_addr->ip_addr)) {
 
     his_mode = message->lvm & 0x07;
 
     if (his_mode == MODE_CLIENT) {
       /* We are server */
       my_mode = MODE_SERVER;
-      CLG_LogNTPClientAccess(remote_addr->ip_addr, (time_t) now->tv_sec);
+      CLG_LogNTPClientAccess(&remote_addr->ip_addr, (time_t) now->tv_sec);
 
     } else if (his_mode == MODE_ACTIVE) {
       /* We are symmetric passive, even though we don't ever lock to him */
       my_mode = MODE_PASSIVE;
-      CLG_LogNTPPeerAccess(remote_addr->ip_addr, (time_t) now->tv_sec);
+      CLG_LogNTPPeerAccess(&remote_addr->ip_addr, (time_t) now->tv_sec);
 
     } else {
       my_mode = MODE_UNDEFINED;
@@ -1531,7 +1563,7 @@ NCR_ProcessNoauthUnknown(NTP_Packet *message, struct timeval *now, NTP_Remote_Ad
     }
   } else if (!LOG_RateLimited()) {
     LOG(LOGS_WARN, LOGF_NtpCore, "NTP packet received from unauthorised host %s port %d",
-        UTI_IPToDottedQuad(remote_addr->ip_addr),
+        UTI_IPToString(&remote_addr->ip_addr),
         remote_addr->port);
   }
 
@@ -1565,19 +1597,19 @@ NCR_ProcessAuthUnknown(NTP_Packet *message, struct timeval *now, NTP_Remote_Addr
   int valid_key, valid_auth;
   unsigned long key_id;
 
-  if (ADF_IsAllowed(access_auth_table, remote_addr->ip_addr)) {
+  if (ADF_IsAllowed(access_auth_table, &remote_addr->ip_addr)) {
 
     his_mode = message->lvm & 0x07;
     
     if (his_mode == MODE_CLIENT) {
       /* We are server */
       my_mode = MODE_SERVER;
-      CLG_LogNTPClientAccess(remote_addr->ip_addr, (time_t) now->tv_sec);
+      CLG_LogNTPClientAccess(&remote_addr->ip_addr, (time_t) now->tv_sec);
 
     } else if (his_mode == MODE_ACTIVE) {
       /* We are symmetric passive, even though we don't ever lock to him */
       my_mode = MODE_PASSIVE;
-      CLG_LogNTPPeerAccess(remote_addr->ip_addr, (time_t) now->tv_sec);
+      CLG_LogNTPPeerAccess(&remote_addr->ip_addr, (time_t) now->tv_sec);
 
     } else {
       my_mode = MODE_UNDEFINED;
@@ -1649,7 +1681,7 @@ NCR_TakeSourceOnline(NCR_Instance inst)
     case MD_OFFLINE:
       if (!inst->timer_running) {
         /* We are not already actively polling it */
-        LOG(LOGS_INFO, LOGF_NtpCore, "Source %s online", UTI_IPToDottedQuad(inst->remote_addr.ip_addr));
+        LOG(LOGS_INFO, LOGF_NtpCore, "Source %s online", UTI_IPToString(&inst->remote_addr.ip_addr));
         inst->local_poll = inst->minpoll;
         inst->score = (ZONE_WIDTH >> 1);
         inst->opmode = MD_ONLINE;
@@ -1673,7 +1705,7 @@ NCR_TakeSourceOffline(NCR_Instance inst)
   switch (inst->opmode) {
     case MD_ONLINE:
       if (inst->timer_running) {
-        LOG(LOGS_INFO, LOGF_NtpCore, "Source %s offline", UTI_IPToDottedQuad(inst->remote_addr.ip_addr));
+        LOG(LOGS_INFO, LOGF_NtpCore, "Source %s offline", UTI_IPToString(&inst->remote_addr.ip_addr));
         SCH_RemoveTimeout(inst->timeout_id);
         inst->timer_running = 0;
         inst->opmode = MD_OFFLINE;
@@ -1696,7 +1728,7 @@ void
 NCR_ModifyMinpoll(NCR_Instance inst, int new_minpoll)
 {
   inst->minpoll = new_minpoll;
-  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new minpoll %d", UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_minpoll);
+  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new minpoll %d", UTI_IPToString(&inst->remote_addr.ip_addr), new_minpoll);
 }
 
 /* ================================================== */
@@ -1705,7 +1737,7 @@ void
 NCR_ModifyMaxpoll(NCR_Instance inst, int new_maxpoll)
 {
   inst->maxpoll = new_maxpoll;
-  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new maxpoll %d", UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_maxpoll);
+  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new maxpoll %d", UTI_IPToString(&inst->remote_addr.ip_addr), new_maxpoll);
 }
 
 /* ================================================== */
@@ -1715,7 +1747,7 @@ NCR_ModifyMaxdelay(NCR_Instance inst, double new_max_delay)
 {
   inst->max_delay = new_max_delay;
   LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new max delay %f",
-      UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_max_delay);
+      UTI_IPToString(&inst->remote_addr.ip_addr), new_max_delay);
 }
 
 /* ================================================== */
@@ -1725,7 +1757,7 @@ NCR_ModifyMaxdelayratio(NCR_Instance inst, double new_max_delay_ratio)
 {
   inst->max_delay_ratio = new_max_delay_ratio;
   LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new max delay ratio %f",
-      UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_max_delay_ratio);
+      UTI_IPToString(&inst->remote_addr.ip_addr), new_max_delay_ratio);
 }
 
 /* ================================================== */
@@ -1807,7 +1839,7 @@ NCR_ReportSource(NCR_Instance inst, RPT_SourceReport *report, struct timeval *no
 /* ================================================== */
 
 int
-NCR_AddAccessRestriction(unsigned long ip_addr, int subnet_bits, int allow, int all)
+NCR_AddAccessRestriction(IPAddr *ip_addr, int subnet_bits, int allow, int all)
  {
   ADF_Status status;
 
@@ -1837,7 +1869,7 @@ NCR_AddAccessRestriction(unsigned long ip_addr, int subnet_bits, int allow, int 
 /* ================================================== */
 
 int
-NCR_CheckAccessRestriction(unsigned long ip_addr)
+NCR_CheckAccessRestriction(IPAddr *ip_addr)
 {
   return ADF_IsAllowed(access_auth_table, ip_addr);
 }
@@ -1880,6 +1912,14 @@ NCR_IncrementActivityCounters(NCR_Instance inst, int *online, int *offline,
       CROAK("Impossible");
       break;
   }
+}
+
+/* ================================================== */
+
+NTP_Remote_Address *
+NCR_GetRemoteAddress(NCR_Instance inst) 
+{
+  return &inst->remote_addr;
 }
 
 /* ================================================== */

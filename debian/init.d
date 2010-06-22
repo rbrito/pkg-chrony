@@ -3,19 +3,19 @@
 # Written by Miquel van Smoorenburg <miquels@drinkel.ow.org>.
 # Modified for Debian GNU/Linux by Ian Murdock <imurdock@gnu.ai.mit.edu>.
 # Modified for Debian by Christoph Lameter <clameter@debian.org>
-# Modified for chrony by John Hasler <jhasler@debian.org> 1998-2008
+# Modified for chrony by John Hasler <jhasler@debian.org> 1998-2010
 
 ### BEGIN INIT INFO
-# Provides:          time-daemon
-# Required-Start:    $local_fs
-# Required-Stop:     $local_fs
+# Provides:          chrony
+# Required-Start:    $remote_fs
+# Required-Stop:     $remote_fs
+# Should-Start:      $syslog $network $named
+# Should-Stop:       $syslog $network $named
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description:  Controls chronyd NTP time daemon
+# Short-Description: Controls chronyd NTP time daemon
 # Description:       Chronyd is the NTP time daemon in the Chrony package
-#              
 ### END INIT INFO
-
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 DAEMON=/usr/sbin/chronyd

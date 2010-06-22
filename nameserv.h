@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -32,11 +32,14 @@
 #ifndef GOT_NAMESERV_H
 #define GOT_NAMESERV_H
 
-static const unsigned long DNS_Failed_Address = 0x0UL;
+#include "addressing.h"
 
-extern unsigned long DNS_Name2IPAddress(const char *name);
+/* Resolve names only to selected address family */
+extern void DNS_SetAddressFamily(int family);
 
-const char *DNS_IPAddress2Name(unsigned long ip_addr);
+extern int DNS_Name2IPAddress(const char *name, IPAddr *addr, int retry);
+
+extern int DNS_IPAddress2Name(IPAddr *ip_addr, char *name, int len);
 
 #endif /* GOT_NAMESERV_H */
 

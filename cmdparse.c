@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -61,8 +61,7 @@ CPS_ParseNTPSourceAdd(const char *line, CPS_NTP_Source *src)
   
   ok = 0;
   if (sscanf(line, "%" SMAXLEN "s%n", hostname, &n) == 1) {
-    src->ip_addr = DNS_Name2IPAddress(hostname);
-    if (src->ip_addr != DNS_Failed_Address) {
+    if (DNS_Name2IPAddress(hostname, &src->ip_addr, 1)) {
       ok = 1;
     }
   }

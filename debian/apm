@@ -9,9 +9,9 @@
 [ -x /usr/sbin/chronyd ] || exit 0
 
 if [ "$1" = suspend ]; then
-	/etc/init.d/chrony stop
+	invoke-rc.d chrony stop
 elif [ "$1" = standby ]; then
-	/etc/init.d/chrony stop
+	invoke-rc.d chrony stop
 elif [ "$1" = resume ]; then
-	/etc/init.d/chrony start
+	invoke-rc.d chrony start
 fi

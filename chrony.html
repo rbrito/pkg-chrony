@@ -152,7 +152,8 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Availability">Availability</a>
 
 <h4 class="subsection">1.3.1 Getting the software</h4>
 
-<p>Links on <a href="http://chrony.sunsite.dk/download.php">the chrony home page</a> describe how to obtain the software.
+<p>Links on <a href="http://chrony.tuxfamily.org">the chrony home page</a>
+describe how to obtain the software.
 
 <div class="node">
 <a name="Platforms"></a>
@@ -174,8 +175,9 @@ different quirks in its behaviour.
 
    <p>The software is known to work in the following environments:
      <ul>
-<li>Linux/i386 and Linux/ppc.  The software is known to work on Linux 2.0.x,
-2.2.x and 2.4.x.  Prior to 2.0.31, the real time clock can't be used.
+<li>Linux on i386, x86_64 and PowerPC architectures.  The software is known
+to work on Linux 2.0.x and newer.  Prior to 2.0.31, the real time clock can't
+be used.
 
      <li>NetBSD
 <li>BSD/386
@@ -265,16 +267,9 @@ integrated into <code>chronyd</code>.
    <p>Things <code>xntpd</code> can do that <code>chronyd</code> can't:
 
      <ul>
-<li><code>xntpd</code> supports a range of different hardware reference clocks
-(GPS, atomic etc) that can be connected to a computer to provide a
-`stratum-1' server.  <code>chronyd</code> does not support any such hardware
-<em>yet</em>; I don't have access to any to do any development work. 
-However, the software architecture should allow such equipment to be
-interfaced at a later date.
-
-     <li><code>xntpd</code> supports effectively all of RFC1305, including broadcast /
-multicast clients, leap seconds, and extra encryption schemes for
-authenticating data packets.
+<li><code>xntpd</code> supports effectively all of RFC1305, including broadcast /
+multicast clients and extra encryption schemes for authenticating
+data packets.
 
      <li><code>xntpd</code> has been ported to more types of computer / operating
 system (so far).
@@ -355,29 +350,19 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Introduction">Introduction</a>
 
 <h3 class="section">1.6 Bug reporting and suggestions</h3>
 
-<p>If you think you've found a bug in chrony, or have a suggestion, please let me
-know.  My primary current email address is <a href="mailto:rc@rc0.org.uk">rc@rc0.org.uk</a>.  If that
-fails, you could try finding me through one of the chrony mailing lists, or by
-looking up my name on a search engine.
+<p>If you think you've found a bug in chrony, or have a suggestion, please let us
+know.  You can join chrony users mailing list by sending a message with the
+subject subscribe to <a href="mailto:chrony-users-request@chrony.tuxfamily.org">chrony-users-request@chrony.tuxfamily.org</a>.  Only
+subscribers can post to the list.
 
-   <p>I can't promise a timescale to fix a bug; it depends a lot on the how complex
-the bug is to track down, as I have a lot of other calls on my time : 2 young
-children, my job, and indeed other free/open source software projects. 
-However, I do intend to look into problems when time allows.
-
-   <p>Another source of information to try is the chrony users mailing list.  You can
-join this by sending an empty message to
-<a href="mailto:chrony-users-subscribe@sunsite.dk">chrony-users-subscribe@sunsite.dk</a>.  Only subscribers can post to
-the list.
-
-   <p>When you are reporting a bug, please send me all the information you can. 
+   <p>When you are reporting a bug, please send us all the information you can. 
 Unfortunately, chrony has proven to be one of those programs where it is very
-difficult to reproduce bugs in a different environment.  So I may have to
+difficult to reproduce bugs in a different environment.  So we may have to
 interact with you quite a lot to obtain enough extra logging and tracing to
 pin-point the problem in some cases.  Please be patient and plan for this!
 
-   <p>Of course, if you can debug the problem yourself and send me a source code
-patch to fix it, I will be very grateful!
+   <p>Of course, if you can debug the problem yourself and send us a source code
+patch to fix it, we will be very grateful!
 
 <!-- }}} -->
 <!-- {{{ S:Contributions -->
@@ -395,7 +380,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Introduction">Introduction</a>
 areas that could be improved.  If you can program in C and have some expertise
 in these areas, you might be able to fill the gaps.
 
-   <p>Particular areas I know need addressing are :
+   <p>Particular areas that need addressing are :
 
      <ol type=1 start=1>
 <li>Porting to other Unices
@@ -417,7 +402,7 @@ setsid() etc with so that chronyd can be automatically started in the system
 bootstrap.
           </ol>
 
-     <li>Hardware clock support
+     <li>More drivers for reference clock support
 
      <li>Automation of the trimrtc and writertc mechanisms
 
@@ -480,13 +465,16 @@ If you want to use a different compiler, you can configure this way:
    <p>for C-family shells.
 
    <p>If the software cannot (yet) be built on your system, an error message
-will be shown.  Otherwise, the files <samp><span class="file">options.h</span></samp> and
-<samp><span class="file">Makefile</span></samp> will be generated.
+will be shown.  Otherwise, <samp><span class="file">Makefile</span></samp> will be generated.
 
-   <p>By default, chronyc will be built to make use of the readline library.  If you
-don't want this, specify the &ndash;disable-readline flag to configure.  If you have
-readline and/or ncurses installed in a non-standard location, please refer to
-see <a href="#readline-support">readline support</a> for information.
+   <p>If editline or readline library is available, chronyc will be built with line
+editing support.  If you don't want this, specify the &ndash;disable-readline flag
+to configure.  Please refer to see <a href="#line-editing-support">line editing support</a> for more information.
+
+   <p>If a <samp><span class="file">timepps.h</span></samp> header is available, chronyd will be built with PPS API
+reference clock driver.  If the header is installed in a location that isn't
+normally searched by the compiler, you can add it to the searched locations by
+setting <code>CPPFLAGS</code> variable to <code>-I/path/to/timepps</code>.
 
    <p>Now type
 
@@ -516,51 +504,60 @@ to run the <samp><span class="command">install-info</span></samp> command manual
 <samp><span class="command">install-info</span></samp> takes 2 arguments.  The first is the path to the
 <samp><span class="file">chrony.info</span></samp> file you have just installed.  This will be the argument you
 gave to &ndash;prefix when you configured (<samp><span class="file">/usr/local</span></samp> by default), with
-<samp><span class="file">/info/chrony.info</span></samp> on the end.  The second argument is the location of
-the file called <samp><span class="file">dir</span></samp>.  This will typically be <samp><span class="file">/usr/info/dir</span></samp>.  So
+<samp><span class="file">/share/info/chrony.info</span></samp> on the end.  The second argument is the location of
+the file called <samp><span class="file">dir</span></samp>.  This will typically be <samp><span class="file">/usr/share/info/dir</span></samp>.  So
 the typical command line would be
 
-<pre class="example">     install-info /usr/local/info/chrony.info /usr/info/dir
+<pre class="example">     install-info /usr/local/share/info/chrony.info /usr/share/info/dir
 </pre>
    <p>Now that the software is successfully installed, the next step is to
 set up a configuration file.  The contents of this depend on the
-network environment in which the computer operates.  The Debian
-package installs a simple configuration file suitable for a dial-up
-pc.  You should edit it to suit your situation.  Typical scenarios are
-described in the following section of the document. 
+network environment in which the computer operates.  Typical scenarios
+are described in the following section of the document. 
 <!-- }}} -->
 
 <ul class="menu">
-<li><a accesskey="1" href="#readline-support">readline support</a>:             If readline or ncurses in in a non-standard place
+<li><a accesskey="1" href="#line-editing-support">line editing support</a>:         If libraries are in a non-standard place
 <li><a accesskey="2" href="#package-builders">package builders</a>:             Extra options useful to package builders
 </ul>
-<!-- {{{ readline support -->
+<!-- {{{ line editing support -->
 <div class="node">
-<a name="readline-support"></a>
+<a name="line-editing-support"></a>
 <p><hr>
 Next:&nbsp;<a rel="next" accesskey="n" href="#package-builders">package builders</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#Installation">Installation</a>
 
 </div>
 
-<h3 class="section">2.1 Support for the readline library</h3>
+<h3 class="section">2.1 Support for line editing libraries</h3>
 
-<p>By default, chronyc is built to make use of the readline library.  This allows
-you to use the cursor keys to replay and edit old commands.  If you don't want
-to use readline (in which case chronyc will use a minimal command line
-interface), invoke configure like this:
+<p>Chronyc can be built with support for line editing, this allows you to use the
+cursor keys to replay and edit old commands.  Two libraries are supported which
+provide such functionality, editline and GNU readline.
+
+   <p>Please note that readline since version 6.0 is licensed under GPLv3+ which is
+incompatible with chrony's license GPLv2.  You should use editline instead if
+you don't want to use older readline versions.
+
+   <p>The configure script will automatically enable the line editing support if one
+of the supported libraries is available.  If they are both available, the
+editline library will be used.
+
+   <p>If you don't want to use it (in which case chronyc will use a minimal command
+line interface), invoke configure like this:
 
 <pre class="example">     ./configure --disable-readline other-options...
 </pre>
-   <p>If you have readline and/or ncurses installed in locations that aren't normally searched by the compiler and linker, you need extra options if you want readline to be used:
+   <p>If you have editline, readline or ncurses installed in locations that aren't
+normally searched by the compiler and linker, you need to use extra options:
 
      <dl>
 <dt>&lsquo;<samp><span class="samp">--with-readline-includes=directory_name</span></samp>&rsquo;<dd>This defines the name of the directory above the one where <samp><span class="file">readline.h</span></samp>
-is.  <samp><span class="file">readline.h</span></samp> is assumed to be in a <samp><span class="file">readline</span></samp> subdirectory of
-the named directory.
+is.  <samp><span class="file">readline.h</span></samp> is assumed to be in <samp><span class="file">editline</span></samp> or <samp><span class="file">readline</span></samp>
+subdirectory of the named directory.
 
-     <br><dt>&lsquo;<samp><span class="samp">--with-readline-library=directory_name</span></samp>&rsquo;<dd>This defines the directory containing the <samp><span class="file">libreadline.a</span></samp> or
-<samp><span class="file">libreadline.so</span></samp> file.
+     <br><dt>&lsquo;<samp><span class="samp">--with-readline-library=directory_name</span></samp>&rsquo;<dd>This defines the directory containing the <samp><span class="file">libedit.a</span></samp> or <samp><span class="file">libedit.so</span></samp>
+file, or <samp><span class="file">libreadline.a</span></samp> or <samp><span class="file">libreadline.so</span></samp> file.
 
      <br><dt>&lsquo;<samp><span class="samp">--with-ncurses-library=directory_name</span></samp>&rsquo;<dd>This defines the directory containing the <samp><span class="file">libncurses.a</span></samp> or
 <samp><span class="file">libncurses.so</span></samp> file. 
@@ -571,7 +568,7 @@ the named directory.
 <div class="node">
 <a name="package-builders"></a>
 <p><hr>
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#readline-support">readline support</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="#line-editing-support">line editing support</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#Installation">Installation</a>
 
 </div>
@@ -581,13 +578,13 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Installation">Installation</a>
 <p>The configure and make procedures have some extra options that may be useful if
 you are building a distribution package for chrony.
 
-   <p>The &ndash;infodir=DIR option to configure specifies a different install directory
+   <p>The &ndash;infodir=DIR option to configure specifies an install directory
 for the info files.  This overrides the <samp><span class="file">info</span></samp> subdirectory of the
 argument to the &ndash;prefix option.  For example, you might use
 
 <pre class="example">     ./configure --prefix=/usr --infodir=/usr/share/info
 </pre>
-   <p>The &ndash;mandir=DIR option to configure specifies a different install directory
+   <p>The &ndash;mandir=DIR option to configure specifies an install directory
 for the man pages.  This overrides the <samp><span class="file">man</span></samp> subdirectory of the
 argument to the &ndash;prefix option.
 
@@ -667,9 +664,8 @@ use their facilities.
 
    <p>Assuming that you have found some servers, you need to set up a
 configuration file to run chrony.  The (compiled-in) default location
-for this file is <samp><span class="file">/etc/chrony.conf</span></samp>.  In the Debian package the
-configuration files are in the directory <samp><span class="file">/etc/chrony</span></samp>.  Assuming
-that your ntp servers are called <code>a.b.c</code> and <code>d.e.f</code>, your
+for this file is <samp><span class="file">/etc/chrony.conf</span></samp>.  Assuming that your ntp
+servers are called <code>a.b.c</code> and <code>d.e.f</code>, your
 <samp><span class="file">chrony.conf</span></samp> file could contain as a minimum
 
 <pre class="example">     server a.b.c
@@ -763,11 +759,9 @@ into your <samp><span class="file">/etc/hosts</span></samp> file.  This will be 
 comes before &lsquo;<samp><span class="samp">dns</span></samp>&rsquo; in the &lsquo;<samp><span class="samp">hosts</span></samp>&rsquo; line of the
 <samp><span class="file">/etc/nsswitch.conf</span></samp> file.
 
-   <p>In order to notify <code>chronyd</code> of the presence of the link, you
-will need to be able to log in to it with the program chronyc.  To do
-this, <code>chronyd</code> needs to be configured with an administrator
-password.  The Debian package puts a randomly generated key in
-<samp><span class="file">/etc/chrony/chrony.keys</span></samp>.  You should change it.  To set up an
+   <p>In order to notify <code>chronyd</code> of the presence of the link, you will need to
+be able to log in to it with the program chronyc.  To do this, <code>chronyd</code>
+needs to be configured with an administrator password.  To set up an
 administrator password, you can create a file <samp><span class="file">/etc/chrony.keys</span></samp>
 containing a single line
 
@@ -826,9 +820,6 @@ previous section.
      offline
      EOF
 </pre>
-   <p>The Debian package puts scripts similar to those above in the
-directories <samp><span class="file">/etc/ppp/ip-up.d</span></samp> and <samp><span class="file">/etc/ppp/ip-down.d</span></samp>.
-
    <p><code>chronyd's</code> polling of the servers will now only occur whilst the
 machine is actually connected to the Internet. 
 <!-- }}} -->
@@ -1094,9 +1085,6 @@ in <samp><span class="file">/etc/rc.d/rc.local</span></samp> (this is a Slackwar
        echo "Start chronyd"
      fi
 </pre>
-   <p>The Debian package puts a script which handles this and shutdown in
-<samp><span class="file">/etc/init.d/chrony</span></samp>.
-
    <p>The placement of this command may be important on some systems.  In
 particular, <code>chronyd</code> may need to be started several seconds (about
 10 as a minimum) before any software that depends on the system clock
@@ -1192,8 +1180,6 @@ entering the command
 
 <pre class="example">     /usr/local/sbin/chronyd
 </pre>
-   <p>The Debian package uses <samp><span class="file">/usr/sbin/chronyd</span></samp>.
-
    <p>Information messages and warnings will be logged to syslog.
 
    <p>The command line options supported are as follows:
@@ -1232,10 +1218,18 @@ term averaging of the gain or loss rate across system reboots, and is
 useful for dial-up systems that are shut down when not in use.  For this
 to work well, it relies on <code>chronyd</code> having been able to determine
 accurate statistics for the difference between the real time clock and
-system clock last time the computer was on.
-
-     <br><dt><code>-v</code><dd>This option displays <code>chronyd's</code> version number to the terminal and
+system clock last time the computer was on. 
+<br><dt><code>-u &lt;user&gt;</code><dd>When this option is used, chronyd will drop root privileges to the specified
+user.  So far, it works only on Linux when compiled with capabilities support. 
+<br><dt><code>-v</code><dd>This option displays <code>chronyd's</code> version number to the terminal and
 exits. 
+<br><dt><code>-P &lt;priority&gt;</code><dd>This option will select the SCHED_FIFO real-time scheduler at the
+specified priority (which must be between 0 and 100).  This mode is
+supported only on Linux. 
+<br><dt><code>-m</code><dd>This option will lock chronyd into RAM so that it will never be paged
+out.  This mode is only supported on Linux. 
+<br><dt><code>-4</code><dd>With this option hostnames will be resolved only to IPv4 addresses. 
+<br><dt><code>-6</code><dd>With this option hostnames will be resolved only to IPv6 addresses. 
 </dl>
 
    <p>On systems that support an <samp><span class="file">/etc/rc.local</span></samp> file for starting
@@ -1323,6 +1317,7 @@ directives can occur in any order in the file.
 <li><a href="#logchange-directive">logchange directive</a>:          Generate syslog messages if large offsets occur
 <li><a href="#logdir-directive">logdir directive</a>:             Specify directory for logging
 <li><a href="#mailonchange-directive">mailonchange directive</a>:       Send email if a clock correction above a threshold occurs
+<li><a href="#makestep-directive">makestep directive</a>:           Step system clock if large correction is needed
 <li><a href="#manual-directive">manual directive</a>:             Allow manual entry using chronyc's settime cmd. 
 <li><a href="#maxupdateskew-directive">maxupdateskew directive</a>:      Stop bad estimates upsetting machine clock
 <li><a href="#noclientlog-directive">noclientlog directive</a>:        Prevent chronyd from gathering data about clients
@@ -1330,11 +1325,15 @@ directives can occur in any order in the file.
 <li><a href="#peer-directive">peer directive</a>:               Specify an NTP peer
 <li><a href="#pidfile-directive">pidfile directive</a>:            Specify the file where chronyd's pid is written
 <li><a href="#port-directive">port directive</a>:               Set port to use for NTP packets
+<li><a href="#refclock-directive">refclock directive</a>:           Specify a reference clock
 <li><a href="#rtcdevice-directive">rtcdevice directive</a>:          Specify name of enhanced RTC device (if not /dev/rtc)
 <li><a href="#rtcfile-directive">rtcfile directive</a>:            Specify the file where real-time clock data is stored
 <li><a href="#rtconutc-directive">rtconutc directive</a>:           Specify that the real time clock keeps UTC not local time
 <li><a href="#server-directive">server directive</a>:             Specify an NTP server
-</ul>
+<li><a href="#sched_005fpriority-directive">sched_priority directive</a>:     Require real-time scheduling and specify a priority for it. 
+<li><a href="#lock_005fall-directive">lock_all directive</a>:           Require that chronyd be locked into RAM.
+
+   </ul>
 <!-- }}} -->
 <!-- {{{ comments in config file -->
 <div class="node">
@@ -1414,17 +1413,21 @@ to other clients.
      allow 3.4.5
      allow 6.7.8/22
      allow 6.7.8.9/22
+     allow 2001:db8::/32
+     allow 0/0
+     allow ::/0
      allow
 </pre>
    <p>The first command allows the named node to be an NTP client of this computer. 
-The second command allows any node with an IP address of the form 1.2.x.y (with
+The second command allows any node with an IPv4 address of the form 1.2.x.y (with
 x and y arbitrary) to be an NTP client of this computer.  Likewise, the third
-command allows any node with an IP address of the form 3.4.5.x to have client
-NTP access.  The fourth and fifth forms allow access from any node with an IP
+command allows any node with an IPv4 address of the form 3.4.5.x to have client
+NTP access.  The fourth and fifth forms allow access from any node with an IPv4
 address of the form 6.7.8.x, 6.7.9.x, 6.7.10.x or 6.7.11.x (with x arbitrary),
 i.e. the value 22 is the number of bits defining the specified subnet.  (In the
-fifth form, the final byte is ignored).  The sixth form allows access by any
-node on the entire Internet.
+fifth form, the final byte is ignored).  The sixth form is used for IPv6
+addresses.  The seventh and eighth forms allow access by any IPv4 and IPv6 node
+respectively.  The ninth forms allows access by any node (IPv4 or IPv6).
 
    <p>A second form of the directive, <code>allow all</code>, has a greater effect,
 depending on the ordering of directives in the configuration file.  To
@@ -1492,6 +1495,9 @@ firewalls).  It is, therefore, not particularly useful.  Use of the
 <code>allow</code> and <code>deny</code> directives together with a network firewall is
 more likely to be successful.
 
+   <p>For each of IPv4 and IPv6 protocols, only one <code>bindaddress</code>
+directive can be specified.
+
 <!-- }}} -->
 <!-- {{{ bindcmdaddress -->
 <div class="node">
@@ -1523,6 +1529,9 @@ interfaces.  It is, therefore, not particularly useful.  Use of the
 <code>cmdallow</code> and <code>cmddeny</code> directives together with a network firewall
 is more likely to be successful.
 
+   <p>For each of IPv4 and IPv6 protocols, only one <code>bindcmdaddress</code>
+directive can be specified.
+
 <!-- }}} -->
 <!-- {{{ broadcast directive -->
 <div class="node">
@@ -1545,6 +1554,7 @@ synchronise.
 
 <pre class="example">     broadcast 30 192.168.1.255
      broadcast 60 192.168.2.255 12123
+     broadcast 60 ff02::101
 </pre>
    <p>In the first example, the destination port defaults to 123/udp (the normal NTP
 port).  In the second example, the destionation port is specified as 12123. 
@@ -1760,8 +1770,9 @@ directory where the measurement histories are saved.
 
 <pre class="example">     dumpdir /var/log/chrony
 </pre>
-   <p>A source whose IP address is 1.2.3.4 would have its measurement
-history saved in the file <samp><span class="file">/var/log/chrony/1.2.3.4.dat</span></samp>. 
+   <p>A source whose reference id (the IP address for IPv4 sources) is
+1.2.3.4 would have its measurement history saved in the file
+<samp><span class="file">/var/log/chrony/1.2.3.4.dat</span></samp>. 
 <!-- }}} -->
 <!-- {{{ dumponexit -->
 <div class="node">
@@ -2014,7 +2025,10 @@ called statistics.log.
      <br><dt><code>tracking</code><dd>This option logs changes to the estimate of the system's gain or loss
 rate, and any slews made, to a file called tracking.log.
 
-     <br><dt><code>rtc</code><dd>This option logs information about the system's real-time clock. 
+     <br><dt><code>rtc</code><dd>This option logs information about the system's real-time clock.
+
+     <br><dt><code>refclocks</code><dd>This option logs the raw reference clock measurements to a file
+called refclocks.log. 
 </dl>
 
    <p>The files are written to the directory specified by the logdir
@@ -2029,6 +2043,7 @@ command.
 <li><a accesskey="2" href="#statistics-log">statistics log</a>:               The format of the statistics log
 <li><a accesskey="3" href="#tracking-log">tracking log</a>:                 The format of the tracking log
 <li><a accesskey="4" href="#RTC-log">RTC log</a>:                      The format of the RTC log
+<li><a accesskey="5" href="#refclocks-log">refclocks log</a>:                The format of the refclocks log
 </ul>
 <!-- }}} -->
 <!-- {{{ measurements.log -->
@@ -2056,8 +2071,8 @@ values from the example line above) :
 <li>Hour:Minute:Second [05:40:50].  Note that the date/time pair is
 expressed in UTC, not the local time zone. 
 <li>IP address of server/peer from which measurement comes [158.152.1.76]
-<li>Leap status (<code>N</code> means normal, <code>-</code> means that the last minute
-of today has 61 seconds, <code>+</code> means that the last minute of the day
+<li>Leap status (<code>N</code> means normal, <code>+</code> means that the last minute
+of today has 61 seconds, <code>-</code> means that the last minute of the day
 has 59 seconds, <code>?</code> means the remote computer is not currently
 synchronised.) [N]
 <li>Stratum of remote computer. [2]
@@ -2180,6 +2195,7 @@ meanings of the columns.
 <div class="node">
 <a name="RTC-log"></a>
 <p><hr>
+Next:&nbsp;<a rel="next" accesskey="n" href="#refclocks-log">refclocks log</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#tracking-log">tracking log</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#log-directive">log directive</a>
 
@@ -2218,6 +2234,44 @@ indicate that a straight line is no longer a good model of the measured
 data and that older measurements should be discarded. [5]
 <li>The measurement interval used prior to the measurement being made (in
 seconds). [120]
+        </ol>
+
+   <p>A banner is periodically written to the log file to indicate the
+meanings of the columns. 
+<!-- }}} -->
+<!-- {{{ refclocks.log -->
+<div class="node">
+<a name="refclocks-log"></a>
+<p><hr>
+Previous:&nbsp;<a rel="previous" accesskey="p" href="#RTC-log">RTC log</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="#log-directive">log directive</a>
+
+</div>
+
+<h5 class="subsubsection">4.2.20.5 Refclocks log file format</h5>
+
+<p>An example line (which actually appears as a single line in the file)
+from the refclocks log file is shown below.
+
+<pre class="example">     2009-11-30 14:33:27.000000 PPS2    7 N 1  4.900000e-07 -6.741777e-07
+</pre>
+   <p>The columns are as follows (the quantities in square brackets are the
+values from the example line above) :
+
+     <ol type=1 start=1>
+<li>Date [2009-11-30]
+<li>Hour:Minute:Second.Microsecond [14:33:27.000000].  Note that the
+date/time pair is expressed in UTC, not the local time zone. 
+<li>Reference ID of refclock from which measurement comes. [PPS2]
+<li>Sequence number of driver poll within one polling interval. [7]
+<li>Leap status (<code>N</code> means normal, <code>+</code> means that the last minute
+of today has 61 seconds, <code>-</code> means that the last minute of the day
+has 59 seconds). [N]
+<li>Flag indicating whether the sample comes from PPS source. (1 for yes,
+0 for no). [1]
+<li>Local clock error measured by refclock driver. [4.900000e-07]
+<li>Local clock error with applied corrections.  Positive indicates
+that the local clock is slow. [-6.741777e-07]
         </ol>
 
    <p>A banner is periodically written to the log file to indicate the
@@ -2277,7 +2331,7 @@ specified.
 <div class="node">
 <a name="mailonchange-directive"></a>
 <p><hr>
-Next:&nbsp;<a rel="next" accesskey="n" href="#manual-directive">manual directive</a>,
+Next:&nbsp;<a rel="next" accesskey="n" href="#makestep-directive">makestep directive</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#logdir-directive">logdir directive</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file</a>
 
@@ -2296,17 +2350,50 @@ system clock.
    <p>This would send a mail message to root if a change of more than 0.5
 seconds were applied to the system clock. 
 <!-- }}} -->
-<!-- {{{ manual -->
+<!-- {{{ makestep -->
 <div class="node">
-<a name="manual-directive"></a>
+<a name="makestep-directive"></a>
 <p><hr>
-Next:&nbsp;<a rel="next" accesskey="n" href="#maxupdateskew-directive">maxupdateskew directive</a>,
+Next:&nbsp;<a rel="next" accesskey="n" href="#manual-directive">manual directive</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#mailonchange-directive">mailonchange directive</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file</a>
 
 </div>
 
-<h4 class="subsection">4.2.24 manual</h4>
+<h4 class="subsection">4.2.24 makestep</h4>
+
+<p>Normally chronyd will cause the system to gradually correct any time
+offset, by slowing down or speeding up the clock as required.  In
+certain situations, the system clock may be so far adrift that this
+slewing process would take a very long time to correct the system clock.
+
+   <p>This directive forces <code>chronyd</code> to step system clock if the
+adjustment is larger than a threshold value, but only if there were no
+more clock updates since <code>chronyd</code> was started than a specified
+limit (a negative value can be used to disable the limit).
+
+   <p>This is particularly useful when using reference clocks, because the
+<code>initstepslew</code> directive (see <a href="#initstepslew-directive">initstepslew directive</a>) works
+only with NTP sources.
+
+   <p>An example of the use of this directive is
+
+<pre class="example">     makestep 1000 10
+</pre>
+   <p>This would step system clock if the adjustment is larger than 1000
+seconds, but only in the first ten clock updates. 
+<!-- }}} -->
+<!-- {{{ manual -->
+<div class="node">
+<a name="manual-directive"></a>
+<p><hr>
+Next:&nbsp;<a rel="next" accesskey="n" href="#maxupdateskew-directive">maxupdateskew directive</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="#makestep-directive">makestep directive</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file</a>
+
+</div>
+
+<h4 class="subsection">4.2.25 manual</h4>
 
 <p>The <code>manual</code> directive enables support at run-time for the
 <code>settime</code> command in chronyc (see <a href="#settime-command">settime command</a>).  If no
@@ -2329,7 +2416,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file
 
 </div>
 
-<h4 class="subsection">4.2.25 maxupdateskew</h4>
+<h4 class="subsection">4.2.26 maxupdateskew</h4>
 
 <p>One of <code>chronyd's</code> tasks is to work out how fast or slow the computer's
 clock runs relative to its reference sources.  In addition, it computes
@@ -2369,7 +2456,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file
 
 </div>
 
-<h4 class="subsection">4.2.26 noclientlog</h4>
+<h4 class="subsection">4.2.27 noclientlog</h4>
 
 <p>This directive, which takes no arguments, specifies that client accesses
 are not to be logged.  Normally they are logged, allowing statistics to
@@ -2385,7 +2472,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file
 
 </div>
 
-<h4 class="subsection">4.2.27 clientloglimit</h4>
+<h4 class="subsection">4.2.28 clientloglimit</h4>
 
 <p>This directive specifies the maximum size of the memory allocated to
 log client accesses.  When the limit is reached, only information for
@@ -2408,7 +2495,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file
 
 </div>
 
-<h4 class="subsection">4.2.28 peer</h4>
+<h4 class="subsection">4.2.29 peer</h4>
 
 <p>The syntax of this directive is identical to that for the <code>server</code>
 directive (see <a href="#server-directive">server directive</a>), except that it is used to specify
@@ -2424,7 +2511,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file
 
 </div>
 
-<h4 class="subsection">4.2.29 pidfile</h4>
+<h4 class="subsection">4.2.30 pidfile</h4>
 
 <p>chronyd always writes its process ID (pid) to a file, and checks this file on startup to see if another chronyd may already be running on the system.  By default, the file used is <code>/var/run/chronyd.pid</code>.  The <code>pidfile</code> directive allows the name to be changed, e.g.
 
@@ -2435,13 +2522,13 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file
 <div class="node">
 <a name="port-directive"></a>
 <p><hr>
-Next:&nbsp;<a rel="next" accesskey="n" href="#rtcdevice-directive">rtcdevice directive</a>,
+Next:&nbsp;<a rel="next" accesskey="n" href="#refclock-directive">refclock directive</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#pidfile-directive">pidfile directive</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file</a>
 
 </div>
 
-<h4 class="subsection">4.2.30 port</h4>
+<h4 class="subsection">4.2.31 port</h4>
 
 <p>This option allows you to configure the port used for the NTP service
 on your machine.
@@ -2458,17 +2545,106 @@ mode and never be available as a server to xntpd clients.
    <p>This would change the NTP port served by chronyd on the computer to
 udp/11123. 
 <!-- }}} -->
-<!-- {{{ rtcdevice -->
+<!-- {{{ refclock -->
 <div class="node">
-<a name="rtcdevice-directive"></a>
+<a name="refclock-directive"></a>
 <p><hr>
-Next:&nbsp;<a rel="next" accesskey="n" href="#rtcfile-directive">rtcfile directive</a>,
+Next:&nbsp;<a rel="next" accesskey="n" href="#rtcdevice-directive">rtcdevice directive</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#port-directive">port directive</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file</a>
 
 </div>
 
-<h4 class="subsection">4.2.31 rtcdevice</h4>
+<h4 class="subsection">4.2.32 refclock</h4>
+
+<p>The <code>refclock</code> directive allows reference clocks to be specified. 
+The directive is immediately followed by a refclock driver name and
+its parameter.
+
+   <p>There are currently three drivers implemented:
+
+     <dl>
+<dt><code>PPS</code><dd>Pulse per second (PPS) API driver.  The parameter is a path to the PPS
+device.  Assert events are used by default.  Driver option
+<code>:clear</code> can be appended to the path to use clear events instead.
+
+     <p>PPS refclock needs another source (NTP or non-PPS refclock) or local
+directive (see <a href="#local-directive">local directive</a>) enabled to function.  For example:
+
+     <pre class="example">          refclock SHM 0 offset 0.5 delay 0.1
+          refclock PPS /dev/pps0
+</pre>
+     <br><dt><code>SHM</code><dd>NTP shared memory driver.  The parameter is the number of the
+shared memory segment that should be used for receiving timestamps, usually
+0, 1, 2 or 3.  For example:
+
+     <pre class="example">          refclock SHM 1 poll 3 refid GPS1
+</pre>
+     <p>A driver option in form <code>:perm=NNN</code> can be appended to the
+segment number to create the segment with permissions other than the
+default <code>0600</code>.
+
+     <p>Software that can be used as a source of reference time includes
+<code>gpsd</code> and <code>shmpps</code>. 
+<br><dt><code>SOCK</code><dd>Unix domain socket driver.  The parameter is a path to the socket
+which is used as the source of timestamps.  This is as a better
+alternative to SHM, it does not require polling, the offset
+resolution is not limited to microsecond and it supports PPS. 
+The format for messages sent over the socket is declared in file
+<code>refclock_sock.c</code>. 
+</dl>
+
+   <p>The <code>refclock</code> command also supports a number of subfields (which
+may be defined in any order):
+
+     <dl>
+<dt><code>poll</code><dd>Timestamps produced by refclock drivers are not used immediately, but
+they are stored and processed by a median filter in intervals
+specified by this option.  This is defined as a power of 2.  The
+default is 4 (16 seconds).  A shorter interval allows <code>chronyd</code>
+to react faster to frequency changes, but it may increase noise. 
+<br><dt><code>dpoll</code><dd>Some drivers are not controlled by external events and thus require
+polling.  Again this is defined as a power of 2 and can be negative
+for sub-second intervals.  The default is 0 (1 second). 
+<br><dt><code>refid</code><dd>This option is used to specify a reference id of the refclock, as up
+to four ASCII characters.  By default, first three characters from
+driver name and the number of the refclock are used as refid.  Each
+refclock has to use an unique refid. 
+<br><dt><code>filter</code><dd>This option sets the length of the median filter which is used to
+reduce noise.  With each poll about half of the stored samples are
+discarded and one final sample is calculated as average of the
+remaining samples.  The default is 15. 
+<br><dt><code>rate</code><dd>PPS signal frequency (in Hz).  This option only controls how the
+received pulses are aligned.  To actually receive more than one
+pulse per second, a negative <code>dpoll</code> has to be specified (-3 for
+5Hz signal).  The default is 1. 
+<br><dt><code>lock</code><dd>This option can be used to lock a PPS refclock to another refclock
+whose reference id is specified by this option.  In this mode received
+pulses are aligned directly to unfiltered samples from the refclock. 
+By default, pulses are aligned to local clock, but only when it is
+well synchronised. 
+<br><dt><code>offset</code><dd>This option can be used to compensate a constant error.  The specified
+offset (in seconds) is applied to all samples produced by the
+refclock.  The default is 0.0. 
+<br><dt><code>delay</code><dd>This option is used to specify how the refclock is assumed
+to be inaccurate (in seconds).  Increasing the value is useful to
+avoid having no majority in the source selection algorithm or to make
+the algorithm prefer other refclocks.  The default is 1e-9 (1
+nanosecond). 
+</dl>
+
+<!-- }}} -->
+<!-- {{{ rtcdevice -->
+<div class="node">
+<a name="rtcdevice-directive"></a>
+<p><hr>
+Next:&nbsp;<a rel="next" accesskey="n" href="#rtcfile-directive">rtcfile directive</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="#refclock-directive">refclock directive</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file</a>
+
+</div>
+
+<h4 class="subsection">4.2.33 rtcdevice</h4>
 
 <p>The <code>rtcdevice</code> directive defines the name of the device file for
 accessing the real time clock.  By default this is <code>/dev/rtc/</code>, unless the
@@ -2488,7 +2664,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file
 
 </div>
 
-<h4 class="subsection">4.2.32 rtcfile</h4>
+<h4 class="subsection">4.2.34 rtcfile</h4>
 
 <p>The <code>rtcfile</code> directive defines the name of the file in which
 <code>chronyd</code> can save parameters associated with tracking the accuracy
@@ -2531,7 +2707,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file
 
 </div>
 
-<h4 class="subsection">4.2.33 rtconutc</h4>
+<h4 class="subsection">4.2.35 rtconutc</h4>
 
 <p><code>chronyd</code> assumes by default that the real time clock (RTC) keeps
 local time (including any daylight saving changes).  This is convenient
@@ -2550,16 +2726,65 @@ or ends.
 to keep UTC.  The directive takes no arguments.  It is equivalent to
 specifying the <code>-u</code> switch to the Linux <samp><span class="file">/sbin/clock</span></samp> program. 
 <!-- }}} -->
+<!-- {{{ sched_priority -->
+<div class="node">
+<a name="sched_priority-directive"></a>
+<a name="sched_005fpriority-directive"></a>
+<p><hr>
+Next:&nbsp;<a rel="next" accesskey="n" href="#lock_005fall-directive">lock_all directive</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="#server-directive">server directive</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file</a>
+
+</div>
+
+<h4 class="subsection">4.2.36 sched_priority</h4>
+
+<p>The <code>sched_priority</code> directive will select the SCHED_FIFO real-time
+scheduler at the specified priority (which must be between 0 and 100). 
+This mode is supported only on Linux.
+
+   <p>This directive uses the Linux sched_setscheduler() system call to
+instruct the kernel to use the SCHED_FIFO first-in, first-out
+real-time scheduling policy for Chronyd with the specified priority. 
+This means that whenever Chronyd is ready to run it will run,
+interrupting whatever else is running unless it is a higher priority
+real-time process.  This should not impact performance as Chronyd's
+resource requirements are modest, but it should result in lower and
+more consistent latency since Chronyd will not need to wait for the
+scheduler to get around to running it.  You should not use this unless
+you really need it.  The sched_setscheduler man page has more details. 
+<!-- }}} -->
+<!-- {{{ lock_all -->
+<div class="node">
+<a name="lock_all-directive"></a>
+<a name="lock_005fall-directive"></a>
+<p><hr>
+Previous:&nbsp;<a rel="previous" accesskey="p" href="#sched_005fpriority-directive">sched_priority directive</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file</a>
+
+</div>
+
+<h4 class="subsection">4.2.37 lock_all</h4>
+
+<p>The <code>lock_all</code> directive will lock chronyd into RAM so that it
+will never be paged out.  This mode is only supported on Linux.  This
+directive uses the Linux mlockall() system call to prevent Chronyd
+from ever being swapped out.  This should result in lower and more
+consistent latency.  It should not have significant impact on
+performance as Chronyd's memory usage is modest.  The mlockall man
+page has more details. 
+<!-- }}} -->
 <!-- {{{ server -->
 <div class="node">
 <a name="server-directive"></a>
 <p><hr>
+Next:&nbsp;<a rel="next" accesskey="n" href="#sched_005fpriority-directive">sched_priority directive</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#rtconutc-directive">rtconutc directive</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#Configuration-file">Configuration file</a>
 
 </div>
 
-<h4 class="subsection">4.2.34 server</h4>
+<h4 class="subsection">4.2.38 server</h4>
 
 <p>The <code>server</code> directive allows NTP servers to be specified.  The
 client/server relationship is strictly hierarchical : a client may
@@ -2567,9 +2792,8 @@ synchronise its system time to that of the server, but the server's
 system time will never be influenced by that of a client.
 
    <p>The <code>server</code> directive is immediately followed by either the name
-of the server, or its IP address in dotted-quad notation.  The server
-command also supports a number of subfields (which may be defined in any
-order):
+of the server, or its IP address.  The server command also supports a
+number of subfields (which may be defined in any order):
 
      <dl>
 <dt><code>port</code><dd>This option allows the UDP port on which the server understands NTP
@@ -2734,6 +2958,9 @@ that where chronyc is being run.
 target <code>chronyd</code> is using for its command &amp; monitoring connections. 
 This defaults to the compiled-in default; there would rarely be a need
 to change this. 
+<br><dt><code>-n</code><dd>This option disables resolving IP addresses to hostnames. 
+<br><dt><code>-4</code><dd>With this option hostnames will be resolved only to IPv4 addresses. 
+<br><dt><code>-6</code><dd>With this option hostnames will be resolved only to IPv6 addresses. 
 </dl>
    <!-- }}} -->
 <!-- {{{ SS:Security with chronyc -->
@@ -2777,6 +3004,9 @@ and specified via the commandkey option in its configuration file
 password:
 
      <ul>
+<li><code>activity</code>
+<li><code>clients</code>
+<li><code>dns</code>
 <li><code>exit</code>
 <li><code>help</code>
 <li><code>password</code>
@@ -2824,6 +3054,7 @@ interface.
 <li><a href="#delete-command">delete command</a>:               Remove an NTP server or peer
 <li><a href="#deny-command">deny command </a>:                Denying NTP client access
 <li><a href="#deny-all-command">deny all command</a>:             Denying NTP client access
+<li><a href="#dns-command">dns command</a>:                  Configure how are hostnames and IP addresses resolved
 <li><a href="#dump-command">dump command</a>:                 Dump measurement histories to files
 <li><a href="#exit-command">exit command</a>:                 Exit from chronyc
 <li><a href="#help-command">help command</a>:                 Generate help summary
@@ -2867,6 +3098,7 @@ follows:
 
 <pre class="example">     accheck a.b.c
      accheck 1.2.3.4
+     accheck 2001:db8::1
 </pre>
    <p>This command can be used to examine the effect of a series of
 <code>allow</code>, <code>allow all</code>, <code>deny</code> and <code>deny all</code> commands
@@ -2973,6 +3205,9 @@ the configuration file (see <a href="#allow-directive">allow directive</a>).
      allow 3.4.5
      allow 6.7.8/22
      allow 6.7.8.9/22
+     allow 2001:db8:789a::/48
+     allow 0/0
+     allow ::/0
      allow
 </pre>
    <p>The effect of each of these examples is the same as that of the <code>allow</code>
@@ -3006,7 +3241,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 <h5 class="subsubsection">4.3.4.7 burst</h5>
 
 <p>The <code>burst</code> command tells <code>chronyd</code> to make a set of measurements to
-each of its sources over a short duration (rather than the usual
+each of its NTP sources over a short duration (rather than the usual
 periodic measurements that it makes).  After such a burst, <code>chronyd</code> will
 revert to the previous state for each source.  This might be either
 online, if the source was being periodically measured in the normal way,
@@ -3017,6 +3252,7 @@ in <a href="#online-command">online command</a>, <a href="#offline-command">offl
    <p>The syntax of the burst command is as follows
 
 <pre class="example">     burst &lt;n-good-measurements&gt;/&lt;max-measurements&gt; [&lt;mask&gt;/&lt;masked-address&gt;]
+     burst &lt;n-good-measurements&gt;/&lt;max-measurements&gt; [&lt;masked-address&gt;/&lt;masked-bits&gt;]
 </pre>
    <p>The mask and masked-address arguments are optional, in which case
 <code>chronyd</code> will initiate a burst for all of its currently defined sources.
@@ -3034,17 +3270,19 @@ to be bogus.)
 attempt to make, even if the required number of good measurements has
 not been obtained.
 
-     <br><dt><code>mask</code><dd>This is a dotted quad argument (e.g. <code>255.255.255.0</code>) with which
-the IP address of each of <code>chronyd</code>'s sources is to be masked.
+     <br><dt><code>mask</code><dd>This is an IP address with which the IP address of each of <code>chronyd</code>'s
+sources is to be masked.
 
-     <br><dt><code>masked-address</code><dd>This is a dotted quad argument (e.g. <code>1.2.3.0</code>).  If the masked IP
-address of a source matches this value then the burst command is applied
-to that source. 
-</dl>
+     <br><dt><code>masked-address</code><dd>This is an IP address.  If the masked IP address of a source matches this value
+then the burst command is applied to that source.
 
-   <p>If no mask or masked address arguments are provided, the default is
-<code>0.0.0.0</code> and <code>0.0.0.0</code> respectively, which will match every
-source.
+     <br><dt><code>masked-bits</code><dd>This can be used with <code>masked-address</code> for CIDR notation, which is a
+shorter alternative to the form with mask.
+
+   </dl>
+
+   <p>If no mask or masked address arguments are provided, every source will
+be matched.
 
    <p>An example of the two-argument form of the command is
 
@@ -3054,13 +3292,15 @@ source.
 each source, stopping after two have been obtained, but in no event will
 it try more than ten probes to the source.
 
-   <p>An example of the four-argument form of the command is
+   <p>Examples of the four-argument form of the command are
 
 <pre class="example">     burst 2/10 255.255.0.0/1.2.0.0
+     burst 2/10 2001:db8:789a::/48
 </pre>
-   <p>In this case, the two out of ten sampling will only be applied to
-sources whose IP addresses are of the form <code>1.2.x.y</code>, where x and y
-are arbitrary. 
+   <p>In the first case, the two out of ten sampling will only be applied to
+sources whose IPv4 addresses are of the form <code>1.2.x.y</code>, where x and y
+are arbitrary. In the second case, the sampling will be applied to sources
+whose IPv6 addresses have first 48 bits equal to <code>2001:db8:789a</code>. 
 <!-- }}} -->
 <!-- {{{ clients -->
 <div class="node">
@@ -3132,6 +3372,7 @@ used to check whether command access is permitted from a named host.
 
 <pre class="example">     cmdaccheck a.b.c
      cmdaccheck 1.2.3.4
+     cmdaccheck 2001:db8::1
 </pre>
    <!-- }}} -->
 <!-- {{{ cmdallow -->
@@ -3246,6 +3487,7 @@ from the current set of sources.
 
 <pre class="example">     delete foo.bar.com
      delete 1.2.3.4
+     delete 2001:db8::1
 </pre>
    <p>There is one parameter, the name or IP address of the server or peer to
 be deleted. 
@@ -3272,6 +3514,9 @@ directive in the configuration file (see <a href="#deny-directive">deny directiv
      deny 3.4.5
      deny 6.7.8/22
      deny 6.7.8.9/22
+     deny 2001:db8:789a::/48
+     deny 0/0
+     deny ::/0
      deny
 </pre>
    <!-- }}} -->
@@ -3279,7 +3524,7 @@ directive in the configuration file (see <a href="#deny-directive">deny directiv
 <div class="node">
 <a name="deny-all-command"></a>
 <p><hr>
-Next:&nbsp;<a rel="next" accesskey="n" href="#dump-command">dump command</a>,
+Next:&nbsp;<a rel="next" accesskey="n" href="#dns-command">dns command</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#deny-command">deny command</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc command reference</a>
 
@@ -3290,17 +3535,47 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 <p>The effect of the allow command is identical to the <code>deny all</code>
 directive in the configuration file (see <a href="#deny-directive">deny directive</a>). 
 <!-- }}} -->
-<!-- {{{ dump -->
+<!-- {{{ dns -->
 <div class="node">
-<a name="dump-command"></a>
+<a name="dns-command"></a>
 <p><hr>
-Next:&nbsp;<a rel="next" accesskey="n" href="#exit-command">exit command</a>,
+Next:&nbsp;<a rel="next" accesskey="n" href="#dump-command">dump command</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#deny-all-command">deny all command</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc command reference</a>
 
 </div>
 
-<h5 class="subsubsection">4.3.4.18 dump</h5>
+<h5 class="subsubsection">4.3.4.18 dns</h5>
+
+<p>The <code>dns</code> command configures how are hostnames and IP addresses resolved in
+<code>chronyc</code>.  IP addresses can be resolved to hostnames when printing results
+of <code>sources</code>, <code>sourcestats</code>, <code>tracking</code> and <code>clients</code>
+commands.  Hostnames are resolved in commands that take an address as argument.
+
+   <p>There are five forms of the command:
+
+     <dl>
+<dt><code>dns -n</code><dd>Disables resolving IP addresses to hostnames.  Raw IP addresses will be
+displayed. 
+<br><dt><code>dns +n</code><dd>Enables resolving IP addresses to hostnames.  This is the default unless
+<code>chronyc</code> was started with <code>-n</code> option. 
+<br><dt><code>dns -4</code><dd>Resolves hostnames only to IPv4 addresses. 
+<br><dt><code>dns -6</code><dd>Resolves hostnames only to IPv6 addresses. 
+<br><dt><code>dns -46</code><dd>Resolves hostnames to both address families.  This is the default unless
+<code>chronyc</code> was started with <code>-4</code> or <code>-6</code> option. 
+</dl>
+   <!-- }}} -->
+<!-- {{{ dump -->
+<div class="node">
+<a name="dump-command"></a>
+<p><hr>
+Next:&nbsp;<a rel="next" accesskey="n" href="#exit-command">exit command</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="#dns-command">dns command</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc command reference</a>
+
+</div>
+
+<h5 class="subsubsection">4.3.4.19 dump</h5>
 
 <p>The <code>dump</code> command causes <code>chronyd</code> to write its current history of
 measurements for each of its sources to dump files, either for
@@ -3323,7 +3598,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.19 exit</h5>
+<h5 class="subsubsection">4.3.4.20 exit</h5>
 
 <p>The exit command exits from chronyc and returns the user to the shell
 (same as the quit command). 
@@ -3338,7 +3613,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.20 help</h5>
+<h5 class="subsubsection">4.3.4.21 help</h5>
 
 <p>The help command displays a summary of the commands and their arguments. 
 <!-- }}} -->
@@ -3352,7 +3627,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.21 local</h5>
+<h5 class="subsubsection">4.3.4.22 local</h5>
 
 <p>The <code>local</code> command allows <code>chronyd</code> to be told that it is to appear
 as a reference source, even if it is not itself properly synchronised to
@@ -3381,7 +3656,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.22 makestep</h5>
+<h5 class="subsubsection">4.3.4.23 makestep</h5>
 
 <p>Normally chronyd will cause the system to gradually correct any time
 offset, by slowing down or speeding up the clock as required.  In
@@ -3396,8 +3671,9 @@ clock by the equivalent amount, making it correct immediately.
 the system time.  (That is the reason why chronyd uses slewing
 normally.)
 
-   <p>The <code>makestep</code> command is currently only available on the Linux
-version of chrony. 
+   <p>The <code>makestep</code> directive in the configuration file can be used
+to step the clock automatically when the adjustment is larger than a
+specified threshold, see <a href="#makestep-directive">makestep directive</a>. 
 <!-- }}} -->
 <!-- {{{ manual -->
 <div class="node">
@@ -3409,7 +3685,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.23 manual</h5>
+<h5 class="subsubsection">4.3.4.24 manual</h5>
 
 <p>The manual command enables and disables use of the <code>settime</code>
 command (see <a href="#settime-command">settime command</a>), and is used to modify the behaviour
@@ -3473,7 +3749,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.24 maxdelay</h5>
+<h5 class="subsubsection">4.3.4.25 maxdelay</h5>
 
 <p>This allows the <code>maxdelay</code> option for one of the sources to be
 modified, in the same way as specifying the <code>maxdelay</code> option for
@@ -3483,11 +3759,13 @@ the <code>server</code> directive in the configuration file (see <a href="#serve
 
 <pre class="example">     maxdelay foo.bar.com 0.3
      maxdelay 1.2.3.4 0.0015
+     maxdelay 2001:db8::1 0.0015
 </pre>
    <p>The first example sets the maximum network delay allowed for a
 measurement to the host <code>foo.bar.com</code> to 0.3 seconds.  The second
-example sets the maximum network delay for a measurement to the host
-with IP address <code>1.2.3.4</code> to 1.5 milliseconds.
+and third examples set the maximum network delay for a measurement to
+the host with IPv4 address <code>1.2.3.4</code> and the host with IPv6 address
+<code>2001:db8::1</code> to 1.5 milliseconds.
 
    <p>(Any measurement whose network delay exceeds the specified value is
 discarded.) 
@@ -3502,7 +3780,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.25 maxdelayratio</h5>
+<h5 class="subsubsection">4.3.4.26 maxdelayratio</h5>
 
 <p>This allows the <code>maxdelayratio</code> option for one of the sources to be
 modified, in the same way as specifying the <code>maxdelayratio</code> option
@@ -3512,12 +3790,14 @@ for the <code>server</code> directive in the configuration file (see <a href="#s
 
 <pre class="example">     maxdelayratio foo.bar.com 1.5
      maxdelayratio 1.2.3.4 2.0
+     maxdelayratio 2001:db8::1 2.0
 </pre>
    <p>The first example sets the maximum network delay for a measurement to
 the host <code>foo.bar.com</code> to be 1.5 times the minimum delay found
 amongst the previous measurements that have been retained.  The second
-example sets the maximum network delay for a measurement to the host
-with IP address <code>1.2.3.4</code> to be double the retained minimum.
+and third examples set the maximum network delay for a measurement to
+the host with IPv4 address <code>1.2.3.4</code> and the host with IPv6
+address <code>2001:db8::1</code> to be double the retained minimum.
 
    <p>As for <code>maxdelay</code>, any measurement whose network delay is too large
 will be discarded. 
@@ -3532,7 +3812,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.26 maxpoll</h5>
+<h5 class="subsubsection">4.3.4.27 maxpoll</h5>
 
 <p>The <code>maxpoll</code> command is used to modify the minimum polling
 interval for one of the current set of sources.  It is equivalent to the
@@ -3543,7 +3823,7 @@ configuration file (see <a href="#server-directive">server directive</a>).
 
 <pre class="example">     maxpoll &lt;host&gt; &lt;new-maxpoll&gt;
 </pre>
-   <p>where the host can be specified as either a machine name or dotted-quad
+   <p>where the host can be specified as either a machine name or
 IP address.  The new minimum poll is specified as a base-2 logarithm of
 the number of seconds between polls (e.g. specify 6 for 64 second
 sampling).
@@ -3568,7 +3848,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.27 maxupdateskew</h5>
+<h5 class="subsubsection">4.3.4.28 maxupdateskew</h5>
 
 <p>This command has the same effect as the <code>maxupdateskew</code> directive
 in the configuration file, see <a href="#maxupdateskew-directive">maxupdateskew directive</a>. 
@@ -3583,7 +3863,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.28 minpoll</h5>
+<h5 class="subsubsection">4.3.4.29 minpoll</h5>
 
 <p>The <code>minpoll</code> command is used to modify the minimum polling
 interval for one of the current set of sources.  It is equivalent to the
@@ -3594,7 +3874,7 @@ configuration file (see <a href="#server-directive">server directive</a>).
 
 <pre class="example">     minpoll &lt;host&gt; &lt;new-minpoll&gt;
 </pre>
-   <p>where the host can be specified as either a machine name or dotted-quad
+   <p>where the host can be specified as either a machine name or
 IP address.  The new minimum poll is specified as a base-2 logarithm of
 the number of seconds between polls (e.g. specify 6 for 64 second
 sampling).
@@ -3619,7 +3899,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.29 offline</h5>
+<h5 class="subsubsection">4.3.4.30 offline</h5>
 
 <p>The <code>offline</code> command is used to warn <code>chronyd</code> that the network
 connection to a particular host or hosts is about to be lost.  It should
@@ -3662,21 +3942,26 @@ the <code>offline</code> command being used, <code>chronyd</code> would assume t
 source had failed and would attempt to pick another synchronisation
 source.
 
-   <p>There are two forms of the <code>offline</code> command.  The first form is a
+   <p>There are three forms of the <code>offline</code> command.  The first form is a
 wildcard, meaning all sources.  The second form allows a IP address mask
-and a masked address to be specified.  These forms are illustrated below.
+and a masked address to be specified.  The third form uses the CIDR
+notation.  These forms are illustrated below.
 
 <pre class="example">     offline
      offline 255.255.255.0/1.2.3.0
+     offline 2001:db8:789a::/48
 </pre>
    <p>The second form means that the <code>offline</code> command is to be applied
-to any source whose IP address is in the 1.2.3 subnet.  (The host's
+to any source whose IPv4 address is in the <code>1.2.3</code> subnet.  (The host's
 address is logically and-ed with the mask, and if the result matches the
-masked-address the host is processed).
+masked-address the host is processed).  The third form means that the
+command is to be applied to all sources whose IPv6 addresses have first
+48 bits equal to <code>2001:db8:789a</code>.
 
    <p>The wildcard form of the address is actually equivalent to
 
 <pre class="example">     offline 0.0.0.0/0.0.0.0
+     offline ::/0
 </pre>
    <!-- }}} -->
 <!-- {{{ online -->
@@ -3689,7 +3974,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.30 online</h5>
+<h5 class="subsubsection">4.3.4.31 online</h5>
 
 <p>The <code>online</code> command is opposite in function to the <code>offline</code>
 command.  It is used to advise <code>chronyd</code> that network connectivity to a
@@ -3708,7 +3993,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.31 password</h5>
+<h5 class="subsubsection">4.3.4.32 password</h5>
 
 <p>The password command is used to allow chronyc to send privileged
 commands to <code>chronyd</code>.  The password can either be entered on the command
@@ -3739,7 +4024,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.32 quit</h5>
+<h5 class="subsubsection">4.3.4.33 quit</h5>
 
 <p>The quit command exits from chronyc and returns the user to the shell
 (same as the exit command). 
@@ -3754,7 +4039,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.33 rtcdata</h5>
+<h5 class="subsubsection">4.3.4.34 rtcdata</h5>
 
 <p>The <code>rtcdata</code> command displays the current real time clock RTC parameters.
 
@@ -3804,7 +4089,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.34 settime</h5>
+<h5 class="subsubsection">4.3.4.35 settime</h5>
 
 <p>The <code>settime</code> command allows the current time to be entered
 manually, if this option has been configured into <code>chronyd</code>.  (It may be
@@ -3856,7 +4141,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.35 sources</h5>
+<h5 class="subsubsection">4.3.4.36 sources</h5>
 
 <p>This command displays information about the current time sources that
 <code>chronyd</code> is accessing.
@@ -3877,7 +4162,7 @@ columns.
      <dl>
 <dt><code>M</code><dd>This indicates the mode of the source.  <code>^</code> means a server,
 <code>=</code> means a peer and <code>#</code> indicates a locally connected
-reference clock<a rel="footnote" href="#fn-1" name="fnd-1"><sup>1</sup></a>.
+reference clock.
 
      <br><dt><code>S</code><dd>This column indicates the state of the sources.  <code>*</code> indicates the
 source to which <code>chronyd</code> is current synchronised.  <code>+</code> indicates
@@ -3888,7 +4173,8 @@ majority of other sources).  <code>~</code> indicates a source whose time
 appears to have too much variability.  The <code>~</code> condition is also
 shown at start-up, until at least 3 samples have been gathered from it.
 
-     <br><dt><code>Name/IP address</code><dd>This shows the name or the IP address of the source.
+     <br><dt><code>Name/IP address</code><dd>This shows the name or the IP address of the source, or refid for
+reference clocks.
 
      <br><dt><code>Stratum</code><dd>This shows the stratum of the source, as reported in its most recently
 received sample.  Stratum 1 indicates a computer with a locally attached
@@ -3909,7 +4195,8 @@ source.  This is normally in seconds.  The letters <code>m</code>, <code>h</code
 
      <br><dt><code>Last sample</code><dd>This column shows the offset between the local clock and the source at
 the last measurement.  The number in the square brackets shows the
-actual measured offset.  This may be suffixed by <code>us</code> (indicating
+actual measured offset.  This may be suffixed by <code>ns</code> (indicating
+nanoseconds), <code>us</code> (indicating
 microseconds), <code>ms</code> (indicating milliseconds), or <code>s</code>
 (indicating seconds).  The number to the left of the square brackets
 shows the original measurement, adjusted to allow for any slews applied
@@ -3930,7 +4217,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.36 sourcestats</h5>
+<h5 class="subsubsection">4.3.4.37 sourcestats</h5>
 
 <p>The <code>sourcestats</code> command displays information about the drift rate
 and offset estimatation process for each of the sources currently being
@@ -3943,15 +4230,15 @@ columns.
    <p>An example report is
 
 <pre class="example">     210 Number of sources = 1
-     Name/IP Address            NP  NR  Span  Frequency   Freq Skew   Std Dev
-     ========================================================================
-     abc.def.ghi                11   5   46m      -0.001       0.045     25us
+     Name/IP Address            NP  NR  Span  Frequency  Freq Skew  Offset  Std Dev
+     ===============================================================================
+     abc.def.ghi                11   5   46m     -0.001      0.045      1us    25us
 </pre>
    <p>The columns are as follows
 
      <dl>
-<dt><code>Name/IP Address</code><dd>This is the name or dotted-quad IP address of the NTP server (or peer)
-to which the rest of the line relates.
+<dt><code>Name/IP Address</code><dd>This is the name or IP address of the NTP server (or peer) or refid of
+the refclock to which the rest of the line relates.
 
      <br><dt><code>NP</code><dd>This is the number of sample points currently being retained for the
 server.  The drift rate and current offset are estimated by performing a
@@ -3975,6 +4262,8 @@ million.  In this case, the computer's clock is estimated to be running
      <br><dt><code>Freq Skew</code><dd>This is the estimated error bounds on <code>Freq</code> (again in parts per
 million).
 
+     <br><dt><code>Offset</code><dd>This is the estimated offset of the source.
+
      <br><dt><code>Std Dev</code><dd>This is the estimated sample standard deviation.
 
    </dl>
@@ -3989,7 +4278,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.37 tracking</h5>
+<h5 class="subsubsection">4.3.4.38 tracking</h5>
 
 <p>The <code>tracking</code> command displays parameters about the system's clock
 performance.  An example of the output is shown below.
@@ -3997,7 +4286,7 @@ performance.  An example of the output is shown below.
 <pre class="example">     Reference ID    : 1.2.3.4 (a.b.c)
      Stratum         : 3
      Ref time (UTC)  : Sun May 17 06:13:11 1998
-     System time     : 0.000000 seconds fast of NTP time
+     System time     : 0.000000000 seconds fast of NTP time
      Frequency       : 331.898 ppm fast
      Residual freq   : 0.004 ppm
      Skew            : 0.154 ppm
@@ -4007,7 +4296,7 @@ performance.  An example of the output is shown below.
    <p>The fields are explained as follows.
 
      <dl>
-<dt><code>Reference ID</code><dd>This is the IP address, and name if available, of the server to which
+<dt><code>Reference ID</code><dd>This is the refid and name (or IP address) if available, of the server to which
 the computer is currently synchronised.  If this is <code>127.127.1.1</code>
 it means the computer is not synchronised to any external source and
 that you have the `local' mode operating (via the <code>local</code> command
@@ -4100,7 +4389,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.38 trimrtc</h5>
+<h5 class="subsubsection">4.3.4.39 trimrtc</h5>
 
 <p>The <code>trimrtc</code> command is used to correct the system's real time
 clock (RTC) to the main system clock.  It has no effect if the error
@@ -4141,7 +4430,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Chronyc-command-reference">Chronyc com
 
 </div>
 
-<h5 class="subsubsection">4.3.4.39 writertc</h5>
+<h5 class="subsubsection">4.3.4.40 writertc</h5>
 
 <p>The <code>writertc</code> command writes the currently estimated error and
 gain/loss rate parameters for the RTC to the RTC file (specified with
@@ -4320,8 +4609,8 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#Top">Top</a>
 <div align="center">GNU GENERAL PUBLIC LICENSE</div>
 <div align="center">Version 2, June 1991</div>
 
-   <p>Copyright (C) 1989, 1991 Free Software Foundation, Inc. 
- 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+   <p>Copyright (C) 1989, 1991 Free Software Foundation, Inc.,
+ 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.
 
@@ -4334,7 +4623,7 @@ software&ndash;to make sure the software is free for all its users.  This
 General Public License applies to most of the Free Software
 Foundation's software and to any other program whose authors commit to
 using it.  (Some other Free Software Foundation software is covered by
-the GNU Library General Public License instead.)  You can apply it to
+the GNU Lesser General Public License instead.)  You can apply it to
 your programs, too.
 
    <p>When we speak of free software, we are referring to freedom, not
@@ -4598,7 +4887,7 @@ POSSIBILITY OF SUCH DAMAGES.
 
    <p>		     END OF TERMS AND CONDITIONS
 
-   <p>	Appendix: How to Apply These Terms to Your New Programs
+   <p>	    How to Apply These Terms to Your New Programs
 
    <p>If you develop a new program, and you want it to be of the greatest
 possible use to the public, the best way to achieve this is to make it
@@ -4610,7 +4899,7 @@ convey the exclusion of warranty; and each file should have at least
 the "copyright" line and a pointer to where the full notice is found.
 
    <p>&lt;one line to give the program's name and a brief idea of what it does.&gt;
-    Copyright (C) 19yy  &lt;name of author&gt;
+    Copyright (C) &lt;year&gt;  &lt;name of author&gt;
 
    <p>This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -4622,16 +4911,16 @@ the "copyright" line and a pointer to where the full notice is found.
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-   <p>You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+   <p>You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
    <p>Also add information on how to contact you by electronic and paper mail.
 
    <p>If the program is interactive, make it output a short notice like this
 when it starts in an interactive mode:
 
-   <p>Gnomovision version 69, Copyright (C) 19yy name of author
+   <p>Gnomovision version 69, Copyright (C) year name of author
     Gnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'. 
     This is free software, and you are welcome to redistribute it
     under certain conditions; type `show c' for details.
@@ -4654,7 +4943,7 @@ necessary.  Here is a sample; alter the names:
    <p>This General Public License does not permit incorporating your program into
 proprietary programs.  If your program is a subroutine library, you may
 consider it more useful to permit linking proprietary applications with the
-library.  If this is what you want to do, use the GNU Library General
+library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License. 
 <!-- }}} -->
    <div class="contents">
@@ -4681,7 +4970,7 @@ Public License instead of this License.
 </li></ul>
 <li><a name="toc_Installation" href="#Installation">2 Installation</a>
 <ul>
-<li><a href="#readline-support">2.1 Support for the readline library</a>
+<li><a href="#line-editing-support">2.1 Support for line editing libraries</a>
 <li><a href="#package-builders">2.2 Extra options for package builders</a>
 </li></ul>
 <li><a name="toc_Typical-scenarios" href="#Typical-scenarios">3 Typical operating scenarios</a>
@@ -4730,21 +5019,26 @@ Public License instead of this License.
 <li><a href="#statistics-log">4.2.20.2 Statistics log file format</a>
 <li><a href="#tracking-log">4.2.20.3 Tracking log file format</a>
 <li><a href="#RTC-log">4.2.20.4 Real-time clock log file format</a>
+<li><a href="#refclocks-log">4.2.20.5 Refclocks log file format</a>
 </li></ul>
 <li><a href="#logchange-directive">4.2.21 logchange</a>
 <li><a href="#logdir-directive">4.2.22 logdir</a>
 <li><a href="#mailonchange-directive">4.2.23 mailonchange</a>
-<li><a href="#manual-directive">4.2.24 manual</a>
-<li><a href="#maxupdateskew-directive">4.2.25 maxupdateskew</a>
-<li><a href="#noclientlog-directive">4.2.26 noclientlog</a>
-<li><a href="#clientloglimit-directive">4.2.27 clientloglimit</a>
-<li><a href="#peer-directive">4.2.28 peer</a>
-<li><a href="#pidfile-directive">4.2.29 pidfile</a>
-<li><a href="#port-directive">4.2.30 port</a>
-<li><a href="#rtcdevice-directive">4.2.31 rtcdevice</a>
-<li><a href="#rtcfile-directive">4.2.32 rtcfile</a>
-<li><a href="#rtconutc-directive">4.2.33 rtconutc</a>
-<li><a href="#server-directive">4.2.34 server</a>
+<li><a href="#makestep-directive">4.2.24 makestep</a>
+<li><a href="#manual-directive">4.2.25 manual</a>
+<li><a href="#maxupdateskew-directive">4.2.26 maxupdateskew</a>
+<li><a href="#noclientlog-directive">4.2.27 noclientlog</a>
+<li><a href="#clientloglimit-directive">4.2.28 clientloglimit</a>
+<li><a href="#peer-directive">4.2.29 peer</a>
+<li><a href="#pidfile-directive">4.2.30 pidfile</a>
+<li><a href="#port-directive">4.2.31 port</a>
+<li><a href="#refclock-directive">4.2.32 refclock</a>
+<li><a href="#rtcdevice-directive">4.2.33 rtcdevice</a>
+<li><a href="#rtcfile-directive">4.2.34 rtcfile</a>
+<li><a href="#rtconutc-directive">4.2.35 rtconutc</a>
+<li><a href="#sched_005fpriority-directive">4.2.36 sched_priority</a>
+<li><a href="#lock_005fall-directive">4.2.37 lock_all</a>
+<li><a href="#server-directive">4.2.38 server</a>
 </li></ul>
 <li><a href="#Running-chronyc">4.3 Running chronyc</a>
 <ul>
@@ -4770,28 +5064,29 @@ Public License instead of this License.
 <li><a href="#delete-command">4.3.4.15 delete</a>
 <li><a href="#deny-command">4.3.4.16 deny</a>
 <li><a href="#deny-all-command">4.3.4.17 deny all</a>
-<li><a href="#dump-command">4.3.4.18 dump</a>
-<li><a href="#exit-command">4.3.4.19 exit</a>
-<li><a href="#help-command">4.3.4.20 help</a>
-<li><a href="#local-command">4.3.4.21 local</a>
-<li><a href="#makestep-command">4.3.4.22 makestep</a>
-<li><a href="#manual-command">4.3.4.23 manual</a>
-<li><a href="#maxdelay-command">4.3.4.24 maxdelay</a>
-<li><a href="#maxdelayratio-command">4.3.4.25 maxdelayratio</a>
-<li><a href="#maxpoll-command">4.3.4.26 maxpoll</a>
-<li><a href="#maxupdateskew-command">4.3.4.27 maxupdateskew</a>
-<li><a href="#minpoll-command">4.3.4.28 minpoll</a>
-<li><a href="#offline-command">4.3.4.29 offline</a>
-<li><a href="#online-command">4.3.4.30 online</a>
-<li><a href="#password-command">4.3.4.31 password</a>
-<li><a href="#quit-command">4.3.4.32 quit</a>
-<li><a href="#rtcdata-command">4.3.4.33 rtcdata</a>
-<li><a href="#settime-command">4.3.4.34 settime</a>
-<li><a href="#sources-command">4.3.4.35 sources</a>
-<li><a href="#sourcestats-command">4.3.4.36 sourcestats</a>
-<li><a href="#tracking-command">4.3.4.37 tracking</a>
-<li><a href="#trimrtc-command">4.3.4.38 trimrtc</a>
-<li><a href="#writertc-command">4.3.4.39 writertc</a>
+<li><a href="#dns-command">4.3.4.18 dns</a>
+<li><a href="#dump-command">4.3.4.19 dump</a>
+<li><a href="#exit-command">4.3.4.20 exit</a>
+<li><a href="#help-command">4.3.4.21 help</a>
+<li><a href="#local-command">4.3.4.22 local</a>
+<li><a href="#makestep-command">4.3.4.23 makestep</a>
+<li><a href="#manual-command">4.3.4.24 manual</a>
+<li><a href="#maxdelay-command">4.3.4.25 maxdelay</a>
+<li><a href="#maxdelayratio-command">4.3.4.26 maxdelayratio</a>
+<li><a href="#maxpoll-command">4.3.4.27 maxpoll</a>
+<li><a href="#maxupdateskew-command">4.3.4.28 maxupdateskew</a>
+<li><a href="#minpoll-command">4.3.4.29 minpoll</a>
+<li><a href="#offline-command">4.3.4.30 offline</a>
+<li><a href="#online-command">4.3.4.31 online</a>
+<li><a href="#password-command">4.3.4.32 password</a>
+<li><a href="#quit-command">4.3.4.33 quit</a>
+<li><a href="#rtcdata-command">4.3.4.34 rtcdata</a>
+<li><a href="#settime-command">4.3.4.35 settime</a>
+<li><a href="#sources-command">4.3.4.36 sources</a>
+<li><a href="#sourcestats-command">4.3.4.37 sourcestats</a>
+<li><a href="#tracking-command">4.3.4.38 tracking</a>
+<li><a href="#trimrtc-command">4.3.4.39 trimrtc</a>
+<li><a href="#writertc-command">4.3.4.40 writertc</a>
 </li></ul>
 </li></ul>
 </li></ul>
@@ -4810,13 +5105,6 @@ Public License instead of this License.
 </div>
 
 
-
-   <div class="footnote">
-<hr>
-<a name="texinfo-footnotes-in-document"></a><h4>Footnotes</h4><p class="footnote"><small>[<a name="fn-1" href="#fnd-1">1</a>]</small> In the current version this will never be
-shown, because <code>chronyd</code> has no support for reference clocks yet.</p>
-
-   <hr></div>
 
 </body></html>
 

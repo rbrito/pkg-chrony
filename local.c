@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -53,7 +53,7 @@ static lcl_SetFrequencyDriver drv_set_freq;
 static lcl_AccrueOffsetDriver drv_accrue_offset;
 static lcl_ApplyStepOffsetDriver drv_apply_step_offset;
 static lcl_OffsetCorrectionDriver drv_offset_convert;
-static lcl_ImmediateStepDriver drv_immediate_step;
+static lcl_SetLeapDriver drv_set_leap;
 
 /* ================================================== */
 
@@ -535,14 +535,14 @@ lcl_RegisterSystemDrivers(lcl_ReadFrequencyDriver read_freq,
                           lcl_AccrueOffsetDriver accrue_offset,
                           lcl_ApplyStepOffsetDriver apply_step_offset,
                           lcl_OffsetCorrectionDriver offset_convert,
-                          lcl_ImmediateStepDriver immediate_step)
+                          lcl_SetLeapDriver set_leap)
 {
   drv_read_freq = read_freq;
   drv_set_freq = set_freq;
   drv_accrue_offset = accrue_offset;
   drv_apply_step_offset = apply_step_offset;
   drv_offset_convert = offset_convert;
-  drv_immediate_step = immediate_step;
+  drv_set_leap = set_leap;
 
   current_freq_ppm = (*drv_read_freq)();
 
@@ -555,20 +555,39 @@ lcl_RegisterSystemDrivers(lcl_ReadFrequencyDriver read_freq,
 
 /* ================================================== */
 /* Look at the current difference between the system time and the NTP
-   time, and make a step to cancel it. */
+   time, and make a step to cancel it if it's larger than the threshold. */
 
 int
-LCL_MakeStep(void)
+LCL_MakeStep(double threshold)
 {
-  if (drv_immediate_step) {
-    (drv_immediate_step)();
-#ifdef TRACEON
-    LOG(LOGS_INFO, LOGF_Local, "Made step to system time to apply remaining slew");
-#endif
-    return 1;
+  struct timeval raw;
+  double correction;
+
+  LCL_ReadRawTime(&raw);
+  correction = LCL_GetOffsetCorrection(&raw);
+
+  if (fabs(correction) <= threshold)
+    return 0;
+
+  /* Cancel remaining slew and make the step */
+  LCL_AccumulateOffset(correction);
+  LCL_ApplyStepOffset(-correction);
+
+  LOG(LOGS_WARN, LOGF_Local, "System clock was stepped by %.3f seconds", correction);
+
+  return 1;
+}
+
+/* ================================================== */
+
+void
+LCL_SetLeap(int leap)
+{
+  if (drv_set_leap) {
+    (drv_set_leap)(leap);
   }
 
-  return 0;
+  return;
 }
 
 /* ================================================== */

@@ -3,16 +3,14 @@
 **  Originally written by Steven M. Bellovin <smb@research.att.com> while
 **  at the University of North Carolina at Chapel Hill.  Later tweaked by
 **  a couple of people on Usenet.  Completely overhauled by Rich $alz
-**  <rsalz@bbn.com> and Jim Berets <jberets@bbn.com> in August, 1990;
-**
-**  This grammar has 13 shift/reduce conflicts.
+**  <rsalz@bbn.com> and Jim Berets <jberets@bbn.com> in August, 1990.
 **
 **  This code is in the public domain and has no copyright.
 */
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
-# ifdef FORCE_ALLOCA_H
+# ifdef HAVE_ALLOCA_H
 #  include <alloca.h>
 # endif
 #endif
@@ -29,6 +27,10 @@
 
 #include <stdio.h>
 #include <ctype.h>
+
+#if HAVE_STDLIB_H
+# include <stdlib.h> /* for `free'; used by Bison 1.27 */
+#endif
 
 #if defined (STDC_HEADERS) || (!defined (isascii) && !defined (HAVE_ISASCII))
 # define IN_CTYPE_DOMAIN(c) 1
@@ -51,10 +53,16 @@
    host does not conform to Posix.  */
 #define ISDIGIT(c) ((unsigned) (c) - '0' <= 9)
 
-#include "getdate.h"
-
 #if defined (STDC_HEADERS) || defined (USG)
 # include <string.h>
+#endif
+
+#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 7)
+# define __attribute__(x)
+#endif
+
+#ifndef ATTRIBUTE_UNUSED
+# define ATTRIBUTE_UNUSED __attribute__ ((__unused__))
 #endif
 
 /* Some old versions of bison generate parsers that use bcopy.
@@ -63,10 +71,6 @@
 #if !defined (HAVE_BCOPY) && defined (HAVE_MEMCPY) && !defined (bcopy)
 # define bcopy(from, to, len) memcpy ((to), (from), (len))
 #endif
-
-extern struct tm	*gmtime ();
-extern struct tm	*localtime ();
-extern time_t		mktime ();
 
 /* Remap normal yacc parser interface names (yyparse, yylex, yyerror, etc),
    as well as gratuitiously global symbol names, so we can have multiple
@@ -115,8 +119,8 @@ extern time_t		mktime ();
 #define yytable  gd_yytable
 #define yycheck  gd_yycheck
 
-static int yylex ();
-static int yyerror ();
+static int yylex (void);
+static int yyerror (char *s);
 
 #define EPOCH		1970
 #define HOUR(x)		((x) * 60)
@@ -171,6 +175,9 @@ static int	yyRelSeconds;
 static int	yyRelYear;
 
 %}
+
+/* This grammar has 13 shift/reduce conflicts. */
+%expect 13
 
 %union {
     int			Number;
@@ -441,6 +448,15 @@ o_merid	: /* NULL */
 
 %%
 
+/* Include this file down here because bison inserts code above which
+   may define-away `const'.  We want the prototype for get_date to have
+   the same signature as the function definition does. */
+#include "getdate.h"
+
+extern struct tm	*gmtime ();
+extern struct tm	*localtime ();
+extern time_t		mktime ();
+
 /* Month and day table. */
 static TABLE const MonthDayTable[] = {
     { "january",	tMONTH,  1 },
@@ -467,7 +483,7 @@ static TABLE const MonthDayTable[] = {
     { "thurs",		tDAY, 4 },
     { "friday",		tDAY, 5 },
     { "saturday",	tDAY, 6 },
-    { NULL }
+    { NULL, 0, 0 }
 };
 
 /* Time units table. */
@@ -482,7 +498,7 @@ static TABLE const UnitsTable[] = {
     { "min",		tMINUTE_UNIT,	1 },
     { "second",		tSEC_UNIT,	1 },
     { "sec",		tSEC_UNIT,	1 },
-    { NULL }
+    { NULL, 0, 0 }
 };
 
 /* Assorted relative-time words. */
@@ -493,7 +509,7 @@ static TABLE const OtherTable[] = {
     { "now",		tMINUTE_UNIT,	0 },
     { "last",		tUNUMBER,	-1 },
     { "this",		tMINUTE_UNIT,	0 },
-    { "next",		tUNUMBER,	2 },
+    { "next",		tUNUMBER,	1 },
     { "first",		tUNUMBER,	1 },
 /*  { "second",		tUNUMBER,	2 }, */
     { "third",		tUNUMBER,	3 },
@@ -507,7 +523,7 @@ static TABLE const OtherTable[] = {
     { "eleventh",	tUNUMBER,	11 },
     { "twelfth",	tUNUMBER,	12 },
     { "ago",		tAGO,	1 },
-    { NULL }
+    { NULL, 0, 0 }
 };
 
 /* The timezone table. */
@@ -549,8 +565,6 @@ static TABLE const TimezoneTable[] = {
     { "nt",	tZONE,     HOUR (11) },	/* Nome */
     { "idlw",	tZONE,     HOUR (12) },	/* International Date Line West */
     { "cet",	tZONE,     -HOUR (1) },	/* Central European */
-    { "cewt",   tZONE,     -HOUR (1) }, /* Central European Winter */
-    { "cest",   tZONE,     -HOUR (1) }, /* Central European Summer */
     { "met",	tZONE,     -HOUR (1) },	/* Middle European */
     { "mewt",	tZONE,     -HOUR (1) },	/* Middle European Winter */
     { "mest",	tDAYZONE,  -HOUR (1) },	/* Middle European Summer */
@@ -594,7 +608,7 @@ static TABLE const TimezoneTable[] = {
     { "nzst",	tZONE,     -HOUR (12) },	/* New Zealand Standard */
     { "nzdt",	tDAYZONE,  -HOUR (12) },	/* New Zealand Daylight */
     { "idle",	tZONE,     -HOUR (12) },	/* International Date Line East */
-    {  NULL  }
+    {  NULL, 0, 0  }
 };
 
 /* Military timezone table. */
@@ -624,7 +638,7 @@ static TABLE const MilitaryTable[] = {
     { "x",	tZONE,	HOUR (-11) },
     { "y",	tZONE,	HOUR (-12) },
     { "z",	tZONE,	HOUR (  0) },
-    { NULL }
+    { NULL, 0, 0 }
 };
 
 
@@ -633,7 +647,7 @@ static TABLE const MilitaryTable[] = {
 /* ARGSUSED */
 static int
 yyerror (s)
-     char *s;
+     char *s ATTRIBUTE_UNUSED;
 {
   return 0;
 }
@@ -696,7 +710,7 @@ LookupWord (buff)
 
   /* Make it lowercase. */
   for (p = buff; *p; p++)
-    if (ISUPPER (*p))
+    if (ISUPPER ((unsigned char) *p))
       *p = tolower (*p);
 
   if (strcmp (buff, "am") == 0 || strcmp (buff, "a.m.") == 0)
@@ -777,7 +791,7 @@ LookupWord (buff)
       }
 
   /* Military timezones. */
-  if (buff[1] == '\0' && ISALPHA (*buff))
+  if (buff[1] == '\0' && ISALPHA ((unsigned char) *buff))
     {
       for (tp = MilitaryTable; tp->name; tp++)
 	if (strcmp (buff, tp->name) == 0)
@@ -808,7 +822,7 @@ LookupWord (buff)
 static int
 yylex ()
 {
-  register char c;
+  register unsigned char c;
   register char *p;
   char buff[20];
   int Count;
@@ -816,7 +830,7 @@ yylex ()
 
   for (;;)
     {
-      while (ISSPACE (*yyInput))
+      while (ISSPACE ((unsigned char) *yyInput))
 	yyInput++;
 
       if (ISDIGIT (c = *yyInput) || c == '-' || c == '+')
@@ -867,8 +881,7 @@ yylex ()
 
 /* Yield A - B, measured in seconds.  */
 static long
-difftm (a, b)
-     struct tm *a, *b;
+difftm (struct tm *a, struct tm *b)
 {
   int ay = a->tm_year + (TM_YEAR_ORIGIN - 1);
   int by = b->tm_year + (TM_YEAR_ORIGIN - 1);
@@ -888,9 +901,7 @@ difftm (a, b)
 }
 
 time_t
-get_date (p, now)
-     const char *p;
-     const time_t *now;
+get_date (const char *p, const time_t *now)
 {
   struct tm tm, tm0, *tmp;
   time_t Start;
@@ -898,12 +909,15 @@ get_date (p, now)
   yyInput = p;
   Start = now ? *now : time ((time_t *) NULL);
   tmp = localtime (&Start);
+  if (!tmp)
+    return -1;
   yyYear = tmp->tm_year + TM_YEAR_ORIGIN;
   yyMonth = tmp->tm_mon + 1;
   yyDay = tmp->tm_mday;
   yyHour = tmp->tm_hour;
   yyMinutes = tmp->tm_min;
   yySeconds = tmp->tm_sec;
+  tm.tm_isdst = tmp->tm_isdst;
   yyMeridian = MER24;
   yyRelSeconds = 0;
   yyRelMinutes = 0;
@@ -939,7 +953,12 @@ get_date (p, now)
   tm.tm_hour += yyRelHour;
   tm.tm_min += yyRelMinutes;
   tm.tm_sec += yyRelSeconds;
-  tm.tm_isdst = -1;
+
+  /* Let mktime deduce tm_isdst if we have an absolute timestamp,
+     or if the relative timestamp mentions days, months, or years.  */
+  if (yyHaveDate | yyHaveDay | yyHaveTime | yyRelDay | yyRelMonth | yyRelYear)
+    tm.tm_isdst = -1;
+
   tm0 = tm;
 
   Start = mktime (&tm);
@@ -986,7 +1005,11 @@ get_date (p, now)
 
   if (yyHaveZone)
     {
-      long delta = yyTimezone * 60L + difftm (&tm, gmtime (&Start));
+      long delta;
+      struct tm *gmt = gmtime (&Start);
+      if (!gmt)
+	return -1;
+      delta = yyTimezone * 60L + difftm (&tm, gmt);
       if ((Start + delta < Start) != (delta < 0))
 	return -1;		/* time_t overflow */
       Start += delta;

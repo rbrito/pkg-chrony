@@ -1,3 +1,38 @@
+chrony (1.24-1) unstable; urgency=low
+
+  * New upstream release.  The scripts will be rewritten and many more bugs
+    taken care of in -2.  Right now I want to get 1.24 out there.
+  
+  * Applied patch from Petter Reinholdtsen to init.d
+  
+    Closes: #541806: misses syslog dependency in LSB headers
+  
+  * Chrony cannot be linked to libreadline6 because it is GPLv2 only.
+  
+    Closes: #553739 replacing libreadline5-dev build dependency with 
+    libreadline-dev
+
+  * "configure" rewritten upstream, eliminating "+=".
+  
+    Closes: #573036: RTC support disabled (due to Bashism in configure line 293)
+  
+  * Removed "install-info" from scripts.
+  
+    Closes: #568703: dpkg warnings
+  
+  * client.c has been rewritten upstream.
+  
+    Closes: #573032
+  
+  * Fixed typos.
+  
+    Closes: #434629: 'man chrony', 'cronyc', 'cronyd' typos: "parateters" x 2, 
+    "priviliges"
+  
+  * Added debian/source/format containing "1.0".
+  
+ -- John G. Hasler <jhasler@newsguy.com>  Tue, 22 Jun 2010 16:01:29 -0500
+
 chrony (1.23-7) unstable; urgency=high
 
   * Applied patches from upstream to fix remote DOS:

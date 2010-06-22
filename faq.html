@@ -18,18 +18,12 @@
 <p>
 This is a set of questions and answers to common problems and issues.
 <p>
-As I receive more emails about the software, I will add new questions
+As we receive more emails about the software, we will add new questions
 to this page.
-
 <hr>
 <p>
-The author can be reached by email
-<a href="mailto:rc@rc0.org.uk">
-</a>
-<p>
-<b>PLEASE</b>
-include the word &quot;chrony&quot; in your subject line if possible (so that my
-mail reader can keep my mail sorted by topic)!
+The developers can be reached via the chrony-dev mailing list.  See 
+<a href="#question_1.4">question 1.4.</a> for details.
 <hr>
 
 <br clear=all>
@@ -104,7 +98,7 @@ mail reader can keep my mail sorted by topic)!
   </ul>
 <b><li> <a href="#section_13">13.</a> Development</b>
   <ul>
-  <li> <a href="#question_13.1">13.1.</a> Can I get the source via CVS from anywhere?
+  <li> <a href="#question_13.1">13.1.</a> Can I get the source via git from anywhere?
   </ul>
 <b><li> <a href="#section_14">14.</a> Linux-specific issues</b>
   <ul>
@@ -123,37 +117,40 @@ mail reader can keep my mail sorted by topic)!
 <a name=question_1.1>
 <font size=+1 face="arial,helvetica">1.1. Where can I get chrony source code?</font>
 <pre>
-Via the home page, see below.
+Tarballs are available via the <b>Download</b> link on the Chrony
+Web site.  For the current development from the developers' version control
+system see the <b>Git</b> link on the Web site.
 
 </pre>
 <p>
 <a name=question_1.2>
 <font size=+1 face="arial,helvetica">1.2. Are there any packaged versions of chrony?</font>
 <pre>
-I am aware of packages for Debian, Mandrake and Redhat.  I am not personally
-involved with how these are built or distributed.
+We are aware of packages for Debian, Fedora, Gentoo, Mandriva, Slackware,
+and Ubuntu.  We are not involved with how these are built or distributed.
 
 </pre>
 <p>
 <a name=question_1.3>
 <font size=+1 face="arial,helvetica">1.3. Where is the home page?</font>
 <pre>
-It is currently at <a href="http://chrony.sunsite.dk/">http://chrony.sunsite.dk/</a>. 
+It is currently at <a href="http://chrony.tuxfamily.org/">http://chrony.tuxfamily.org/</a>. 
 
 </pre>
 <p>
 <a name=question_1.4>
 <font size=+1 face="arial,helvetica">1.4. Is there a mailing list?</font>
 <pre>
-Yes, it's currently at chrony-users@sunsite.dk. There is a low-volume
+Yes, it's currently at chrony-users@chrony.tuxfamily.org. There is a low-volume
 list called chrony-announce which is just for announcements of new releases or
 similar matters of high importance.  You can join the lists by sending a
-message to <a href="mailto:chrony-users-subscribe@sunsite.dk">chrony-users-subscribe@sunsite.dk</a> or
-<a href="mailto:chrony-announce-subscribe@sunsite.dk">chrony-announce-subscribe@sunsite.dk</a> respectively.
+message with the subject subscribe to <a href="mailto:chrony-users-request@chrony.tuxfamily.org">chrony-users-request@chrony.tuxfamily.org</a> or
+<a href="mailto:chrony-announce-request@chrony.tuxfamily.org">chrony-announce-request@chrony.tuxfamily.org</a> respectively.
 
 For those who want to contribute to the development of chrony, there is a
-developers' mailing list.  You can subscribe by sending mail to
-<a href="mailto:chrony-dev-subscribe@sunsite.dk">chrony-dev-subscribe@sunsite.dk</a>.
+developers' mailing list.  You can subscribe by sending mail with the
+subject subscribe to
+<a href="mailto:chrony-dev-request@chrony.tuxfamily.org">chrony-dev-request@chrony.tuxfamily.org</a>.
 
 </pre>
 <p>
@@ -161,16 +158,8 @@ developers' mailing list.  You can subscribe by sending mail to
 <font size=+1 face="arial,helvetica">1.5. What licence is applied to chrony?</font>
 <pre>
 Starting from version 1.15, chrony is licensed under the GNU General Public
-License.  Versions prior to 1.15 were licensed under a custom BSD-like
+License, Version 2.  Versions prior to 1.15 were licensed under a custom BSD-like
 license.
-
-If you want to use parts of chrony in non-free software, you will need to use
-older versions of the source code.  Alternatively, contact me - I may be
-prepared to licence parts of the source code to suit your purposes.  I am quite
-sympathetic to projects licensed under other free/open-source (but non-GPL)
-licences, as well as to commercial projects which are of a single-customer
-"turnkey" nature (as opposed to mass-market "shrink-wrap" or "floating-licence"
-products).
 
 </pre>
 <hr>
@@ -222,7 +211,7 @@ added some automated support in chrony to deal with this.
 <a name=question_3.1>
 <font size=+1 face="arial,helvetica">3.1. How do I apply source patches?</font>
 <pre>
-Sometimes I release source patches rather than a full version when I need to
+Sometimes we release source patches rather than a full version when we need to
 provide a fix for small problems.  Supposing you have chrony-1.X.tar.gz and a
 source patch chrony-1.X-1.X.1.gz.  The steps required are:
 
@@ -383,12 +372,6 @@ files when chrony was compiled.  The chrony.conf file can include options to
 modify the HZ value (see the discussion of linux_hz and linux_freq_scale in the
 documentation), however the problem is to find the value of HZ being used.
 
-At the end of the chrony v1.18 section of the <a href="./download.php">download page</a>
-you'll find instructions on how to do this.
-
-This will be fixed in version 1.19, by getting chronyd to auto-detect the
-kernel's value rather than relying on the compiled-in default.
-
 </pre>
 <hr>
 <a name=section_8>
@@ -510,9 +493,7 @@ adjtimex() call, and it needs to be made to work as an NT service.
 <a name=question_11.2>
 <font size=+1 face="arial,helvetica">11.2. Are there any plans to support Windows?</font>
 <pre>
-I have no personal plans to do this.  I have neither the time nor the
-Windows programming expertise.  Some time ago I did start work on a port which
-I was developing under Cygwin.  Anyone is welcome to pick this work up and
+We have no plans to do this.  Anyone is welcome to pick this work up and
 contribute it back to the project.
 
 </pre>
@@ -520,7 +501,7 @@ contribute it back to the project.
 <a name=question_11.3>
 <font size=+1 face="arial,helvetica">11.3. What alternative NTP clients are there for Windows?</font>
 <pre>
-Some of the names I've seen mentioned are 
+Some of the names we've seen mentioned are 
    - Automachron
    - NetTime (nettime.sourceforge.net)
 
@@ -578,13 +559,11 @@ useful to avoid this situation.
 <?php pretty_h2("13. Development"); ?>
 <p>
 <a name=question_13.1>
-<font size=+1 face="arial,helvetica">13.1. Can I get the source via CVS from anywhere?</font>
+<font size=+1 face="arial,helvetica">13.1. Can I get the source via git from anywhere?</font>
 <pre>
-Yes.  See <a href="http://chrony.sunsite.dk/cvs.php">http://chrony.sunsite.dk/cvs.php</a> for information.  Currently there is
-only anonymous read-only access.  I keep the master copy on my own PC, which is
-more convenient for me because I don't have to connect to the Internet to do
-CVS operations on the files.  So for now, there is no read-write access for
-other developers.  Please email me your patches + documentation instead.
+Yes.  See the Git link at <a
+href="http://chrony.tuxfamily.org/">http://chrony.tuxfamily.org</a> for
+information.
 
 </pre>
 <hr>

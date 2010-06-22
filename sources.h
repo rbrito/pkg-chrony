@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -50,10 +50,15 @@ extern void SRC_Initialise(void);
 /* Finalisation function */
 extern void SRC_Finalise(void);
 
+typedef enum {
+  SRC_NTP,                      /* NTP client/peer */
+  SRC_REFCLOCK                  /* Rerefence clock */
+} SRC_Type;
+
 /* Function to create a new instance.  This would be called by one of
    the individual source-type instance creation routines. */
 
-extern SRC_Instance SRC_CreateNewInstance(unsigned long ref_id);
+extern SRC_Instance SRC_CreateNewInstance(unsigned long ref_id, SRC_Type type, IPAddr *addr);
 
 /* Function to get rid of a source when it is being unconfigured.
    This may cause the current reference source to be reselected, if this
@@ -141,7 +146,9 @@ extern int SRC_IsSyncPeer(SRC_Instance inst);
 extern int SRC_ReadNumberOfSources(void);
 extern int SRC_ReportSource(int index, RPT_SourceReport *report, struct timeval *now);
 
-extern int SRC_ReportSourcestats(int index, RPT_SourcestatsReport *report);
+extern int SRC_ReportSourcestats(int index, RPT_SourcestatsReport *report, struct timeval *now);
+
+extern SRC_Type SRC_GetType(int index);
 
 typedef enum {
   SRC_Skew_Decrease,

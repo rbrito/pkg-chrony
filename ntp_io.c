@@ -7,6 +7,8 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Timo Teras  2009
+ * Copyright (C) Miroslav Lichvar  2009
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +21,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -41,8 +43,19 @@
 
 #include <fcntl.h>
 
-/* The file descriptor for the socket */
-static int sock_fd;
+union sockaddr_in46 {
+  struct sockaddr_in in4;
+#ifdef HAVE_IPV6
+  struct sockaddr_in6 in6;
+#endif
+  struct sockaddr u;
+};
+
+/* The file descriptors for the IPv4 and IPv6 sockets */
+static int sock_fd4;
+#ifdef HAVE_IPV6
+static int sock_fd6;
+#endif
 
 /* Flag indicating that we have been initialised */
 static int initialised=0;
@@ -50,6 +63,7 @@ static int initialised=0;
 /* ================================================== */
 
 /* Forward prototypes */
+static int prepare_socket(int family);
 static void read_from_socket(void *anything);
 
 /* ================================================== */
@@ -81,30 +95,30 @@ do_size_checks(void)
 
 /* ================================================== */
 
-void
-NIO_Initialise(void)
+static int
+prepare_socket(int family)
 {
-  struct sockaddr_in my_addr;
+  union sockaddr_in46 my_addr;
+  socklen_t my_addr_len;
+  int sock_fd;
   unsigned short port_number;
-  unsigned long bind_address;
+  IPAddr bind_address;
   int on_off = 1;
   
-  assert(!initialised);
-  initialised = 1;
-
-  do_size_checks();
-
   port_number = CNF_GetNTPPort();
 
   /* Open Internet domain UDP socket for NTP message transmissions */
 
 #if 0
-  sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  sock_fd = socket(family, SOCK_DGRAM, IPPROTO_UDP);
 #else
-  sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+  sock_fd = socket(family, SOCK_DGRAM, 0);
 #endif 
+
   if (sock_fd < 0) {
-    LOG_FATAL(LOGF_NtpIO, "Could not open socket : %s", strerror(errno));
+    LOG(LOGS_ERR, LOGF_NtpIO, "Could not open %s NTP socket : %s",
+        family == AF_INET ? "IPv4" : "IPv6", strerror(errno));
+    return -1;
   }
 
   /* Make the socket capable of re-using an old address */
@@ -119,28 +133,80 @@ NIO_Initialise(void)
     /* Don't quit - we might survive anyway */
   }
 
+#ifdef SO_TIMESTAMP
+  /* Enable receiving of timestamp control messages */
+  if (setsockopt(sock_fd, SOL_SOCKET, SO_TIMESTAMP, (char *)&on_off, sizeof(on_off)) < 0) {
+    LOG(LOGS_ERR, LOGF_NtpIO, "Could not set timestamp socket options");
+    /* Don't quit - we might survive anyway */
+  }
+#endif
+
+  if (family == AF_INET) {
+#ifdef IP_PKTINFO
+    /* We want the local IP info too */
+    if (setsockopt(sock_fd, IPPROTO_IP, IP_PKTINFO, (char *)&on_off, sizeof(on_off)) < 0) {
+      LOG(LOGS_ERR, LOGF_NtpIO, "Could not request packet info using socket option");
+      /* Don't quit - we might survive anyway */
+    }
+#endif
+  }
+#ifdef HAVE_IPV6
+  else if (family == AF_INET6) {
+#ifdef IPV6_V6ONLY
+    /* Receive IPv6 packets only */
+    if (setsockopt(sock_fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&on_off, sizeof(on_off)) < 0) {
+      LOG(LOGS_ERR, LOGF_NtpIO, "Could not request IPV6_V6ONLY socket option");
+    }
+#endif
+  }
+#endif
+
   /* Bind the port */
-  my_addr.sin_family = AF_INET;
-  my_addr.sin_port = htons(port_number);
+  memset(&my_addr, 0, sizeof (my_addr));
 
-  CNF_GetBindAddress(&bind_address);
+  switch (family) {
+    case AF_INET:
+      my_addr_len = sizeof (my_addr.in4);
+      my_addr.in4.sin_family = family;
+      my_addr.in4.sin_port = htons(port_number);
 
-  if (bind_address != 0UL) {
-    my_addr.sin_addr.s_addr = htonl(bind_address);
-  } else {
-    my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+      CNF_GetBindAddress(IPADDR_INET4, &bind_address);
+
+      if (bind_address.family == IPADDR_INET4)
+        my_addr.in4.sin_addr.s_addr = htonl(bind_address.addr.in4);
+      else
+        my_addr.in4.sin_addr.s_addr = htonl(INADDR_ANY);
+      break;
+#ifdef HAVE_IPV6
+    case AF_INET6:
+      my_addr_len = sizeof (my_addr.in6);
+      my_addr.in6.sin6_family = family;
+      my_addr.in6.sin6_port = htons(port_number);
+
+      CNF_GetBindAddress(IPADDR_INET6, &bind_address);
+
+      if (bind_address.family == IPADDR_INET6)
+        memcpy(my_addr.in6.sin6_addr.s6_addr, bind_address.addr.in6,
+            sizeof (my_addr.in6.sin6_addr.s6_addr));
+      else
+        my_addr.in6.sin6_addr = in6addr_any;
+      break;
+#endif
+    default:
+      assert(0);
   }
 
 #if 0
   LOG(LOGS_INFO, LOGF_NtpIO, "Initialising, socket fd=%d", sock_fd);
 #endif
 
-  if (bind(sock_fd, (struct sockaddr *) &my_addr, sizeof(my_addr)) < 0) {
-    LOG_FATAL(LOGF_NtpIO, "Could not bind socket : %s", strerror(errno));
+  if (bind(sock_fd, &my_addr.u, my_addr_len) < 0) {
+    LOG_FATAL(LOGF_NtpIO, "Could not bind %s NTP socket : %s",
+        family == AF_INET ? "IPv4" : "IPv6", strerror(errno));
   }
 
   /* Register handler for read events on the socket */
-  SCH_AddInputFileHandler(sock_fd, read_from_socket, NULL);
+  SCH_AddInputFileHandler(sock_fd, read_from_socket, (void *)(long)sock_fd);
 
 #if 0
   if (fcntl(sock_fd, F_SETFL, O_NONBLOCK | O_NDELAY) < 0) {
@@ -151,6 +217,29 @@ NIO_Initialise(void)
     LOG(LOGS_ERR, LOGF_NtpIO, "Could not enable signal");
   }
 #endif
+  return sock_fd;
+}
+
+void
+NIO_Initialise(void)
+{
+  assert(!initialised);
+  initialised = 1;
+
+  do_size_checks();
+
+  sock_fd4 = prepare_socket(AF_INET);
+#ifdef HAVE_IPV6
+  sock_fd6 = prepare_socket(AF_INET6);
+#endif
+
+  if (sock_fd4 < 0
+#ifdef HAVE_IPV6
+      && sock_fd6 < 0
+#endif
+      ) {
+    LOG_FATAL(LOGF_NtpIO, "Could not open any NTP socket");
+  }
 
   return;
 }
@@ -160,11 +249,18 @@ NIO_Initialise(void)
 void
 NIO_Finalise(void)
 {
-  if (sock_fd >= 0) {
-    SCH_RemoveInputFileHandler(sock_fd);
-    close(sock_fd);
+  if (sock_fd4 >= 0) {
+    SCH_RemoveInputFileHandler(sock_fd4);
+    close(sock_fd4);
   }
-  sock_fd = -1;
+  sock_fd4 = -1;
+#ifdef HAVE_IPV6
+  if (sock_fd6 >= 0) {
+    SCH_RemoveInputFileHandler(sock_fd6);
+    close(sock_fd6);
+  }
+  sock_fd6 = -1;
+#endif
   initialised = 0;
   return;
 }
@@ -180,24 +276,33 @@ read_from_socket(void *anything)
   /* This should only be called when there is something
      to read, otherwise it will block. */
 
-  int status;
+  int status, sock_fd;
   ReceiveBuffer message;
-  int message_length;
-  struct sockaddr_in where_from;
-  socklen_t from_length;
+  union sockaddr_in46 where_from;
   unsigned int flags = 0;
   struct timeval now;
   NTP_Remote_Address remote_addr;
-  double local_clock_err;
+  char cmsgbuf[256];
+  struct msghdr msg;
+  struct iovec iov;
+  struct cmsghdr *cmsg;
 
   assert(initialised);
 
-  from_length = sizeof(where_from);
-  message_length = sizeof(message);
+  SCH_GetFileReadyTime(&now);
 
-  LCL_ReadCookedTime(&now, &local_clock_err);
-  status = recvfrom(sock_fd, (char *)&message, message_length, flags,
-                    (struct sockaddr *)&where_from, &from_length);
+  iov.iov_base = message.arbitrary;
+  iov.iov_len = sizeof(message);
+  msg.msg_name = &where_from;
+  msg.msg_namelen = sizeof(where_from);
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+  msg.msg_control = (void *) cmsgbuf;
+  msg.msg_controllen = sizeof(cmsgbuf);
+  msg.msg_flags = 0;
+
+  sock_fd = (long)anything;
+  status = recvmsg(sock_fd, &msg, flags);
 
   /* Don't bother checking if read failed or why if it did.  More
      likely than not, it will be connection refused, resulting from a
@@ -207,8 +312,53 @@ read_from_socket(void *anything)
      reponse on a subsequent recvfrom). */
 
   if (status > 0) {
-    remote_addr.ip_addr = ntohl(where_from.sin_addr.s_addr);
-    remote_addr.port = ntohs(where_from.sin_port);
+    memset(&remote_addr, 0, sizeof (remote_addr));
+
+    switch (where_from.u.sa_family) {
+      case AF_INET:
+        remote_addr.ip_addr.family = IPADDR_INET4;
+        remote_addr.ip_addr.addr.in4 = ntohl(where_from.in4.sin_addr.s_addr);
+        remote_addr.port = ntohs(where_from.in4.sin_port);
+        break;
+#ifdef HAVE_IPV6
+      case AF_INET6:
+        remote_addr.ip_addr.family = IPADDR_INET6;
+        memcpy(&remote_addr.ip_addr.addr.in6, where_from.in6.sin6_addr.s6_addr,
+            sizeof (remote_addr.ip_addr.addr.in6));
+        remote_addr.port = ntohs(where_from.in6.sin6_port);
+        break;
+#endif
+      default:
+        assert(0);
+    }
+
+    for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+#ifdef IP_PKTINFO
+      if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO) {
+        struct in_pktinfo ipi;
+
+        memcpy(&ipi, CMSG_DATA(cmsg), sizeof(ipi));
+        remote_addr.local_ip_addr.addr.in4 = ntohl(ipi.ipi_spec_dst.s_addr);
+        remote_addr.local_ip_addr.family = IPADDR_INET4;
+      }
+#endif
+
+#ifdef SO_TIMESTAMP
+      if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMP) {
+        struct timeval tv;
+        double correction;
+
+        memcpy(&tv, CMSG_DATA(cmsg), sizeof(tv));
+        correction = LCL_GetOffsetCorrection(&tv);
+        UTI_AddDoubleToTimeval(&tv, correction, &tv);
+#if 0
+        UTI_DiffTimevalsToDouble(&correction, &now, &tv);
+        LOG(LOGS_INFO, LOGF_NtpIO, "timestamp diff: %f", correction);
+#endif
+        now = tv;
+      }
+#endif
+    }
 
     if (status == NTP_NORMAL_PACKET_SIZE) {
 
@@ -229,27 +379,102 @@ read_from_socket(void *anything)
 }
 
 /* ================================================== */
+/* Send a packet to given address */
+
+static void
+send_packet(void *packet, int packetlen, NTP_Remote_Address *remote_addr)
+{
+  union sockaddr_in46 remote;
+  struct msghdr msg;
+  struct iovec iov;
+  char cmsgbuf[256];
+  int cmsglen;
+  int sock_fd;
+  socklen_t addrlen;
+
+  assert(initialised);
+
+  switch (remote_addr->ip_addr.family) {
+    case IPADDR_INET4:
+      memset(&remote.in4, 0, sizeof (remote.in4));
+      addrlen = sizeof (remote.in4);
+      remote.in4.sin_family = AF_INET;
+      remote.in4.sin_port = htons(remote_addr->port);
+      remote.in4.sin_addr.s_addr = htonl(remote_addr->ip_addr.addr.in4);
+      sock_fd = sock_fd4;
+      break;
+#ifdef HAVE_IPV6
+    case IPADDR_INET6:
+      memset(&remote.in6, 0, sizeof (remote.in6));
+      addrlen = sizeof (remote.in6);
+      remote.in6.sin6_family = AF_INET6;
+      remote.in6.sin6_port = htons(remote_addr->port);
+      memcpy(&remote.in6.sin6_addr.s6_addr, &remote_addr->ip_addr.addr.in6,
+          sizeof (remote.in6.sin6_addr.s6_addr));
+      sock_fd = sock_fd6;
+      break;
+#endif
+    default:
+      return;
+  }
+
+  if (sock_fd < 0)
+    return;
+
+  iov.iov_base = packet;
+  iov.iov_len = packetlen;
+  msg.msg_name = &remote.u;
+  msg.msg_namelen = addrlen;
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+  msg.msg_control = cmsgbuf;
+  msg.msg_controllen = sizeof(cmsgbuf);
+  msg.msg_flags = 0;
+  cmsglen = 0;
+
+#ifdef IP_PKTINFO
+  if (remote_addr->local_ip_addr.family == IPADDR_INET4) {
+    struct cmsghdr *cmsg;
+    struct in_pktinfo *ipi;
+
+    cmsg = CMSG_FIRSTHDR(&msg);
+    memset(cmsg, 0, CMSG_SPACE(sizeof(struct in_pktinfo)));
+    cmsglen += CMSG_SPACE(sizeof(struct in_pktinfo));
+
+    cmsg->cmsg_level = IPPROTO_IP;
+    cmsg->cmsg_type = IP_PKTINFO;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(struct in_pktinfo));
+
+    ipi = (struct in_pktinfo *) CMSG_DATA(cmsg);
+    ipi->ipi_spec_dst.s_addr = htonl(remote_addr->local_ip_addr.addr.in4);
+  }
+#endif
+
+#if 0
+    LOG(LOGS_INFO, LOGF_NtpIO, "sending to %s:%d from %s",
+        UTI_IPToString(&remote_addr->ip_addr), remote_addr->port, UTI_IPToString(&remote_addr->local_ip_addr));
+#endif
+
+  msg.msg_controllen = cmsglen;
+  /* This is apparently required on some systems */
+  if (!cmsglen)
+    msg.msg_control = NULL;
+
+  if (sendmsg(sock_fd, &msg, 0) < 0 && !LOG_RateLimited()) {
+    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to %s:%d : %s",
+        UTI_IPToString(&remote_addr->ip_addr), remote_addr->port, strerror(errno));
+  }
+
+  return;
+}
+
+/* ================================================== */
 /* Send an unauthenticated packet to a given address */
 
 void
 NIO_SendNormalPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr)
 {
-  struct sockaddr_in remote;
-
-  assert(initialised);
-
-  remote.sin_family = AF_INET;
-  remote.sin_port = htons(remote_addr->port);
-  remote.sin_addr.s_addr = htonl(remote_addr->ip_addr);
-
-  if (sendto(sock_fd, (void *) packet, NTP_NORMAL_PACKET_SIZE, 0,
-             (struct sockaddr *) &remote, sizeof(remote)) < 0 &&
-      !LOG_RateLimited()) {
-    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to %s:%d : %s",
-        UTI_IPToDottedQuad(remote_addr->ip_addr), remote_addr->port, strerror(errno));
-  }
-
-  return;
+  send_packet((void *) packet, NTP_NORMAL_PACKET_SIZE, remote_addr);
 }
 
 /* ================================================== */
@@ -258,22 +483,7 @@ NIO_SendNormalPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr)
 void
 NIO_SendAuthenticatedPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr)
 {
-  struct sockaddr_in remote;
-
-  assert(initialised);
-
-  remote.sin_family = AF_INET;
-  remote.sin_port = htons(remote_addr->port);
-  remote.sin_addr.s_addr = htonl(remote_addr->ip_addr);
-
-  if (sendto(sock_fd, (void *) packet, sizeof(NTP_Packet), 0,
-             (struct sockaddr *) &remote, sizeof(remote)) < 0 &&
-      !LOG_RateLimited()) {
-    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to %s:%d : %s",
-        UTI_IPToDottedQuad(remote_addr->ip_addr), remote_addr->port, strerror(errno));
-  }
-
-  return;
+  send_packet((void *) packet, sizeof(NTP_Packet), remote_addr);
 }
 
 /* ================================================== */
@@ -285,15 +495,10 @@ void
 NIO_SendEcho(NTP_Remote_Address *remote_addr)
 {
   unsigned long magic_message = 0xbe7ab1e7UL;
-  struct sockaddr_in addr;
+  NTP_Remote_Address addr;
 
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(ECHO_PORT);
-  addr.sin_addr.s_addr = htonl(remote_addr->ip_addr);
+  addr = *remote_addr;
+  addr.port = ECHO_PORT;
 
-  /* Just ignore error status on send - this is not a big deal anyway */
-  sendto(sock_fd, (void *) &magic_message, sizeof(unsigned long), 0,
-         (struct sockaddr *) &addr, sizeof(addr));
-
-
+  send_packet((void *) &magic_message, sizeof(unsigned long), &addr);
 }

@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -66,8 +66,9 @@ static unsigned long logwrites = 0;
 
 struct SST_Stats_Record {
 
-  /* Reference ID of source, used for logging to statistics log */
+  /* Reference ID and IP address of source, used for logging to statistics log */
   unsigned long refid;
+  IPAddr *ip_addr;
 
   /* Number of samples currently stored.  sample[n_samples-1] is the
      newest.  The samples are expected to be sorted in order, but that
@@ -187,17 +188,20 @@ SST_Finalise(void)
 /* This function creates a new instance of the statistics handler */
 
 SST_Stats
-SST_CreateInstance(unsigned long refid)
+SST_CreateInstance(unsigned long refid, IPAddr *addr)
 {
   SST_Stats inst;
   inst = MallocNew(struct SST_Stats_Record);
   inst->refid = refid;
+  inst->ip_addr = addr;
   inst->n_samples = 0;
   inst->estimated_frequency = 0;
   inst->skew = 2000.0e-6;
   inst->skew_dirn = SST_Skew_Nochange;
   inst->estimated_offset = 0.0;
   inst->estimated_offset_sd = 86400.0; /* Assume it's at least within a day! */
+  inst->offset_time.tv_sec = 0;
+  inst->offset_time.tv_usec = 0;
   inst->variance = 16.0;
   inst->nruns = 0;
   return inst;
@@ -471,7 +475,7 @@ SST_DoNewRegression(SST_Stats inst)
             
       fprintf(logfile, "%s %-15s %10.3e %10.3e %10.3e %10.3e %10.3e %7.1e %3d %3d %3d\n",
               UTI_TimeToLogForm(inst->offset_time.tv_sec),
-              UTI_IPToDottedQuad(inst->refid),
+              inst->ip_addr ? UTI_IPToString(inst->ip_addr) : UTI_RefidToString(inst->refid),
               sqrt(inst->variance),
               inst->estimated_offset,
               inst->estimated_offset_sd,
@@ -721,8 +725,12 @@ SST_PredictOffset(SST_Stats inst, struct timeval *when)
   if (inst->n_samples < 3) {
     /* We don't have any useful statistics, and presumably the poll
        interval is minimal.  We can't do any useful prediction other
-       than use the latest sample */
-    return inst->offsets[inst->n_samples - 1];
+       than use the latest sample or zero if we don't have any samples */
+    if (inst->n_samples > 0) {
+      return inst->offsets[inst->n_samples - 1];
+    } else {
+      return 0.0;
+    }
   } else {
     UTI_DiffTimevalsToDouble(&elapsed, when, &inst->offset_time);
     return inst->estimated_offset + elapsed * inst->estimated_frequency;
@@ -837,47 +845,24 @@ SST_LoadFromFile(SST_Stats inst, FILE *in)
 void
 SST_DoSourceReport(SST_Stats inst, RPT_SourceReport *report, struct timeval *now)
 {
-  int n, nb;
-  double est_offset, est_err, elapsed, sample_elapsed;
+  int n;
   struct timeval ago;
 
   if (inst->n_samples > 0) {
     n = inst->n_samples - 1;
-    report->orig_latest_meas = (long)(0.5 + 1.0e6 * inst->orig_offsets[n]);
-    report->latest_meas = (long)(0.5 + 1.0e6 * inst->offsets[n]);
-    report->latest_meas_err = (unsigned long)(0.5 + 1.0e6 * (0.5*inst->root_delays[n] + inst->root_dispersions[n]));
+    report->orig_latest_meas = inst->orig_offsets[n];
+    report->latest_meas = inst->offsets[n];
+    report->latest_meas_err = 0.5*inst->root_delays[n] + inst->root_dispersions[n];
     report->stratum = inst->strata[n];
 
     UTI_DiffTimevals(&ago, now, &inst->sample_times[n]);
     report->latest_meas_ago = ago.tv_sec;
-
-    if (inst->n_samples > 3) {
-      UTI_DiffTimevalsToDouble(&elapsed, now, &inst->offset_time);
-      nb = inst->best_single_sample;
-      UTI_DiffTimevalsToDouble(&sample_elapsed, now, &(inst->sample_times[nb]));
-      est_offset = inst->estimated_offset + elapsed * inst->estimated_frequency;
-      est_err = (inst->estimated_offset_sd +
-                 sample_elapsed * inst->skew +
-                 (0.5*inst->root_delays[nb] + inst->root_dispersions[nb]));
-      report->est_offset = (long)(0.5 + 1.0e6 * est_offset);
-      report->est_offset_err = (unsigned long) (0.5 + 1.0e6 * est_err);
-      report->resid_freq = (long) (0.5 * 1.0e9 * inst->estimated_frequency);
-      report->resid_skew = (unsigned long) (0.5 + 1.0e9 * inst->skew);
-    } else {
-      report->est_offset = report->latest_meas;
-      report->est_offset_err = report->latest_meas_err;
-      report->resid_freq = 0;
-      report->resid_skew = 0;
-    }
   } else {
+    report->latest_meas_ago = 86400 * 365 * 10;
     report->orig_latest_meas = 0;
     report->latest_meas = 0;
     report->latest_meas_err = 0;
     report->stratum = 0;
-    report->est_offset = 0;
-    report->est_offset_err = 0;
-    report->resid_freq = 0;
-    report->resid_skew = 0;
   }
 }
 
@@ -892,10 +877,11 @@ SST_Skew_Direction SST_LastSkewChange(SST_Stats inst)
 /* ================================================== */
 
 void
-SST_DoSourcestatsReport(SST_Stats inst, RPT_SourcestatsReport *report)
+SST_DoSourcestatsReport(SST_Stats inst, RPT_SourcestatsReport *report, struct timeval *now)
 {
   double dspan;
-  int n;
+  double elapsed, sample_elapsed;
+  int n, nb;
 
   report->n_samples = inst->n_samples;
   report->n_runs = inst->nruns;
@@ -904,13 +890,28 @@ SST_DoSourcestatsReport(SST_Stats inst, RPT_SourcestatsReport *report)
     n = inst->n_samples - 1;
     UTI_DiffTimevalsToDouble(&dspan, &inst->sample_times[n], &inst->sample_times[0]);
     report->span_seconds = (unsigned long) (dspan + 0.5);
+
+    if (inst->n_samples > 3) {
+      UTI_DiffTimevalsToDouble(&elapsed, now, &inst->offset_time);
+      nb = inst->best_single_sample;
+      UTI_DiffTimevalsToDouble(&sample_elapsed, now, &(inst->sample_times[nb]));
+      report->est_offset = inst->estimated_offset + elapsed * inst->estimated_frequency;
+      report->est_offset_err = (inst->estimated_offset_sd +
+                 sample_elapsed * inst->skew +
+                 (0.5*inst->root_delays[nb] + inst->root_dispersions[nb]));
+    } else {
+      report->est_offset = inst->offsets[n];
+      report->est_offset_err = 0.5*inst->root_delays[n] + inst->root_dispersions[n];
+    }
   } else {
     report->span_seconds = 0;
+    report->est_offset = 0;
+    report->est_offset_err = 0;
   }
 
   report->resid_freq_ppm = 1.0e6 * inst->estimated_frequency;
   report->skew_ppm = 1.0e6 * inst->skew;
-  report->sd_us = 1.0e6 * sqrt(inst->variance);
+  report->sd = sqrt(inst->variance);
 }
 
 /* ================================================== */
