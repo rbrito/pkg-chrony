@@ -1,3 +1,20 @@
+chrony (1.24-2) unstable; urgency=low
+
+  * Fixed regression that caused default CHRONY_IOC_ lines to
+    vanish from io_linux.h thereby breaking hppa and ia64.
+
+    Closes: #588930: FTBFS [ia64,hppa]: "I don't know the values of the 
+    _IOC_* constants on your architecture"
+  
+  * $remote_fs was added in 1.24-1.  Depending on networking is neither
+    necessary nor desireable.
+  
+    Closes: #590888: Dependencies on init.d script insuficcient
+  
+  * Still need to rewrite scripts.
+  
+ -- John G. Hasler <jhasler@newsguy.com>  Fri, 30 Jul 2010 20:32:55 -0500
+
 chrony (1.24-1) unstable; urgency=low
 
   * New upstream release.  The scripts will be rewritten and many more bugs
