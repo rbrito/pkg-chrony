@@ -9,8 +9,8 @@
 # Provides:          chrony
 # Required-Start:    $remote_fs
 # Required-Stop:     $remote_fs
-# Should-Start:      $syslog $network $named
-# Should-Stop:       $syslog $network $named
+# Should-Start:      $syslog $network $named $hwclock
+# Should-Stop:       $syslog $network $named $hwclock
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Controls chronyd NTP time daemon
@@ -29,7 +29,7 @@ putonline ()
 { # Do we have a default route?  If so put chronyd online.
     if timelimit -q -s9 -t5 -- netstat -rn 2>/dev/null | grep UG | cut -f 1 -d ' ' | grep -q '0\.0\.0\.0' 
     then
-	sleep 1  # Chronyd can take a while to start.
+	sleep 2  # Chronyd can take a while to start.
 	KEY=$(awk '$1 ~ /^commandkey$/ { print $2; exit}' /etc/chrony/chrony.conf)
 	PASSWORD=`awk '$1 ~ /^'$KEY'$/ {print $2; exit}' /etc/chrony/chrony.keys`
 	# Make sure chronyc can't hang us up.
@@ -46,14 +46,26 @@ EOF
                 rm -f /var/run/chrony-ppp-up
                 echo "$NAME is running and offline."    
         fi
+    else
+        rm -f /var/run/chrony-ppp-up
+        echo "$NAME is running and offline."
     fi
 }
 
 case "$1" in
     start)
-	start-stop-daemon --start --verbose --exec $DAEMON || { echo "$DAEMON already running."; exit 1; }
-	/bin/pidof $DAEMON > /dev/null || { echo "$DAEMON failed to start."; exit 1; }
-	putonline
+	start-stop-daemon --start --verbose --exec $DAEMON
+	case "$?" in
+		0) # daemon successfully started
+			putonline
+			;;
+	        1) # daemon already running
+		        ;;
+		*) # daemon could not be started
+			echo "$DAEMON failed to start."
+			exit 1
+			;;
+	esac
 	;;
     stop)
 	start-stop-daemon --stop --verbose --oknodo --exec $DAEMON
@@ -63,9 +75,19 @@ case "$1" in
 	echo -n "Restarting $DESC: "
 	start-stop-daemon --stop --quiet --exec $DAEMON
 	sleep 1
-	start-stop-daemon --start --quiet --exec $DAEMON -- -r
-	/bin/pidof $DAEMON > /dev/null || { echo "$DAEMON failed to restart."; rm -f /var/run/chrony-ppp-up; exit 1; }
-	putonline
+	start-stop-daemon --start --verbose --exec $DAEMON -- -r
+	case "$?" in
+		0) # daemon successfully started
+			putonline
+			;;
+	        1) # still running
+		        ;;
+		*) # daemon could not be started
+			echo "$DAEMON failed to restart."
+			rm -f /var/run/chrony-ppp-up
+			exit 1
+			;;
+	esac
 	;;
     *)
 	echo "Usage: /etc/init.d/chrony {start|stop|restart|force-reload}"

@@ -1,7 +1,7 @@
 Source: chrony
 Section: admin
 Priority: extra
-Maintainer: John G. Hasler <jhasler@newsguy.com>
+Maintainer: John G. Hasler <jhasler@debian.org>
 Standards-Version: 3.8.3
 Build-Depends: debhelper (>= 7), libreadline5-dev | libreadline-dev, texinfo, bison
 
