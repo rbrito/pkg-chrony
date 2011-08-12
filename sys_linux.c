@@ -819,6 +819,11 @@ get_version_specific_details(void)
           LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
       }
       break;
+    case 3:
+      /* These don't need scaling (treat like 2.6.28 and later) */
+      freq_scale = 1.0;
+      have_readonly_adjtime = 2;
+      break;
     default:
       LOG_FATAL(LOGF_SysLinux, "Kernel's major version not supported yet, sorry");
       break;

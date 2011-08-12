@@ -1,3 +1,15 @@
+chrony (1.24-3.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Add patch (directly over the source...), to work with kernels > 3.0.0,
+    by Paul Martin at http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=628919#15.
+    (Closes: #628919)
+  * Fix readline build-depends from "libreadline5-dev | libreadline-dev" to
+    libreadline-gplv2-dev because chrony is GPLv2 only.  (Closes: #634447)
+  * Update copyright file to say that chrony is GPLv2 only. (Closes: #637526)
+
+ -- Ana Beatriz Guerrero Lopez <ana@debian.org>  Fri, 12 Aug 2011 12:32:26 +0200
+
 chrony (1.24-3) unstable; urgency=high
 
   * Applied (modifed) patch from Gregor Herrmann.
