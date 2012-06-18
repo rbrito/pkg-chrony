@@ -1,12 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/wrap_adjtimex.c,v 1.9 2002/11/19 21:33:42 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2002
+ * Copyright (C) Miroslav Lichvar  2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,6 +29,8 @@
 
   */
 
+#include "config.h"
+
 #ifdef LINUX
 
 #define _LOOSE_KERNEL_NAMES
@@ -39,8 +38,7 @@
 #include "chrony_timex.h"
 #include "wrap_adjtimex.h"
 
-/* Save leap status between calls */
-static int leap_status = 0;
+static int status = 0;
 
 int
 TMX_SetTick(long tick)
@@ -66,40 +64,36 @@ TMX_ApplyOffset(long *offset)
 }
 
 int
-TMX_SetFrequency(double freq, long tick)
+TMX_SetFrequency(double *freq, long tick)
 {
   struct timex txc;
   
   txc.modes = ADJ_TICK | ADJ_FREQUENCY | ADJ_STATUS;
 
-  txc.freq = (long)(freq * (double)(1 << SHIFT_USEC));
+  txc.freq = (long)(*freq * (double)(1 << SHIFT_USEC));
+  *freq = txc.freq / (double)(1 << SHIFT_USEC);
   txc.tick = tick;
-  txc.status = STA_UNSYNC; /* Prevent any of the FLL/PLL stuff coming
-                              up */
-  txc.status |= leap_status; /* Preserve leap bits */
+  txc.status = status; 
+
+  if (!(status & STA_UNSYNC)) {
+    /* maxerror has to be reset periodically to prevent kernel
+       from enabling UNSYNC flag */
+    txc.modes |= ADJ_MAXERROR;
+    txc.maxerror = 0;
+  }
 
   return adjtimex(&txc);
 }
 
 int
-TMX_GetFrequency(double *freq)
+TMX_GetFrequency(double *freq, long *tick)
 {
   struct timex txc;
   int result;
   txc.modes = 0; /* pure read */
   result = adjtimex(&txc);
   *freq = txc.freq / (double)(1 << SHIFT_USEC);
-  return result;
-}
-
-int
-TMX_GetOffsetLeftOld(long *offset)
-{
-  struct timex txc;
-  int result;
-  txc.modes = 0; /* pure read */
-  result = adjtimex(&txc);
-  *offset = txc.offset;
+  *tick = txc.tick;
   return result;
 }
 
@@ -164,18 +158,75 @@ TMX_SetLeap(int leap)
 {
   struct timex txc;
 
+  status &= ~(STA_INS | STA_DEL);
+
   if (leap > 0) {
-    leap_status = STA_INS;
+    status |= STA_INS;
   } else if (leap < 0) {
-    leap_status = STA_DEL;
-  } else {
-    leap_status = 0;
+    status |= STA_DEL;
   }
   
   txc.modes = ADJ_STATUS;
-  txc.status = STA_UNSYNC | leap_status;
+  txc.status = status;
 
   return adjtimex(&txc);
+}
+
+int TMX_SetSync(int sync)
+{
+  struct timex txc;
+
+  if (sync) {
+    status &= ~STA_UNSYNC;
+  } else {
+    status |= STA_UNSYNC;
+  }
+
+  txc.modes = ADJ_STATUS;
+  txc.status = status;
+
+  return adjtimex(&txc);
+}
+
+int
+TMX_EnableNanoPLL(void)
+{
+  struct timex txc;
+  int result;
+
+  txc.modes = ADJ_STATUS | ADJ_OFFSET | ADJ_TIMECONST | ADJ_NANO;
+  txc.status = STA_PLL | STA_FREQHOLD;
+  txc.offset = 0;
+  txc.constant = 0;
+  result = adjtimex(&txc);
+  if (result < 0 || !(txc.status & STA_NANO) || txc.offset || txc.constant)
+    return -1;
+
+  status |= STA_PLL | STA_FREQHOLD;
+  return result;
+}
+
+int
+TMX_ApplyPLLOffset(long offset)
+{
+  struct timex txc;
+
+  txc.modes = ADJ_OFFSET | ADJ_TIMECONST | ADJ_NANO;
+  txc.offset = offset;
+  txc.constant = 0;
+  return adjtimex(&txc);
+}
+
+int
+TMX_GetPLLOffsetLeft(long *offset)
+{
+  struct timex txc;
+  int result;
+
+  txc.modes = 0;
+  result = adjtimex(&txc);
+  *offset = txc.offset;
+  return result;
 }
 
 #endif

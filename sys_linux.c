@@ -1,14 +1,10 @@
 /*
-  $Header: /cvs/src/chrony/sys_linux.c,v 1.45 2003/10/04 19:56:40 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
  * Copyright (C) John G. Hasler  2009
- * Copyright (C) Miroslav Lichvar  2009
+ * Copyright (C) Miroslav Lichvar  2009-2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +26,8 @@
   This is the module specific to the Linux operating system.
 
   */
+
+#include "config.h"
 
 #ifdef LINUX
 
@@ -108,10 +106,14 @@ static int version_patchlevel;
 /* Flag indicating whether adjtimex() returns the remaining time adjustment
 or not.  If not we have to read the outstanding adjustment by setting it to
 zero, examining the return value and setting the outstanding adjustment back
-again.  If 1, txc.modes equal to zero is used to read the time.  If 2,
-txc.modes is set to ADJ_OFFSET_SS_READ. */
+again. */
 
 static int have_readonly_adjtime;
+
+/* Flag indicating whether kernel supports PLL in nanosecond resolution.
+   If supported, it will be used instead of adjtime() for very small
+   adjustments. */
+static int have_nanopll;
 
 /* ================================================== */
 
@@ -119,18 +121,9 @@ static void handle_end_of_slew(void *anything);
 
 /* ================================================== */
 
-inline static int
-our_round(double x) {
-  int y;
-  y = (int)(x + 0.5);
-  while ((double)y < x - 0.5) y++;
-  while ((double)y > x + 0.5) y--;
-  return y;
-}
-
 inline static long
-our_lround(double x) {
-  int y;
+our_round(double x) {
+  long y;
 
   if (x > 0.0)
 	  y = x + 0.5;
@@ -145,6 +138,9 @@ static double offset_register;
 
 /* Flag set true if an adjtime slew was started and still may be running */
 static int slow_slewing;
+
+/* Flag set true if a PLL nano slew was started and still may be running */
+static int nano_slewing;
 
 /* Flag set true if a fast slew (one done by altering tick) is being
    run at the moment */
@@ -182,12 +178,164 @@ static double delta_total_tick;
    assuming it is resync'ed about once per day. (TBC) */
 #define MAX_ADJUST_WITH_ADJTIME (0.2)
 
+/* Max amount of time that should be adjusted by kernel PLL */
+#define MAX_ADJUST_WITH_NANOPLL (1.0e-5)
+
 /* The amount by which we alter 'tick' when doing a large slew */
 static int slew_delta_tick;
 
 /* The maximum amount by which 'tick' can be biased away from 'nominal_tick'
    (sys_adjtimex() in the kernel bounds this to 10%) */
 static int max_tick_bias;
+
+/* The latest time at which system clock may still be slewed by previous
+   adjtime() call and maximum offset correction error it can cause */
+static struct timeval slow_slew_error_end;
+static int slow_slew_error;
+
+/* Timeval at which the latest nano PLL adjustment was started and maximum
+   offset correction error it can cause */
+static struct timeval nano_slew_error_start;
+static int nano_slew_error;
+
+/* The latest time at which 'tick' in kernel may be actually updated
+   and maximum offset correction error it can cause */
+static struct timeval fast_slew_error_end;
+static double fast_slew_error;
+
+/* The rate at which frequency and tick values are updated in kernel. */
+static int tick_update_hz;
+
+/* ================================================== */
+/* These routines are used to estimate maximum error in offset correction */
+
+static void
+update_slow_slew_error(int offset)
+{
+  struct timeval now, newend;
+
+  if (offset == 0 && slow_slew_error == 0)
+    return;
+
+  if (gettimeofday(&now, NULL) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "gettimeofday() failed");
+  }
+
+  if (offset < 0)
+    offset = -offset;
+
+  /* assume 500ppm rate and one sec delay, plus 10 percent for fast slewing */
+  UTI_AddDoubleToTimeval(&now, (offset + 999) / 500 * 1.1, &newend);
+
+  if (offset > 500)
+    offset = 500;
+
+  if (slow_slew_error > offset) {
+    double previous_left;
+
+    UTI_DiffTimevalsToDouble(&previous_left, &slow_slew_error_end, &now);
+    if (previous_left > 0.0) {
+      if (offset == 0)
+        newend = slow_slew_error_end;
+      offset = slow_slew_error;
+    }
+  }
+
+  slow_slew_error = offset;
+  slow_slew_error_end = newend;
+}
+
+static double
+get_slow_slew_error(struct timeval *now)
+{
+  double left;
+
+  if (slow_slew_error == 0)
+    return 0.0;
+
+  UTI_DiffTimevalsToDouble(&left, &slow_slew_error_end, now);
+  return left > 0.0 ? slow_slew_error / 1e6 : 0.0;
+}
+
+static void
+update_nano_slew_error(long offset, int new)
+{
+  struct timeval now;
+  double ago;
+
+  if (offset == 0 && nano_slew_error == 0)
+    return;
+
+  /* maximum error in offset reported by adjtimex, assuming PLL constant 0 
+     and SHIFT_PLL = 2 */
+  offset /= new ? 4 : 3;
+  if (offset < 0)
+    offset = -offset;
+
+  if (new || nano_slew_error_start.tv_sec > 0) {
+    if (gettimeofday(&now, NULL) < 0) {
+      LOG_FATAL(LOGF_SysLinux, "gettimeofday() failed");
+    }
+  }
+
+  /* When PLL offset is newly set, use the maximum of the old and new error.
+     Otherwise use the minimum, but only when the last update is older than
+     1.1 seconds to be sure the previous adjustment is already gone. */
+  if (!new) {
+    if (nano_slew_error > offset) {
+      if (nano_slew_error_start.tv_sec == 0) {
+        nano_slew_error = offset;
+      } else {
+        UTI_DiffTimevalsToDouble(&ago, &now, &nano_slew_error_start);
+        if (ago > 1.1) {
+          nano_slew_error_start.tv_sec = 0;
+          nano_slew_error = offset;
+        }
+      }
+    }
+  } else {
+    if (nano_slew_error < offset)
+      nano_slew_error = offset;
+    nano_slew_error_start = now;
+  }
+}
+
+static double
+get_nano_slew_error(void)
+{
+  if (nano_slew_error == 0)
+    return 0.0;
+
+  return nano_slew_error / 1e9;
+}
+
+static void
+update_fast_slew_error(struct timeval *now)
+{
+  double max_tick;
+
+  max_tick = current_total_tick +
+    (delta_total_tick > 0.0 ? delta_total_tick : 0.0);
+
+  UTI_AddDoubleToTimeval(now, 1e6 * max_tick / nominal_tick / tick_update_hz,
+      &fast_slew_error_end);
+  fast_slew_error = fabs(1e6 * delta_total_tick / nominal_tick / tick_update_hz);
+}
+
+static double
+get_fast_slew_error(struct timeval *now)
+{
+  double left;
+
+  if (fast_slew_error == 0.0)
+    return 0.0;
+
+  UTI_DiffTimevalsToDouble(&left, &fast_slew_error_end, now);
+  if (left < -10.0)
+    fast_slew_error = 0.0;
+
+  return left > 0.0 ? fast_slew_error : 0.0;
+}
 
 /* ================================================== */
 /* This routine stops a fast slew, determines how long the slew has
@@ -198,44 +346,32 @@ static int max_tick_bias;
 static void
 stop_fast_slew(void)
 {
-  struct timeval T1, T1d, T1a;
-  struct timezone tz;
-  double end_window;
+  struct timeval T1;
   double fast_slew_done;
   double slew_duration;
-  double introduced_dispersion;
 
   /* Should never get here unless this is true */
-  if (!fast_slewing) {
-    CROAK("Should be fast slewing");
-  }
+  assert(fast_slewing);
   
   /* Now set the thing off */
-  if (gettimeofday(&T1, &tz) < 0) {
-    CROAK("gettimeofday() failed in stop_fast_slew");
+  if (gettimeofday(&T1, NULL) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "gettimeofday() failed");
   }
   
   if (TMX_SetTick(current_tick) < 0) {
-    CROAK("adjtimex() failed in stop_fast_slew");
-  }
-  
-  if (gettimeofday(&T1d, &tz) < 0) {
-    CROAK("gettimeofday() failed in stop_fast_slew");
+    LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
   }
 
   fast_slewing = 0;
 
-  UTI_AverageDiffTimevals(&T1, &T1d, &T1a, &end_window);
-  UTI_DiffTimevalsToDouble(&slew_duration, &T1a, &slew_start_tv);
-  
+  UTI_DiffTimevalsToDouble(&slew_duration, &T1, &slew_start_tv);
+
   /* Compute the dispersion we have introduced by changing tick this
-     way.  If the two samples of gettimeofday differ, there is an
-     uncertainty window wrt when the frequency change actually applies
-     from.  We handle this by adding dispersion to all statistics held
+     way.  We handle this by adding dispersion to all statistics held
      at higher levels in the system. */
 
-  introduced_dispersion = end_window * delta_total_tick;
-  lcl_InvokeDispersionNotifyHandlers(introduced_dispersion);
+  update_fast_slew_error(&T1);
+  lcl_InvokeDispersionNotifyHandlers(fast_slew_error);
 
   fast_slew_done = delta_total_tick * slew_duration /
     (current_total_tick + delta_total_tick);
@@ -244,6 +380,39 @@ stop_fast_slew(void)
 
 }
 
+/* ================================================== */
+/* This routine reschedules fast slew timeout after frequency was changed */
+
+static void
+adjust_fast_slew(double old_tick, double old_delta_tick)
+{
+  struct timeval tv, end_of_slew;
+  double fast_slew_done, slew_duration, dseconds;
+
+  assert(fast_slewing);
+
+  if (gettimeofday(&tv, NULL) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "gettimeofday() failed");
+  }
+  
+  UTI_DiffTimevalsToDouble(&slew_duration, &tv, &slew_start_tv);
+
+  fast_slew_done = old_delta_tick * slew_duration / (old_tick + old_delta_tick);
+  offset_register += fast_slew_wanted + fast_slew_done;
+
+  dseconds = -offset_register * (current_total_tick + delta_total_tick) / delta_total_tick;
+
+  if (dseconds > 3600 * 24 * 7)
+    dseconds = 3600 * 24 * 7;
+  UTI_AddDoubleToTimeval(&tv, dseconds, &end_of_slew);
+
+  slew_start_tv = tv;
+  fast_slew_wanted = offset_register;
+  offset_register = 0.0;
+
+  SCH_RemoveTimeout(slew_timeout_id);
+  slew_timeout_id = SCH_AddTimeout(&end_of_slew, handle_end_of_slew, NULL);
+}
 
 /* ================================================== */
 /* This routine is called to start a clock offset adjustment */
@@ -254,42 +423,62 @@ initiate_slew(void)
   double dseconds;
   long tick_adjust;
   long offset;
-  struct timeval T0, T0d, T0a;
+  struct timeval T0;
   struct timeval end_of_slew;
-  struct timezone tz;
-  double start_window;
-  double introduced_dispersion;
 
   /* Don't want to get here if we already have an adjust on the go! */
-  if (fast_slewing) {
-    CROAK("Should not be fast slewing");
-  }
+  assert(!fast_slewing);
 
   if (offset_register == 0.0) {
     return;
   }
 
-  /* Cancel any standard adjtime that is running */
+  /* Cancel any slewing that is running */
   if (slow_slewing) {
     offset = 0;
     if (TMX_ApplyOffset(&offset) < 0) {
-      CROAK("adjtimex() failed in accrue_offset");
+      LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
     }
     offset_register -= (double) offset / 1.0e6;
     slow_slewing = 0;
+    update_slow_slew_error(0);
+  } else if (nano_slewing) {
+    if (TMX_GetPLLOffsetLeft(&offset) < 0) {
+      LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
+    }
+    offset_register -= (double) offset / 1.0e9;
+    update_nano_slew_error(offset, 0);
+
+    offset = 0;
+    if (TMX_ApplyPLLOffset(offset) < 0) {
+      LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
+    }
+    nano_slewing = 0;
+    update_nano_slew_error(offset, 1);
   }
 
-  if (fabs(offset_register) < MAX_ADJUST_WITH_ADJTIME) {
-    /* Use adjtime to do the shift */
-    offset = our_lround(1.0e6 * -offset_register);
+  if (have_nanopll && fabs(offset_register) < MAX_ADJUST_WITH_NANOPLL) {
+    /* Use PLL with fixed frequency to do the shift */
+    offset = 1.0e9 * -offset_register;
 
-    offset_register += offset * 1e-6;
+    if (TMX_ApplyPLLOffset(offset) < 0) {
+      LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
+    }
+    offset_register = 0.0;
+    nano_slewing = 1;
+    update_nano_slew_error(offset, 1);
+  } else if (fabs(offset_register) < MAX_ADJUST_WITH_ADJTIME) {
+    /* Use adjtime to do the shift */
+    offset = our_round(1.0e6 * -offset_register);
+
+    offset_register += offset / 1.0e6;
 
     if (offset != 0) {
       if (TMX_ApplyOffset(&offset) < 0) {
-        CROAK("adjtimex() failed in initiate_slew");
+        LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
       }
       slow_slewing = 1;
+      update_slow_slew_error(offset);
     }
   } else {
 
@@ -305,14 +494,22 @@ initiate_slew(void)
     max_allowed_tick = nominal_tick + max_tick_bias;
 
     if (offset_register > 0) {
+      if (current_tick <= min_allowed_tick) {
+        return;
+      }
+
       slewing_tick = current_tick - slew_delta_tick;
-      if (slewing_tick <= min_allowed_tick) {
-        slewing_tick = min_allowed_tick + 1;
+      if (slewing_tick < min_allowed_tick) {
+        slewing_tick = min_allowed_tick;
       }
     } else {
+      if (current_tick >= max_allowed_tick) {
+        return;
+      }
+
       slewing_tick = current_tick + slew_delta_tick;
-      if (slewing_tick >= max_allowed_tick) {
-        slewing_tick = max_allowed_tick - 1;
+      if (slewing_tick > max_allowed_tick) {
+        slewing_tick = max_allowed_tick;
       }
     }
 
@@ -321,42 +518,31 @@ initiate_slew(void)
     delta_total_tick = (double) tick_adjust / 1.0e6;
     dseconds = - offset_register * (current_total_tick + delta_total_tick) / delta_total_tick;
 
+    assert(dseconds > 0.0);
+
     /* Now set the thing off */
-    if (gettimeofday(&T0, &tz) < 0) {
-      CROAK("gettimeofday() failed in initiate_slew");
+    if (gettimeofday(&T0, NULL) < 0) {
+      LOG_FATAL(LOGF_SysLinux, "gettimeofday() failed");
     }
 
     if (TMX_SetTick(slewing_tick) < 0) {
-      LOG(LOGS_INFO, LOGF_SysLinux, "c_t=%ld ta=%ld sl_t=%ld dtt=%e",
-          current_tick, tick_adjust, slewing_tick, delta_total_tick);
-      CROAK("adjtimex() failed to start big slew");
+      LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
     }
-
-    if (gettimeofday(&T0d, &tz) < 0) {
-      CROAK("gettimeofday() failed in initiate_slew");
-    }
-
-    /* Now work out the uncertainty in when we actually started the
-       slew. */
-    
-    UTI_AverageDiffTimevals(&T0, &T0d, &T0a, &start_window);
 
     /* Compute the dispersion we have introduced by changing tick this
-    way.  If the two samples of gettimeofday differ, there is an
-    uncertainty window wrt when the frequency change actually applies
-    from.  We handle this by adding dispersion to all statistics held
+    way.  We handle this by adding dispersion to all statistics held
     at higher levels in the system. */
 
-    introduced_dispersion = start_window * delta_total_tick;
-    lcl_InvokeDispersionNotifyHandlers(introduced_dispersion);
+    update_fast_slew_error(&T0);
+    lcl_InvokeDispersionNotifyHandlers(fast_slew_error);
 
     fast_slewing = 1;
-    slew_start_tv = T0a;
+    slew_start_tv = T0;
 
     /* Set up timeout for end of slew, limit to one week */
     if (dseconds > 3600 * 24 * 7)
       dseconds = 3600 * 24 * 7;
-    UTI_AddDoubleToTimeval(&T0a, dseconds, &end_of_slew);
+    UTI_AddDoubleToTimeval(&T0, dseconds, &end_of_slew);
 
     slew_timeout_id = SCH_AddTimeout(&end_of_slew, handle_end_of_slew, NULL);
 
@@ -420,21 +606,28 @@ static void
 apply_step_offset(double offset)
 {
   struct timeval old_time, new_time;
-  struct timezone tz;
+  double err;
 
   if (fast_slewing) {
     abort_slew();
   }
 
-  if (gettimeofday(&old_time, &tz) < 0) {
-    CROAK("gettimeofday in apply_step_offset");
+  if (gettimeofday(&old_time, NULL) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "gettimeofday() failed");
   }
 
   UTI_AddDoubleToTimeval(&old_time, -offset, &new_time);
 
-  if (settimeofday(&new_time, &tz) < 0) {
-    CROAK("settimeofday in apply_step_offset");
+  if (settimeofday(&new_time, NULL) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "settimeofday() failed");
   }
+
+  if (gettimeofday(&old_time, NULL) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "gettimeofday() failed");
+  }
+
+  UTI_DiffTimevalsToDouble(&err, &old_time, &new_time);
+  lcl_InvokeDispersionNotifyHandlers(fabs(err));
 
   initiate_slew();
 
@@ -447,59 +640,57 @@ apply_step_offset(double offset)
    convention is that this is called with a positive argument if the local
    clock runs fast when uncompensated.  */
 
-static void
-set_frequency(double freq_ppm) {
-
+static double
+set_frequency(double freq_ppm)
+{
   long required_tick;
+  long min_allowed_tick, max_allowed_tick;
   double required_freq; /* what we use */
   double scaled_freq; /* what adjtimex & the kernel use */
+  double old_total_tick;
   int required_delta_tick;
-  int neg; /* True if estimate is that local clock runs slow,
-              i.e. positive frequency correction required */
-
-
-  /* If we in the middle of slewing the time by having the value of
-     tick altered, we have to stop doing that, because the timeout
-     expiry etc will change if we don't. */
-
-  if (fast_slewing) {
-    abort_slew();
-  }
-
-  if (freq_ppm < 0.0) {
-    neg = 1;
-    freq_ppm = -freq_ppm;
-  } else {
-    neg = 0;
-  }
 
   required_delta_tick = our_round(freq_ppm / dhz);
-  required_freq = freq_ppm - dhz * (double) required_delta_tick;
+  required_freq = -(freq_ppm - dhz * required_delta_tick);
+  required_tick = nominal_tick - required_delta_tick;
+  scaled_freq = freq_scale * required_freq;
 
-  if (neg) {
-    /* Uncompensated local clock runs slow */
-    required_tick = nominal_tick + required_delta_tick;
-    scaled_freq = freq_scale * required_freq;
-  } else {
-    /* Uncompensated local clock runs fast */
-    required_tick = nominal_tick - required_delta_tick;
-    scaled_freq = -freq_scale * required_freq;
-  }
+  min_allowed_tick = nominal_tick - max_tick_bias;
+  max_allowed_tick = nominal_tick + max_tick_bias;
 
-  if (TMX_SetFrequency(scaled_freq, required_tick) < 0) {
-    char buffer[1024];
-    sprintf(buffer, "adjtimex failed for set_frequency, freq_ppm=%10.4e scaled_freq=%10.4e required_tick=%ld",
-            freq_ppm, scaled_freq, required_tick);
-    CROAK(buffer);
+  if (required_tick < min_allowed_tick || required_tick > max_allowed_tick) {
+    LOG(LOGS_WARN, LOGF_SysLinux, "Required tick %ld outside allowed range (%ld .. %ld)", required_tick, min_allowed_tick, max_allowed_tick);
+    if (required_tick < min_allowed_tick) {
+      required_tick = min_allowed_tick;
+    } else {
+      required_tick = max_allowed_tick;
+    }
   }
 
   current_tick = required_tick;
+  old_total_tick = current_total_tick;
   current_total_tick = ((double)current_tick + required_freq/dhz) / 1.0e6 ;
 
-  initiate_slew(); /* Restart any slews that need to be restarted */
+  /* Don't change tick if we are fast slewing, just reschedule the timeout */
+  if (fast_slewing) {
+    required_tick = slewing_tick;
+  }
 
-  return;
+  if (TMX_SetFrequency(&scaled_freq, required_tick) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "adjtimex failed for set_frequency, freq_ppm=%10.4e scaled_freq=%10.4e required_tick=%ld",
+        freq_ppm, scaled_freq, required_tick);
+  }
 
+  if (fast_slewing) {
+    double old_delta_tick;
+
+    old_delta_tick = delta_total_tick;
+    delta_total_tick = ((double)slewing_tick + required_freq/dhz) / 1.0e6 -
+      current_total_tick;
+    adjust_fast_slew(old_total_tick, old_delta_tick);
+  }
+
+  return dhz * (nominal_tick - current_tick) - scaled_freq / freq_scale;
 }
 
 /* ================================================== */
@@ -511,15 +702,17 @@ read_frequency(void)
   double tick_term;
   double unscaled_freq;
   double freq_term;
+  long tick;
 
-  if (TMX_GetFrequency(&unscaled_freq) < 0) {
-    CROAK("adjtimex failed in read_frequency");
+  if (TMX_GetFrequency(&unscaled_freq, &tick) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
   }
 
-  /* Use current_tick here rather than txc.tick, otherwise we're
-     thrown off course when doing a fast slew (in which case, txc.tick
-     is nowhere near the nominal value) */
-  tick_term = dhz * (double)(nominal_tick - current_tick);
+  if (fast_slewing) {
+      tick -= slewing_tick - current_tick;
+  }
+
+  tick_term = dhz * (double)(nominal_tick - tick);
   freq_term = unscaled_freq / freq_scale;
   
 #if 0
@@ -538,50 +731,37 @@ read_frequency(void)
 
 static void
 get_offset_correction(struct timeval *raw,
-                      double *corr)
+                      double *corr, double *err)
 {
 
   /* Correction is given by these things :
      1. Any value in offset register
      2. Amount of fast slew remaining
-     3. Any amount of adjtime correction remaining */
+     3. Any amount of adjtime correction remaining
+     4. Any amount of nanopll correction remaining */
 
 
-  double adjtime_left;
   double fast_slew_duration;
   double fast_slew_achieved;
   double fast_slew_remaining;
-  long offset, toffset;
+  long offset, noffset, toffset;
 
   if (!slow_slewing) {
     offset = 0;
   } else {
-again:
-    switch (have_readonly_adjtime) {
-      case 2:
-        if (TMX_GetOffsetLeft(&offset) < 0) {
-          LOG(LOGS_INFO, LOGF_SysLinux, "adjtimex() doesn't support ADJ_OFFSET_SS_READ");
-          have_readonly_adjtime = 0;
-          goto again;
-        }
-        break;
-      case 0:
-        toffset = 0;
-        if (TMX_ApplyOffset(&toffset) < 0) {
-          CROAK("adjtimex() failed in get_offset_correction");
-        }
-        offset = toffset;
-        if (TMX_ApplyOffset(&toffset) < 0) {
-          CROAK("adjtimex() failed in get_offset_correction");
-        }
-        break;
-      case 1:
-        if (TMX_GetOffsetLeftOld(&offset) < 0) {
-          CROAK("adjtimex() failed in get_offset_correction");
-        }
-        break;
-      default:
-        assert(0);
+    if (have_readonly_adjtime) {
+      if (TMX_GetOffsetLeft(&offset) < 0) {
+        LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
+      }
+    } else {
+      toffset = 0;
+      if (TMX_ApplyOffset(&toffset) < 0) {
+        LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
+      }
+      offset = toffset;
+      if (TMX_ApplyOffset(&toffset) < 0) {
+        LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
+      }
     }
 
     if (offset == 0) {
@@ -590,7 +770,16 @@ again:
     }
   }
 
-  adjtime_left = (double)offset / 1.0e6;
+  if (!nano_slewing) {
+    noffset = 0;
+  } else {
+    if (TMX_GetPLLOffsetLeft(&noffset) < 0) {
+      LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
+    }
+    if (noffset == 0) {
+      nano_slewing = 0;
+    }
+  }
 
   if (fast_slewing) {
     UTI_DiffTimevalsToDouble(&fast_slew_duration, raw, &slew_start_tv);
@@ -601,7 +790,13 @@ again:
     fast_slew_remaining = 0.0;
   }  
 
-  *corr = - (offset_register + fast_slew_remaining) + adjtime_left;
+  *corr = - (offset_register + fast_slew_remaining) + offset / 1.0e6 + noffset / 1.0e9;
+
+  if (err) {
+    update_slow_slew_error(offset);
+    update_nano_slew_error(noffset, 0);
+    *err = get_slow_slew_error(raw) + get_fast_slew_error(raw) + get_nano_slew_error();;
+  }
 
   return;
 }
@@ -660,6 +855,43 @@ guess_hz_and_shift_hz(int tick, int *hz, int *shift_hz)
 }
 
 /* ================================================== */
+
+static int
+get_hz_and_shift_hz(int *hz, int *shift_hz)
+{
+#ifdef _SC_CLK_TCK
+  if ((*hz = sysconf(_SC_CLK_TCK)) < 1) {
+    return 0;
+  }
+
+  if (*hz == 100) {
+    *shift_hz = 7;
+    return 1;
+  }
+
+  for (*shift_hz = 1; (*hz >> *shift_hz) > 1; (*shift_hz)++)
+    ;
+
+  return 1;
+#else
+  return 0;
+#endif
+}
+
+/* ================================================== */
+
+static int
+kernelvercmp(int major1, int minor1, int patch1,
+    int major2, int minor2, int patch2)
+{
+  if (major1 != major2)
+    return major1 - major2;
+  if (minor1 != minor2)
+    return minor1 - minor2;
+  return patch1 - patch2;
+}
+
+/* ================================================== */
 /* Compute the scaling to use on any frequency we set, according to
    the vintage of the Linux kernel being used. */
 
@@ -673,20 +905,23 @@ get_version_specific_details(void)
   int config_hz, set_config_hz; /* values of HZ from conf file */
   int set_config_freq_scale;
   double config_freq_scale;
-  double calculated_freq_scale;
   struct tmx_params tmx_params;
   struct utsname uts;
   
-  TMX_ReadCurrentParams(&tmx_params);
-  
-  guess_hz_and_shift_hz(tmx_params.tick, &hz, &shift_hz);
+  if (!get_hz_and_shift_hz(&hz, &shift_hz)) {
+    TMX_ReadCurrentParams(&tmx_params);
 
-  if (!shift_hz) {
-    LOG_FATAL(LOGF_SysLinux, "Can't determine hz (txc.tick=%ld txc.freq=%ld (%.8f) txc.offset=%ld)",
-              tmx_params.tick, tmx_params.freq, tmx_params.dfreq, tmx_params.offset);
-  } else {
-    LOG(LOGS_INFO, LOGF_SysLinux, "Initial txc.tick=%ld txc.freq=%ld (%.8f) txc.offset=%ld => hz=%d shift_hz=%d",
-        tmx_params.tick, tmx_params.freq, tmx_params.dfreq, tmx_params.offset, hz, shift_hz);
+    guess_hz_and_shift_hz(tmx_params.tick, &hz, &shift_hz);
+
+    if (!shift_hz) {
+      LOG_FATAL(LOGF_SysLinux, "Can't determine hz (txc.tick=%ld txc.freq=%ld (%.8f) txc.offset=%ld)",
+          tmx_params.tick, tmx_params.freq, tmx_params.dfreq, tmx_params.offset);
+    } else {
+#if 0
+      LOG(LOGS_INFO, LOGF_SysLinux, "Initial txc.tick=%ld txc.freq=%ld (%.8f) txc.offset=%ld => hz=%d shift_hz=%d",
+          tmx_params.tick, tmx_params.freq, tmx_params.dfreq, tmx_params.offset, hz, shift_hz);
+#endif
+    }
   }
 
   CNF_GetLinuxHz(&set_config_hz, &config_hz);
@@ -700,10 +935,7 @@ get_version_specific_details(void)
   nominal_tick = (1000000L + (hz/2))/hz; /* Mirror declaration in kernel */
   slew_delta_tick = nominal_tick / 12;
   max_tick_bias = nominal_tick / 10;
-
-  LOG(LOGS_INFO, LOGF_SysLinux, "set_config_hz=%d hz=%d shift_hz=%d basic_freq_scale=%.8f nominal_tick=%d slew_delta_tick=%d max_tick_bias=%d",
-      set_config_hz, hz, shift_hz, basic_freq_scale, nominal_tick, slew_delta_tick, max_tick_bias);
-
+  tick_update_hz = hz;
 
   /* The basic_freq_scale comes from:
      * the kernel increments the usec counter HZ times per second (if the timer
@@ -735,7 +967,9 @@ get_version_specific_details(void)
   if (uname(&uts) < 0) {
     LOG_FATAL(LOGF_SysLinux, "Cannot uname(2) to get kernel version, sorry.");
   }
-  if (sscanf(uts.release, "%d.%d.%d", &major, &minor, &patch) != 3) {
+
+  patch = 0;
+  if (sscanf(uts.release, "%d.%d.%d", &major, &minor, &patch) < 2) {
     LOG_FATAL(LOGF_SysLinux, "Cannot read information from uname, sorry");
   }
 
@@ -744,99 +978,46 @@ get_version_specific_details(void)
   version_major = major;
   version_minor = minor;
   version_patchlevel = patch;
-  
-  switch (major) {
-    case 1:
-      /* Does Linux v1.x even support HZ!=100? */
-      switch (minor) {
-        case 2:
-          if (patch == 13) {
-            freq_scale = (hz==100) ? (128.0 / 100.0) : basic_freq_scale ; /* I _think_! */
-	    have_readonly_adjtime = 1;
-          } else {
-            LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
-          }
-          break;
-        case 3:
-          /* I guess the change from the 1.2.x scaling to the 2.0.x
-             scaling must have happened during 1.3 development.  I
-             haven't a clue where though, until someone looks it
-             up. */
-          LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
-          break;
-        default:
-          LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
-          break;
-      }
-      break;
-    case 2:
-      switch (minor) {
-        case 0:
-          if (patch < 32) {
-            freq_scale = (hz==100) ? (128.0 / 125.0) : basic_freq_scale;
-	    have_readonly_adjtime = 1;
-          } else if (patch >= 32) {
-            freq_scale = (hz==100) ? (128.0 / 128.125) : basic_freq_scale;
-	    
-	    /* The functionality in kernel/time.c in the kernel source
-               was modified with regard to what comes back in the
-               txc.offset field on return from adjtimex.  If txc.modes
-               was ADJ_OFFSET_SINGLESHOT on entry, the outstanding
-               adjustment is returned, however the running offset will
-               be modified to the passed value. */
-	    have_readonly_adjtime = 0;
-          }
-          break;
-        case 1:
-          /* I know that earlier 2.1 kernels were like 2.0.31, hence
-             the settings below.  However, the 2.0.32 behaviour may
-             have been added late in the 2.1 series, however I have no
-             idea at which patch level.  Leave it like this until
-             someone supplies some info. */
-          freq_scale = (hz==100) ? (128.0 / 125.0) : basic_freq_scale;
-          have_readonly_adjtime = 0; /* For safety ! */
-          break;
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-          if (minor < 6 || patch < 27) {
-            /* These seem to be like 2.0.32 */
-            freq_scale = (hz==100) ? (128.0 / 128.125) : basic_freq_scale;
-            have_readonly_adjtime = 0;
-            break;
-          }
-          /* Let's be optimistic that these will be the same until proven
-             otherwise :-) */
-        case 7:
-        case 8:
-          /* These don't need scaling */
-          freq_scale = 1.0;
-          have_readonly_adjtime = 2;
-          break;
-        default:
-          LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
-      }
-      break;
-    case 3:
-      /* These don't need scaling (treat like 2.6.28 and later) */
-      freq_scale = 1.0;
-      have_readonly_adjtime = 2;
-      break;
-    default:
-      LOG_FATAL(LOGF_SysLinux, "Kernel's major version not supported yet, sorry");
-      break;
+
+  if (kernelvercmp(major, minor, patch, 2, 2, 0) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "Kernel version not supported, sorry.");
+  }
+
+  if (kernelvercmp(major, minor, patch, 2, 6, 27) < 0) {
+    freq_scale = (hz == 100) ? (128.0 / 128.125) : basic_freq_scale;
+  } else {
+    /* These don't seem to need scaling */
+    freq_scale = 1.0;
+
+    if (kernelvercmp(major, minor, patch, 2, 6, 33) < 0) {
+      /* Tickless kernels before 2.6.33 accumulated ticks only in
+         half-second intervals */
+      tick_update_hz = 2;
+    }
+  }
+
+  /* ADJ_OFFSET_SS_READ support */
+  if (kernelvercmp(major, minor, patch, 2, 6, 27) < 0) {
+    have_readonly_adjtime = 0;
+  } else {
+    have_readonly_adjtime = 1;
+  }
+
+  /* ADJ_NANO support */
+  if (kernelvercmp(major, minor, patch, 2, 6, 27) < 0) {
+    have_nanopll = 0;
+  } else {
+    have_nanopll = 1;
   }
 
   /* Override freq_scale if it appears in conf file */
   CNF_GetLinuxFreqScale(&set_config_freq_scale, &config_freq_scale);
-  calculated_freq_scale = freq_scale;
-  if (set_config_freq_scale) freq_scale = config_freq_scale;
-  
-  LOG(LOGS_INFO, LOGF_SysLinux, "calculated_freq_scale=%.8f freq_scale=%.8f",
-      calculated_freq_scale, freq_scale);
+  if (set_config_freq_scale) {
+    freq_scale = config_freq_scale;
+  }
 
+  LOG(LOGS_INFO, LOGF_SysLinux, "hz=%d shift_hz=%d freq_scale=%.8f nominal_tick=%d slew_delta_tick=%d max_tick_bias=%d",
+      hz, shift_hz, freq_scale, nominal_tick, slew_delta_tick, max_tick_bias);
 }
 
 /* ================================================== */
@@ -845,13 +1026,34 @@ get_version_specific_details(void)
 void
 SYS_Linux_Initialise(void)
 {
+  long offset;
+  double freq;
+
   offset_register = 0.0;
   fast_slewing = 0;
 
   get_version_specific_details();
 
-  current_tick = nominal_tick;
-  current_total_tick = 1.0 / dhz;
+  offset = 0;
+  if (TMX_ApplyOffset(&offset) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "adjtimex() failed");
+  }
+
+  if (have_readonly_adjtime && (TMX_GetOffsetLeft(&offset) < 0 || offset)) {
+    LOG(LOGS_INFO, LOGF_SysLinux, "adjtimex() doesn't support ADJ_OFFSET_SS_READ");
+    have_readonly_adjtime = 0;
+  }
+
+  if (have_nanopll && TMX_EnableNanoPLL() < 0) {
+    LOG(LOGS_INFO, LOGF_SysLinux, "adjtimex() doesn't support nanosecond PLL");
+    have_nanopll = 0;
+  }
+
+  TMX_SetSync(CNF_GetRTCSync());
+
+  /* Read current kernel frequency */
+  TMX_GetFrequency(&freq, &current_tick);
+  current_total_tick = (current_tick + freq / freq_scale / dhz) / 1.0e6;
 
   lcl_RegisterSystemDrivers(read_frequency, set_frequency,
                             accrue_offset, apply_step_offset,
@@ -867,16 +1069,6 @@ SYS_Linux_Finalise(void)
   /* Must *NOT* leave a fast slew running - clock would drift way off
      if the daemon is not restarted */
   abort_slew();
-}
-
-/* ================================================== */
-
-void
-SYS_Linux_GetKernelVersion(int *major, int *minor, int *patchlevel)
-{
-  *major = version_major;
-  *minor = version_minor;
-  *patchlevel = version_patchlevel;
 }
 
 /* ================================================== */
@@ -921,7 +1113,9 @@ SYS_Linux_DropRoot(char *user)
 
   cap_free(cap);
 
+#if 0
   LOG(LOGS_INFO, LOGF_SysLinux, "Privileges dropped to user %s", user);
+#endif
 }
 #endif
 
@@ -950,7 +1144,9 @@ void SYS_Linux_SetScheduler(int SchedPriority)
       LOG(LOGS_ERR, LOGF_SysLinux, "sched_setscheduler() failed");
     }
     else {
+#if 0
       LOG(LOGS_INFO, LOGF_SysLinux, "Enabled SCHED_FIFO with priority %d", sched.sched_priority);
+#endif
     }
   }
 }
@@ -974,7 +1170,9 @@ void SYS_Linux_MemLockAll(int LockAll)
 	LOG(LOGS_ERR, LOGF_SysLinux, "mlockall() failed");
       }
       else {
+#if 0
 	LOG(LOGS_INFO, LOGF_SysLinux, "Successfully locked into RAM");
+#endif
       }
     }
   }

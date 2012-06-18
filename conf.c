@@ -1,13 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/conf.c,v 1.45 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009
+ * Copyright (C) Miroslav Lichvar  2009-2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -39,6 +35,8 @@
 	(CNF_GetAcquisitionPort): New function.
 
   */
+
+#include "config.h"
 
 #include "sysincl.h"
 
@@ -74,8 +72,12 @@ static void parse_dumponexit(const char *);
 static void parse_keyfile(const char *);
 static void parse_rtcfile(const char *);
 static void parse_log(const char *);
+static void parse_logbanner(const char *);
 static void parse_logdir(const char *);
 static void parse_maxupdateskew(const char *);
+static void parse_maxclockerror(const char *);
+static void parse_reselectdist(const char *);
+static void parse_stratumweight(const char *);
 static void parse_peer(const char *);
 static void parse_acquisitionport(const char *);
 static void parse_port(const char *);
@@ -90,8 +92,10 @@ static void parse_cmdallow(const char *);
 static void parse_cmddeny(const char *);
 static void parse_cmdport(const char *);
 static void parse_rtconutc(const char *);
+static void parse_rtcsync(const char *);
 static void parse_noclientlog(const char *);
 static void parse_clientloglimit(const char *);
+static void parse_fallbackdrift(const char *);
 static void parse_makestep(const char *);
 static void parse_logchange(const char *);
 static void parse_mailonchange(const char *);
@@ -104,6 +108,8 @@ static void parse_linux_hz(const char *);
 static void parse_linux_freq_scale(const char *);
 static void parse_sched_priority(const char *);
 static void parse_lockall(const char *);
+static void parse_tempcomp(const char *);
+static void parse_include(const char *);
 
 /* ================================================== */
 /* Configuration variables */
@@ -115,7 +121,11 @@ static char *keys_file = NULL;
 static char *drift_file = NULL;
 static char *rtc_file = NULL;
 static unsigned long command_key_id;
-static double max_update_skew = DBL_MAX;
+static double max_update_skew = 1000.0;
+static double max_clock_error = 1.0; /* in ppm */
+
+static double reselect_distance = 1e-4;
+static double stratum_weight = 1.0;
 
 static int cmd_port = -1;
 
@@ -124,7 +134,9 @@ static int do_log_statistics = 0;
 static int do_log_tracking = 0;
 static int do_log_rtc = 0;
 static int do_log_refclocks = 0;
+static int do_log_tempcomp = 0;
 static int do_dump_on_exit = 0;
+static int log_banner = 32;
 static char *logdir = ".";
 static char *dumpdir = ".";
 
@@ -147,6 +159,9 @@ static int enable_manual=0;
    incl. daylight saving). */
 static int rtc_on_utc = 0;
 
+/* Flag set if the RTC should be automatically synchronised by kernel */
+static int rtc_sync = 0;
+
 /* Limit and threshold for clock stepping */
 static int make_step_limit = 0;
 static double make_step_threshold = 0.0;
@@ -166,6 +181,10 @@ static int no_client_log = 0;
 /* Limit memory allocated for the clients log */
 static unsigned long client_log_limit = 524288;
 
+/* Minimum and maximum fallback drift intervals */
+static int fb_drift_min = 0;
+static int fb_drift_max = 0;
+
 /* IP addresses for binding the NTP socket to.  UNSPEC family means INADDR_ANY
    will be used */
 static IPAddr bind_address4, bind_address6;
@@ -177,6 +196,11 @@ static IPAddr bind_cmd_address4, bind_cmd_address6;
 /* Filename to use for storing pid of running chronyd, to prevent multiple
  * chronyds being started. */
 static char *pidfile = "/var/run/chronyd.pid";
+
+/* Temperature sensor, update interval and compensation coefficients */
+static char *tempcomp_file = NULL;
+static double tempcomp_interval;
+static double tempcomp_T0, tempcomp_k0, tempcomp_k1, tempcomp_k2;
 
 /* Boolean for whether the Linux HZ value has been overridden, and the
  * new value. */
@@ -208,11 +232,13 @@ static const Command commands[] = {
   {"driftfile", 9, parse_driftfile},
   {"keyfile", 7, parse_keyfile},
   {"rtcfile", 7, parse_rtcfile},
+  {"logbanner", 9, parse_logbanner},
   {"logdir", 6, parse_logdir},
   {"log", 3, parse_log},
   {"dumponexit", 10, parse_dumponexit},
   {"dumpdir", 7, parse_dumpdir},
   {"maxupdateskew", 13, parse_maxupdateskew},
+  {"maxclockerror", 13, parse_maxclockerror},
   {"commandkey", 10, parse_commandkey},
   {"initstepslew", 12, parse_initstepslew},
   {"local", 5, parse_local},
@@ -223,8 +249,10 @@ static const Command commands[] = {
   {"cmddeny", 7, parse_cmddeny},
   {"cmdport", 7, parse_cmdport},
   {"rtconutc", 8, parse_rtconutc},
+  {"rtcsync", 7, parse_rtcsync},
   {"noclientlog", 11, parse_noclientlog},
   {"clientloglimit", 14, parse_clientloglimit},
+  {"fallbackdrift", 13, parse_fallbackdrift},
   {"makestep", 8, parse_makestep},
   {"logchange", 9, parse_logchange},
   {"mailonchange", 12, parse_mailonchange},
@@ -233,6 +261,10 @@ static const Command commands[] = {
   {"rtcdevice", 9, parse_rtcdevice},
   {"pidfile", 7, parse_pidfile},
   {"broadcast", 9, parse_broadcast},
+  {"tempcomp", 8, parse_tempcomp},
+  {"reselectdist", 12, parse_reselectdist},
+  {"stratumweight", 13, parse_stratumweight},
+  {"include", 7, parse_include},
   {"linux_hz", 8, parse_linux_hz},
   {"linux_freq_scale", 16, parse_linux_freq_scale},
   {"sched_priority", 14, parse_sched_priority},
@@ -246,15 +278,9 @@ static int line_number;
 
 /* ================================================== */
 
-typedef enum {
-  SERVER, PEER
-} NTP_Source_Type;
-
 typedef struct {
   NTP_Source_Type type;
-  IPAddr ip_addr;
-  unsigned short port;
-  SourceParameters params;
+  CPS_NTP_Source params;
 } NTP_Source;
 
 #define MAX_NTP_SOURCES 64
@@ -291,6 +317,7 @@ CNF_ReadFile(const char *filename)
   char line[2048];
   char *p;
   int i, ok;
+  int prev_line_number;
 
   if (filename == NULL) {
     filename = DEFAULT_CONF_FILE;
@@ -300,6 +327,9 @@ CNF_ReadFile(const char *filename)
   if (!in) {
     LOG(LOGS_ERR, LOGF_Configure, "Could not open configuration file [%s]", filename);
   } else {
+
+    /* Save current line number in case this is an included file */
+    prev_line_number = line_number;
 
     line_number = 0;
 
@@ -335,6 +365,8 @@ CNF_ReadFile(const char *filename)
 
     }
 
+    line_number = prev_line_number;
+
     fclose(in);
   }
 
@@ -345,23 +377,14 @@ CNF_ReadFile(const char *filename)
 static void
 parse_source(const char *line, NTP_Source_Type type)
 {
-  int i;
-  NTP_Source s;
   CPS_Status status;
-  CPS_NTP_Source params;
 
-  s.type = type;
-  status = CPS_ParseNTPSourceAdd(line, &params);
+  ntp_sources[n_ntp_sources].type = type;
+  status = CPS_ParseNTPSourceAdd(line, &ntp_sources[n_ntp_sources].params);
 
   switch (status) {
     case CPS_Success:
-      s.port = params.port;
-      s.ip_addr = params.ip_addr;
-      s.params = params.params;
-
-      i = n_ntp_sources++;
-      ntp_sources[i] = s;
-
+      n_ntp_sources++;
       break;
     case CPS_BadOption:
       LOG(LOGS_WARN, LOGF_Configure, "Unrecognized subcommand at line %d", line_number);
@@ -381,6 +404,9 @@ parse_source(const char *line, NTP_Source_Type type)
     case CPS_BadPresend:
       LOG(LOGS_WARN, LOGF_Configure, "Unreadable presend value at line %d", line_number);
       break;
+    case CPS_BadMaxdelaydevratio:
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable max delay dev ratio value at line %d", line_number);
+      break;
     case CPS_BadMaxdelayratio:
       LOG(LOGS_WARN, LOGF_Configure, "Unreadable max delay ratio value at line %d", line_number);
       break;
@@ -389,6 +415,12 @@ parse_source(const char *line, NTP_Source_Type type)
       break;
     case CPS_BadKey:
       LOG(LOGS_WARN, LOGF_Configure, "Unreadable key value at line %d", line_number);
+      break;
+    case CPS_BadMinstratum:
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable minstratum value at line %d", line_number);
+      break;
+    case CPS_BadPolltarget:
+      LOG(LOGS_WARN, LOGF_Configure, "Unreadable polltarget value at line %d", line_number);
       break;
   }
 
@@ -419,7 +451,7 @@ parse_lockall(const char *line)
 static void
 parse_server(const char *line)
 {
-  parse_source(line, SERVER);
+  parse_source(line, NTP_SERVER);
 }
 
 /* ================================================== */
@@ -427,7 +459,7 @@ parse_server(const char *line)
 static void
 parse_peer(const char *line)
 {
-  parse_source(line, PEER);
+  parse_source(line, NTP_PEER);
 }
 
 /* ================================================== */
@@ -436,11 +468,12 @@ static void
 parse_refclock(const char *line)
 {
   int i, n, poll, dpoll, filter_length, pps_rate;
-  unsigned long ref_id, lock_ref_id;
-  double offset, delay;
+  uint32_t ref_id, lock_ref_id;
+  double offset, delay, precision;
   const char *tmp;
-  char name[5], cmd[10 + 1], *param;
+  char cmd[10 + 1], *name, *param;
   unsigned char ref[5];
+  SRC_SelectOption sel_option;
 
   i = n_refclock_sources;
   if (i >= MAX_RCL_SOURCES)
@@ -448,18 +481,29 @@ parse_refclock(const char *line)
 
   poll = 4;
   dpoll = 0;
-  filter_length = 15;
+  filter_length = 64;
   pps_rate = 0;
   offset = 0.0;
   delay = 1e-9;
+  precision = 0.0;
   ref_id = 0;
   lock_ref_id = 0;
+  sel_option = SRC_SelectNormal;
 
-  if (sscanf(line, "%4s%n", name, &n) != 1) {
+  while (isspace(line[0]))
+    line++;
+  tmp = line;
+  while (line[0] != '\0' && !isspace(line[0]))
+    line++;
+
+  if (line == tmp) {
     LOG(LOGS_WARN, LOGF_Configure, "Could not read refclock driver name at line %d", line_number);
     return;
   }
-  line += n;
+
+  name = MallocArray(char, 1 + line - tmp);
+  strncpy(name, tmp, line - tmp);
+  name[line - tmp] = '\0';
 
   while (isspace(line[0]))
     line++;
@@ -469,6 +513,7 @@ parse_refclock(const char *line)
 
   if (line == tmp) {
     LOG(LOGS_WARN, LOGF_Configure, "Could not read refclock parameter at line %d", line_number);
+    Free(name);
     return;
   }
 
@@ -507,6 +552,15 @@ parse_refclock(const char *line)
     } else if (!strncasecmp(cmd, "delay", 5)) {
       if (sscanf(line, "%lf%n", &delay, &n) != 1)
         break;
+    } else if (!strncasecmp(cmd, "precision", 9)) {
+      if (sscanf(line, "%lf%n", &precision, &n) != 1)
+        break;
+    } else if (!strncasecmp(cmd, "noselect", 8)) {
+      n = 0;
+      sel_option = SRC_SelectNoselect;
+    } else if (!strncasecmp(cmd, "prefer", 6)) {
+      n = 0;
+      sel_option = SRC_SelectPrefer;
     } else {
       LOG(LOGS_WARN, LOGF_Configure, "Unknown refclock parameter %s at line %d", cmd, line_number);
       break;
@@ -514,7 +568,7 @@ parse_refclock(const char *line)
     line += n;
   }
 
-  strncpy(refclock_sources[i].driver_name, name, 4);
+  refclock_sources[i].driver_name = name;
   refclock_sources[i].driver_parameter = param;
   refclock_sources[i].driver_poll = dpoll;
   refclock_sources[i].poll = poll;
@@ -522,6 +576,8 @@ parse_refclock(const char *line)
   refclock_sources[i].pps_rate = pps_rate;
   refclock_sources[i].offset = offset;
   refclock_sources[i].delay = delay;
+  refclock_sources[i].precision = precision;
+  refclock_sources[i].sel_option = sel_option;
   refclock_sources[i].ref_id = ref_id;
   refclock_sources[i].lock_ref_id = lock_ref_id;
 
@@ -561,6 +617,36 @@ parse_maxupdateskew(const char *line)
 {
   if (sscanf(line, "%lf", &max_update_skew) != 1) {
     LOG(LOGS_WARN, LOGF_Configure, "Could not read max update skew at line %d in file", line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
+parse_maxclockerror(const char *line)
+{
+  if (sscanf(line, "%lf", &max_clock_error) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read max clock error at line %d in file", line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
+parse_reselectdist(const char *line)
+{
+  if (sscanf(line, "%lf", &reselect_distance) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read reselect distance at line %d in file", line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
+parse_stratumweight(const char *line)
+{
+  if (sscanf(line, "%lf", &stratum_weight) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read stratum weight at line %d in file", line_number);
   }
 }
 
@@ -622,6 +708,16 @@ parse_rtcdevice(const char *line)
 /* ================================================== */
 
 static void
+parse_logbanner(const char *line)
+{
+  if (sscanf(line, "%d", &log_banner) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read logbanner number at line %d in file", line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
 parse_logdir(const char *line)
 {
   logdir = MallocArray(char, 1 + strlen(line));
@@ -668,6 +764,9 @@ parse_log(const char *line)
       } else if (!strncmp(line, "refclocks", 9)) {
         do_log_refclocks = 1;
         line += 9;
+      } else if (!strncmp(line, "tempcomp", 8)) {
+        do_log_tempcomp = 1;
+        line += 8;
       } else {
         break;
       }
@@ -736,7 +835,7 @@ parse_initstepslew(const char *line)
   }
   while (*p) {
     if (sscanf(p, "%" SHOSTNAME_LEN "s%n", hostname, &n) == 1) {
-      if (DNS_Name2IPAddress(hostname, &ip_addr, 1)) {
+      if (DNS_Name2IPAddress(hostname, &ip_addr) == DNS_Success) {
         init_srcs_ip[n_init_srcs] = ip_addr;
         ++n_init_srcs;
       }
@@ -778,6 +877,14 @@ parse_rtconutc(const char *line)
 /* ================================================== */
 
 static void
+parse_rtcsync(const char *line)
+{
+  rtc_sync = 1;
+}
+
+/* ================================================== */
+
+static void
 parse_noclientlog(const char *line)
 {
   no_client_log = 1;
@@ -795,6 +902,16 @@ parse_clientloglimit(const char *line)
   if (client_log_limit == 0) {
     /* unlimited */
     client_log_limit = (unsigned long)-1;
+  }
+}
+
+/* ================================================== */
+
+static void
+parse_fallbackdrift(const char *line)
+{
+  if (sscanf(line, "%d %d", &fb_drift_min, &fb_drift_max) != 2) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read fallback drift intervals at line %d", line_number);
   }
 }
 
@@ -934,7 +1051,7 @@ parse_allow_deny(const char *line, AllowDeny *list, int allow)
       }
 
     } else {
-      if (DNS_Name2IPAddress(p, &ip_addr, 1)) {
+      if (DNS_Name2IPAddress(p, &ip_addr) == DNS_Success) {
         new_node = MallocNew(AllowDeny);
         new_node->allow = allow;
         new_node->all = all;
@@ -1094,6 +1211,44 @@ parse_broadcast(const char *line)
 /* ================================================== */
 
 static void
+parse_tempcomp(const char *line)
+{
+  const char *tmp;
+
+  while (isspace(line[0]))
+    line++;
+  tmp = line;
+  while (line[0] != '\0' && !isspace(line[0]))
+    line++;
+
+  if (line == tmp) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read tempcomp filename at line %d", line_number);
+    return;
+  }
+
+  if (sscanf(line, "%lf %lf %lf %lf %lf", &tempcomp_interval, &tempcomp_T0, &tempcomp_k0, &tempcomp_k1, &tempcomp_k2) != 5) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read tempcomp interval or coefficients at line %d", line_number);
+    return;
+  }
+
+  tempcomp_file = MallocArray(char, 1 + line - tmp);
+  strncpy(tempcomp_file, tmp, line - tmp);
+  tempcomp_file[line - tmp] = '\0';
+}
+
+/* ================================================== */
+
+static void
+parse_include(const char *line)
+{
+  while (isspace(line[0]))
+    line++;
+  CNF_ReadFile(line);
+}
+
+/* ================================================== */
+
+static void
 parse_linux_hz(const char *line)
 {
   if (1 == sscanf(line, "%d", &linux_hz)) {
@@ -1135,20 +1290,16 @@ CNF_AddSources(void) {
   int i;
 
   for (i=0; i<n_ntp_sources; i++) {
-    server.ip_addr = ntp_sources[i].ip_addr;
-    memset(&server.local_ip_addr, 0, sizeof (server.local_ip_addr));
-    server.port = ntp_sources[i].port;
+    if (ntp_sources[i].params.ip_addr.family != IPADDR_UNSPEC) {
+      server.ip_addr = ntp_sources[i].params.ip_addr;
+      memset(&server.local_ip_addr, 0, sizeof (server.local_ip_addr));
+      server.port = ntp_sources[i].params.port;
 
-    switch (ntp_sources[i].type) {
-      case SERVER:
-        NSR_AddServer(&server, &ntp_sources[i].params);
-        break;
-
-      case PEER:
-        NSR_AddPeer(&server, &ntp_sources[i].params);
-        break;
+      NSR_AddSource(&server, ntp_sources[i].type, &ntp_sources[i].params.params);
+    } else {
+      NSR_AddUnresolvedSource(ntp_sources[i].params.name, ntp_sources[i].params.port,
+          ntp_sources[i].type, &ntp_sources[i].params.params);
     }
-
   }
 
   return;
@@ -1205,6 +1356,14 @@ CNF_GetDriftFile(void)
 
 /* ================================================== */
 
+int
+CNF_GetLogBanner(void)
+{
+  return log_banner;
+}
+
+/* ================================================== */
+
 char *
 CNF_GetLogDir(void)
 {
@@ -1252,10 +1411,19 @@ CNF_GetLogRtc(void)
 }
 
 /* ================================================== */
+
 int
 CNF_GetLogRefclocks(void)
 {
   return do_log_refclocks;
+}
+
+/* ================================================== */
+
+int
+CNF_GetLogTempComp(void)
+{
+  return do_log_tempcomp;
 }
 
 /* ================================================== */
@@ -1308,6 +1476,30 @@ CNF_GetMaxUpdateSkew(void)
 
 /* ================================================== */
 
+double
+CNF_GetMaxClockError(void)
+{
+  return max_clock_error;
+}
+
+/* ================================================== */
+
+double
+CNF_GetReselectDistance(void)
+{
+  return reselect_distance;
+}
+
+/* ================================================== */
+
+double
+CNF_GetStratumWeight(void)
+{
+  return stratum_weight;
+}
+
+/* ================================================== */
+
 int
 CNF_GetManualEnabled(void)
 {
@@ -1340,6 +1532,14 @@ int
 CNF_GetRTCOnUTC(void)
 {
   return rtc_on_utc;
+}
+
+/* ================================================== */
+
+int
+CNF_GetRTCSync(void)
+{
+  return rtc_sync;
 }
 
 /* ================================================== */
@@ -1420,6 +1620,15 @@ CNF_GetClientLogLimit(void)
 /* ================================================== */
 
 void
+CNF_GetFallbackDrifts(int *min, int *max)
+{
+  *min = fb_drift_min;
+  *max = fb_drift_max;
+}
+
+/* ================================================== */
+
+void
 CNF_GetBindAddress(int family, IPAddr *addr)
 {
   if (family == IPADDR_INET4)
@@ -1484,3 +1693,17 @@ CNF_GetLockMemory(void)
 {
   return lock_memory;
 }
+
+/* ================================================== */
+
+void
+CNF_GetTempComp(char **file, double *interval, double *T0, double *k0, double *k1, double *k2)
+{
+  *file = tempcomp_file;
+  *interval = tempcomp_interval;
+  *T0 = tempcomp_T0;
+  *k0 = tempcomp_k0;
+  *k1 = tempcomp_k1;
+  *k2 = tempcomp_k2;
+}
+

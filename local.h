@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/local.h,v 1.16 2002/02/28 23:27:10 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -50,11 +46,13 @@ extern void LCL_ReadRawTime(struct timeval *);
 
 extern void LCL_ReadCookedTime(struct timeval *t, double *err);
 
-/* Read the current offset between the system clock and true time
-   (i.e. 'cooked' - 'raw') (in seconds).  Only intended for use in
-   status reporting, really. */
+/* Convert raw time to cooked. */
+extern void LCL_CookTime(struct timeval *raw, struct timeval *cooked, double *err);
 
-extern double LCL_GetOffsetCorrection(struct timeval *raw);
+/* Read the current offset between the system clock and true time
+   (i.e. 'cooked' - 'raw') (in seconds). */
+
+extern void LCL_GetOffsetCorrection(struct timeval *raw, double *correction, double *err);
 
 /* Type of routines that may be invoked as callbacks when there is a
    change to the frequency or offset.
@@ -65,10 +63,6 @@ extern double LCL_GetOffsetCorrection(struct timeval *raw);
 
    dfreq : delta frequency relative to previous value (in terms of
    seconds gained by system clock per unit system clock time)
-
-   afreq : absolute frequency relative to uncompensated system (in
-   terms of ppm seconds gained by system clock per unit of the
-   uncalibrated system clock)
 
    doffset : delta offset applied (positive => make local system fast
    by that amount, negative => make it slow by that amount)
@@ -81,7 +75,7 @@ extern double LCL_GetOffsetCorrection(struct timeval *raw);
 
 typedef void (*LCL_ParameterChangeHandler)
      (struct timeval *raw, struct timeval *cooked,
-      double dfreq, double afreq_ppm,
+      double dfreq,
       double doffset, int is_step_change,
       void *anything
       );
@@ -157,6 +151,11 @@ extern void LCL_AccumulateOffset(double offset);
 
 extern void LCL_ApplyStepOffset(double offset);
 
+/* Routine to invoke notify handlers on an unexpected time jump
+   in system clock */
+extern void LCL_NotifyExternalTimeStep(struct timeval *raw, struct timeval *cooked,
+    double offset, double dispersion);
+
 /* Perform the combination of modifying the frequency and applying
    a slew, in one easy step */
 extern void LCL_AccumulateFrequencyAndOffset(double dfreq, double doffset);
@@ -166,6 +165,10 @@ extern int LCL_GetSysPrecisionAsLog(void);
 
 /* Routine to read the system precision in terms of the actual time step */
 extern double LCL_GetSysPrecisionAsQuantum(void);
+
+/* Routine to read the maximum frequency error of the local clock.  This
+   is a frequency stability, not an absolute error. */
+extern double LCL_GetMaxClockError(void);
 
 /* Routine to initialise the module (to be called once at program
    start-up) */
@@ -185,5 +188,12 @@ extern int LCL_MakeStep(double threshold);
    at the end of the day if argument is positive, deleted if negative,
    and zero cancels scheduled leap second. */
 extern void LCL_SetLeap(int leap);
+
+/* Routine to set a frequency correction (in ppm) that should be applied
+   to local clock to compensate for temperature changes.  A positive
+   argument means that the clock frequency should be increased. Return the
+   actual compensation (may be different from the requested compensation
+   due to clamping or rounding). */
+extern double LCL_SetTempComp(double comp);
 
 #endif /* GOT_LOCAL_H */

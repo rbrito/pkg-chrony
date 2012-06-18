@@ -9,8 +9,8 @@
 # Provides:          chrony
 # Required-Start:    $remote_fs
 # Required-Stop:     $remote_fs
-# Should-Start:      $syslog $network $named $hwclock
-# Should-Stop:       $syslog $network $named $hwclock
+# Should-Start:      $syslog $network $named $time
+# Should-Stop:       $syslog $network $named $time
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Controls chronyd NTP time daemon
@@ -27,7 +27,7 @@ test -f $DAEMON || exit 0
 
 putonline ()
 { # Do we have a default route?  If so put chronyd online.
-    if timelimit -q -s9 -t5 -- netstat -rn 2>/dev/null | grep UG | cut -f 1 -d ' ' | grep -q '0\.0\.0\.0' 
+    if timelimit -q -s9 -t5 -- netstat -rn 2>/dev/null | grep -q '0\.0\.0\.0' 
     then
 	sleep 2  # Chronyd can take a while to start.
 	KEY=$(awk '$1 ~ /^commandkey$/ { print $2; exit}' /etc/chrony/chrony.conf)

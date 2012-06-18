@@ -1,3 +1,49 @@
+New in version 1.26
+===================
+
+* Add compatibility with Linux 3.0 and later
+* Use proper source address in NTP replies on multihomed IPv6 hosts
+* Accept NTP packets with versions 4, 3 and 2
+* Cope with unexpected backward time jumps
+* Don't reset kernel frequency on start without drift file
+* Retry on permanent DNS error by default
+* Add waitsync command
+
+New in version 1.25
+===================
+
+* Improve accuracy with NTP sources
+* Improve accuracy with reference clocks
+* Improve polling interval adjustment
+* Improve stability with temporary asymmetric delays
+* Improve source selection
+* Improve initial synchronisation
+* Add delayed server name resolving
+* Add temperature compensation
+* Add nanosecond slewing to Linux driver
+* Add fallback drifts
+* Add iburst, minstratum, maxdelaydevratio, polltarget,
+  prefer, noselect options
+* Add rtcsync directive to enable Linux 11-minute mode
+* Add reselectdist, stratumweight, logbanner, maxclockerror,
+  include directives
+* Add -n option to not detach daemon from terminal
+* Fix pidfile directive
+* Fix name resolving with disabled IPv6 support
+* Fix reloading sample histories with reference clocks
+* Fix crash with auto_offline option
+* Fix online command on auto_offline sources
+* Fix file descriptor leaks
+* Increase burst polling interval and stop on KoD RATE
+* Set maxupdateskew to 1000 ppm by default
+* Require password for clients command
+* Update drift file at most once per hour
+* Use system headers for Linux RTC support
+* Reduce default chronyc timeout and make it configurable
+* Avoid large values in chronyc sources and sourcestats output
+* Add reselect command to force reselecting best source
+* Add -m option to allow multiple commands on command line
+
 New in version 1.24
 ===================
 

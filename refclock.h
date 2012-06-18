@@ -32,16 +32,18 @@
 #include "sources.h"
 
 typedef struct {
-  char driver_name[4];
+  char *driver_name;
   char *driver_parameter;
   int driver_poll;
   int poll;
   int filter_length;
   int pps_rate;
-  unsigned long ref_id;
-  unsigned long lock_ref_id;
+  uint32_t ref_id;
+  uint32_t lock_ref_id;
   double offset;
   double delay;
+  double precision;
+  SRC_SelectOption sel_option;
 } RefclockParameters;
 
 typedef struct RCL_Instance_Record *RCL_Instance;
@@ -58,14 +60,13 @@ extern int RCL_AddRefclock(RefclockParameters *params);
 extern void RCL_StartRefclocks(void);
 extern void RCL_StartRefclocks(void);
 extern void RCL_ReportSource(RPT_SourceReport *report, struct timeval *now);
-extern void RCL_CycleLogFile(void);
 
 /* functions used by drivers */
 extern void RCL_SetDriverData(RCL_Instance instance, void *data);
 extern void *RCL_GetDriverData(RCL_Instance instance);
 extern char *RCL_GetDriverParameter(RCL_Instance instance);
 extern char *RCL_GetDriverOption(RCL_Instance instance, char *name);
-extern int RCL_AddSample(RCL_Instance instance, struct timeval *sample_time, double offset, NTP_Leap leap_status);
+extern int RCL_AddSample(RCL_Instance instance, struct timeval *sample_time, double offset, int leap);
 extern int RCL_AddPulse(RCL_Instance instance, struct timeval *pulse_time, double second);
 
 #endif

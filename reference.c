@@ -1,13 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/reference.c,v 1.42 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009
+ * Copyright (C) Miroslav Lichvar  2009-2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,6 +25,8 @@
   This module keeps track of the source which we are claiming to be
   our reference, for the purposes of generating outgoing NTP packets */
 
+#include "config.h"
+
 #include "sysincl.h"
 
 #include "memory.h"
@@ -37,7 +35,7 @@
 #include "conf.h"
 #include "logging.h"
 #include "local.h"
-#include "mkdirpp.h"
+#include "sched.h"
 
 /* ================================================== */
 
@@ -47,7 +45,7 @@ static int local_stratum;
 static NTP_Leap our_leap_status;
 static int our_leap_sec;
 static int our_stratum;
-static unsigned long our_ref_id;
+static uint32_t our_ref_id;
 static IPAddr our_ref_ip;
 struct timeval our_ref_time; /* Stored relative to reference, NOT local time */
 static double our_offset;
@@ -76,18 +74,13 @@ static char *mail_change_user;
 
 /* Filename of the drift file. */
 static char *drift_file=NULL;
+static double drift_file_age;
 
 static void update_drift_file(double, double);
 
-#define MAIL_PROGRAM "/usr/lib/sendmail"
-
 /* ================================================== */
-/* File to which statistics are logged, NULL if none */
-static FILE *logfile = NULL;
-static char *logfilename = NULL;
-static unsigned long logwrites = 0;
 
-#define TRACKING_LOG "tracking.log"
+static LOG_FileID logfileid;
 
 /* ================================================== */
 
@@ -96,10 +89,30 @@ static unsigned long logwrites = 0;
 
 /* ================================================== */
 
+/* Exponential moving averages of absolute clock frequencies
+   used as a fallback when synchronisation is lost. */
+
+struct fb_drift {
+  double freq;
+  double secs;
+};
+
+static int fb_drift_min;
+static int fb_drift_max;
+
+static struct fb_drift *fb_drifts = NULL;
+static int next_fb_drift;
+static SCH_TimeoutID fb_drift_timeout_id;
+
+/* Timestamp of last reference update */
+static struct timeval last_ref_update;
+static double last_ref_update_interval;
+
+/* ================================================== */
+
 void
 REF_Initialise(void)
 {
-  char *direc;
   FILE *in;
   char line[1024];
   double file_freq_ppm, file_skew_ppm;
@@ -114,6 +127,7 @@ REF_Initialise(void)
   our_frequency_ppm = 0.0;
   our_skew = 1.0; /* i.e. rather bad */
   our_residual_freq = 0.0;
+  drift_file_age = 0.0;
 
   /* Now see if we can get the drift file opened */
   drift_file = CNF_GetDriftFile();
@@ -125,6 +139,9 @@ REF_Initialise(void)
           /* We have read valid data */
           our_frequency_ppm = file_freq_ppm;
           our_skew = 1.0e-6 * file_skew_ppm;
+          LOG(LOGS_INFO, LOGF_Reference, "Frequency %.3f +- %.3f ppm read from %s", file_freq_ppm, file_skew_ppm, drift_file);
+          LCL_SetAbsoluteFrequency(our_frequency_ppm);
+          LCL_ReadCookedTime(&last_ref_update, NULL);
         } else {
           LOG(LOGS_WARN, LOGF_Reference, "Could not parse valid frequency and skew from driftfile %s",
               drift_file);
@@ -134,32 +151,19 @@ REF_Initialise(void)
             drift_file);
       }
       fclose(in);
-    } else {
-      LOG(LOGS_WARN, LOGF_Reference, "Could not open driftfile %s for reading",
-          drift_file);
     }
-
-    update_drift_file(our_frequency_ppm,our_skew);
   }
     
-  LCL_SetAbsoluteFrequency(our_frequency_ppm);
-
-  if (CNF_GetLogTracking()) {
-    direc = CNF_GetLogDir();
-    if (!mkdir_and_parents(direc)) {
-      LOG(LOGS_ERR, LOGF_Reference, "Could not create directory %s", direc);
-      logfile = NULL;
-    } else {
-      logfilename = MallocArray(char, 2 + strlen(direc) + strlen(TRACKING_LOG));
-      strcpy(logfilename, direc);
-      strcat(logfilename, "/");
-      strcat(logfilename, TRACKING_LOG);
-      logfile = fopen(logfilename, "a");
-      if (!logfile) {
-        LOG(LOGS_WARN, LOGF_Reference, "Couldn't open logfile %s for update", logfilename);
-      }
+  if (our_frequency_ppm == 0.0) {
+    our_frequency_ppm = LCL_ReadAbsoluteFrequency();
+    if (our_frequency_ppm != 0.0) {
+      LOG(LOGS_INFO, LOGF_Reference, "Initial frequency %.3f ppm", our_frequency_ppm);
     }
   }
+
+  logfileid = CNF_GetLogTracking() ? LOG_FileOpen("tracking",
+      "   Date (UTC) Time     IP Address   St   Freq ppm   Skew ppm     Offset")
+    : -1;
 
   max_update_skew = fabs(CNF_GetMaxUpdateSkew()) * 1.0e-6;
 
@@ -169,10 +173,25 @@ REF_Initialise(void)
   CNF_GetLogChange(&do_log_change, &log_change_threshold);
   CNF_GetMailOnChange(&do_mail_change, &mail_change_threshold, &mail_change_user);
 
+  CNF_GetFallbackDrifts(&fb_drift_min, &fb_drift_max);
+
+  if (fb_drift_max >= fb_drift_min && fb_drift_min > 0) {
+    fb_drifts = MallocArray(struct fb_drift, fb_drift_max - fb_drift_min + 1);
+    memset(fb_drifts, 0, sizeof (struct fb_drift) * (fb_drift_max - fb_drift_min + 1));
+    next_fb_drift = 0;
+    fb_drift_timeout_id = -1;
+    last_ref_update.tv_sec = 0;
+    last_ref_update.tv_usec = 0;
+    last_ref_update_interval = 0;
+  }
+
   /* And just to prevent anything wierd ... */
   if (do_log_change) {
     log_change_threshold = fabs(log_change_threshold);
   }
+
+  /* Make first entry in tracking log */
+  REF_SetUnsynchronised();
 
   return;
 }
@@ -186,9 +205,11 @@ REF_Finalise(void)
     LCL_SetLeap(0);
   }
 
-  if (logfile) {
-    fclose(logfile);
+  if (drift_file && drift_file_age > 0.0) {
+    update_drift_file(LCL_ReadAbsoluteFrequency(), our_skew);
   }
+
+  Free(fb_drifts);
 
   initialised = 0;
   return;
@@ -265,6 +286,117 @@ update_drift_file(double freq_ppm, double skew)
   }
 
   Free(temp_drift_file);
+}
+
+/* ================================================== */
+
+static void
+update_fb_drifts(double freq_ppm, double update_interval)
+{
+  int i, secs;
+
+  assert(are_we_synchronised);
+
+  if (next_fb_drift > 0) {
+#if 0
+    /* Reset drifts that were used when we were unsynchronised */
+    for (i = 0; i < next_fb_drift - fb_drift_min; i++)
+      fb_drifts[i].secs = 0.0;
+#endif
+    next_fb_drift = 0;
+  }
+
+  if (fb_drift_timeout_id != -1) {
+    SCH_RemoveTimeout(fb_drift_timeout_id);
+    fb_drift_timeout_id = -1;
+  }
+
+  if (update_interval < 0.0 || update_interval > last_ref_update_interval * 4.0)
+    return;
+
+  for (i = 0; i < fb_drift_max - fb_drift_min + 1; i++) {
+    /* Don't allow differences larger than 10 ppm */
+    if (fabs(freq_ppm - fb_drifts[i].freq) > 10.0)
+      fb_drifts[i].secs = 0.0;
+
+    secs = 1 << (i + fb_drift_min);
+    if (fb_drifts[i].secs < secs) {
+      /* Calculate average over 2 * secs interval before switching to
+         exponential updating */
+      fb_drifts[i].freq = (fb_drifts[i].freq * fb_drifts[i].secs +
+          update_interval * 0.5 * freq_ppm) / (update_interval * 0.5 + fb_drifts[i].secs);
+      fb_drifts[i].secs += update_interval * 0.5;
+    } else {
+      /* Update exponential moving average. The smoothing factor for update
+         interval equal to secs is about 0.63, for half interval about 0.39,
+         for double interval about 0.86. */
+      fb_drifts[i].freq += (1 - 1.0 / exp(update_interval / secs)) *
+        (freq_ppm - fb_drifts[i].freq);
+    }
+
+#if 0
+    LOG(LOGS_INFO, LOGF_Reference, "Fallback drift %d updated: %f ppm %f seconds",
+        i + fb_drift_min, fb_drifts[i].freq, fb_drifts[i].secs);
+#endif
+  }
+}
+
+/* ================================================== */
+
+static void
+fb_drift_timeout(void *arg)
+{
+  assert(are_we_synchronised == 0);
+  assert(next_fb_drift >= fb_drift_min && next_fb_drift <= fb_drift_max);
+
+  fb_drift_timeout_id = -1;
+
+  LCL_SetAbsoluteFrequency(fb_drifts[next_fb_drift - fb_drift_min].freq);
+  REF_SetUnsynchronised();
+}
+
+/* ================================================== */
+
+static void
+schedule_fb_drift(struct timeval *now)
+{
+  int i, c, secs;
+  double unsynchronised;
+  struct timeval when;
+
+  if (fb_drift_timeout_id != -1)
+    return; /* already scheduled */
+
+  UTI_DiffTimevalsToDouble(&unsynchronised, now, &last_ref_update);
+
+  for (c = secs = 0, i = fb_drift_min; i <= fb_drift_max; i++) {
+    secs = 1 << i;
+
+    if (fb_drifts[i - fb_drift_min].secs < secs)
+      continue;
+
+    if (unsynchronised < secs && i > next_fb_drift)
+      break;
+
+    c = i;
+  }
+
+  if (c > next_fb_drift) {
+    LCL_SetAbsoluteFrequency(fb_drifts[c - fb_drift_min].freq);
+    next_fb_drift = c;
+#if 0
+    LOG(LOGS_INFO, LOGF_Reference, "Fallback drift %d set", c);
+#endif
+  }
+
+  if (i <= fb_drift_max) {
+    next_fb_drift = i;
+    UTI_AddDoubleToTimeval(now, secs - unsynchronised, &when);
+    fb_drift_timeout_id = SCH_AddTimeout(&when, fb_drift_timeout, NULL);
+#if 0
+    LOG(LOGS_INFO, LOGF_Reference, "Fallback drift %d scheduled", i);
+#endif
+  }
 }
 
 /* ================================================== */
@@ -377,19 +509,9 @@ update_leap_status(NTP_Leap leap)
 static void
 write_log(struct timeval *ref_time, char *ref, int stratum, double freq, double skew, double offset)
 {
-  if (logfile) {
-
-    if (((logwrites++) % 32) == 0) {
-      fprintf(logfile,
-              "=======================================================================\n"
-              "   Date (UTC) Time     IP Address   St   Freq ppm   Skew ppm     Offset\n"
-              "=======================================================================\n");
-    }
-          
-    fprintf(logfile, "%s %-15s %2d %10.3f %10.3f %10.3e\n",
+  if (logfileid != -1) {
+    LOG_FileWrite(logfileid, "%s %-15s %2d %10.3f %10.3f %10.3e",
             UTI_TimeToLogForm(ref_time->tv_sec), ref, stratum, freq, skew, offset);
-    
-    fflush(logfile);
   }
 }
 
@@ -398,7 +520,7 @@ write_log(struct timeval *ref_time, char *ref, int stratum, double freq, double 
 void
 REF_SetReference(int stratum,
                  NTP_Leap leap,
-                 unsigned long ref_id,
+                 uint32_t ref_id,
                  IPAddr *ref_ip,
                  struct timeval *ref_time,
                  double offset,
@@ -414,16 +536,18 @@ REF_SetReference(int stratum,
   double delta_freq1, delta_freq2;
   double skew1, skew2;
   double our_frequency;
-
   double abs_freq_ppm;
+  double update_interval;
+  double elapsed;
+  struct timeval now;
 
   assert(initialised);
 
   /* Avoid getting NaNs */
-  if (skew == 0.0)
-    skew = 1e-10;
-  if (our_skew == 0.0)
-    our_skew = 1e-10;
+  if (skew < 1e-12)
+    skew = 1e-12;
+  if (our_skew < 1e-12)
+    our_skew = 1e-12;
 
   /* If we get a serious rounding error in the source stats regression
      processing, there is a remote chance that the skew argument is a
@@ -452,9 +576,12 @@ REF_SetReference(int stratum,
   else
     our_ref_ip.family = IPADDR_UNSPEC;
   our_ref_time = *ref_time;
-  our_offset = offset;
   our_root_delay = root_delay;
   our_root_dispersion = root_dispersion;
+
+  LCL_ReadCookedTime(&now, NULL);
+  UTI_DiffTimevalsToDouble(&elapsed, &now, ref_time);
+  our_offset = offset + elapsed * frequency;
 
   update_leap_status(leap);
 
@@ -509,16 +636,31 @@ REF_SetReference(int stratum,
 
   abs_freq_ppm = LCL_ReadAbsoluteFrequency();
 
-  write_log(ref_time,
+  write_log(&now,
             our_ref_ip.family != IPADDR_UNSPEC ? UTI_IPToString(&our_ref_ip) : UTI_RefidToString(our_ref_id),
             our_stratum,
             abs_freq_ppm,
             1.0e6*our_skew,
             our_offset);
 
+  UTI_DiffTimevalsToDouble(&update_interval, &now, &last_ref_update);
+
   if (drift_file) {
-    update_drift_file(abs_freq_ppm, our_skew);
+    /* Update drift file at most once per hour */
+    drift_file_age += update_interval;
+    if (drift_file_age < 0.0 || drift_file_age > 3600.0) {
+      update_drift_file(abs_freq_ppm, our_skew);
+      drift_file_age = 0.0;
+    }
   }
+
+  /* Update fallback drifts */
+  if (fb_drifts) {
+    update_fb_drifts(abs_freq_ppm, update_interval);
+  }
+
+  last_ref_update = now;
+  last_ref_update_interval = update_interval;
 
   /* And now set the freq and offset to zero */
   our_frequency = 0.0;
@@ -573,11 +715,14 @@ REF_SetUnsynchronised(void)
 {
   /* Variables required for logging to statistics log */
   struct timeval now;
-  double local_clock_err;
 
   assert(initialised);
 
-  LCL_ReadCookedTime(&now, &local_clock_err);
+  LCL_ReadCookedTime(&now, NULL);
+
+  if (fb_drifts) {
+    schedule_fb_drift(&now);
+  }
 
   write_log(&now,
             "0.0.0.0",
@@ -600,7 +745,7 @@ REF_GetReferenceParams
  int *is_synchronised,
  NTP_Leap *leap_status,
  int *stratum,
- unsigned long *ref_id,
+ uint32_t *ref_id,
  struct timeval *ref_time,
  double *root_delay,
  double *root_dispersion
@@ -618,7 +763,7 @@ REF_GetReferenceParams
     *stratum = our_stratum;
 
     UTI_DiffTimevalsToDouble(&elapsed, local_time, &our_ref_time);
-    extra_dispersion = (our_skew + fabs(our_residual_freq)) * elapsed;
+    extra_dispersion = (our_skew + fabs(our_residual_freq) + LCL_GetMaxClockError()) * elapsed;
 
     *leap_status = our_leap_status;
     *ref_id = our_ref_id;
@@ -653,7 +798,7 @@ REF_GetReferenceParams
 
     *leap_status = LEAP_Unsynchronised;
     *stratum = 0;
-    *ref_id = 0UL;
+    *ref_id = 0;
     ref_time->tv_sec = ref_time->tv_usec = 0;
     /* These values seem to be standard for a client, and
        any peer or client of ours will ignore them anyway because
@@ -725,13 +870,13 @@ REF_GetTrackingReport(RPT_TrackingReport *rep)
   double correction;
 
   LCL_ReadRawTime(&now_raw);
-  correction = LCL_GetOffsetCorrection(&now_raw);
+  LCL_GetOffsetCorrection(&now_raw, &correction, NULL);
   UTI_AddDoubleToTimeval(&now_raw, correction, &now_cooked);
 
   if (are_we_synchronised) {
     
     UTI_DiffTimevalsToDouble(&elapsed, &now_cooked, &our_ref_time);
-    extra_dispersion = (our_skew + fabs(our_residual_freq)) * elapsed;
+    extra_dispersion = (our_skew + fabs(our_residual_freq) + LCL_GetMaxClockError()) * elapsed;
     
     rep->ref_id = our_ref_id;
     rep->ip_addr = our_ref_ip;
@@ -759,7 +904,7 @@ REF_GetTrackingReport(RPT_TrackingReport *rep)
 
   } else {
 
-    rep->ref_id = 0UL;
+    rep->ref_id = 0;
     rep->ip_addr.family = IPADDR_UNSPEC;
     rep->stratum = 0;
     rep->ref_time.tv_sec = 0;
@@ -772,21 +917,6 @@ REF_GetTrackingReport(RPT_TrackingReport *rep)
     rep->root_dispersion = 0.0;
   }
 
-}
-
-/* ================================================== */
-
-void
-REF_CycleLogFile(void)
-{
-  if (logfile && logfilename) {
-    fclose(logfile);
-    logfile = fopen(logfilename, "a");
-    if (!logfile) {
-      LOG(LOGS_WARN, LOGF_Reference, "Could not reopen logfile %s", logfilename);
-    }
-    logwrites = 0;
-  }
 }
 
 /* ================================================== */

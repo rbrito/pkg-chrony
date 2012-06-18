@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/broadcast.c,v 1.3 2002/02/28 23:27:08 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -27,6 +23,8 @@
 
   Deal with broadcast server functions.
   */
+
+#include "config.h"
 
 #include "sysincl.h"
 #include "memory.h"
@@ -75,15 +73,14 @@ timeout_handler(void *arbitrary)
   int leap;
   int are_we_synchronised, our_stratum;
   NTP_Leap leap_status;
-  unsigned long our_ref_id;
+  uint32_t our_ref_id;
   struct timeval our_ref_time;
   double our_root_delay, our_root_dispersion;
-  double local_time_err;
   struct timeval local_transmit;
 
   version = 3;
 
-  LCL_ReadCookedTime(&local_transmit, &local_time_err);
+  LCL_ReadCookedTime(&local_transmit, NULL);
   REF_GetReferenceParams(&local_transmit,
                          &are_we_synchronised, &leap_status,
                          &our_stratum,
@@ -94,7 +91,7 @@ timeout_handler(void *arbitrary)
   if (are_we_synchronised) {
     leap = (int) leap_status;
   } else {
-    leap = 3;
+    leap = LEAP_Unsynchronised;
   }
 
   message.lvm = ((leap << 6) &0xc0) | ((version << 3) & 0x38) | (MODE_BROADCAST & 0x07);
@@ -116,13 +113,13 @@ timeout_handler(void *arbitrary)
   message.receive_ts.hi = 0UL;
   message.receive_ts.lo = 0UL;
 
-  LCL_ReadCookedTime(&local_transmit, &local_time_err);
+  LCL_ReadCookedTime(&local_transmit, NULL);
   UTI_TimevalToInt64(&local_transmit, &message.transmit_ts);
   NIO_SendNormalPacket(&message, &d->addr);
 
   /* Requeue timeout.  Don't care if interval drifts gradually, so just do it
    * at the end. */
-  SCH_AddTimeoutInClass((double) d->interval, 1.0,
+  SCH_AddTimeoutInClass((double) d->interval, 1.0, 0.02,
                         SCH_NtpBroadcastClass,
                         timeout_handler, (void *) d);
 
@@ -149,7 +146,7 @@ BRD_AddDestination(IPAddr *addr, unsigned short port, int interval)
   destinations[n_destinations].addr.port = port;
   destinations[n_destinations].interval = interval;
 
-  SCH_AddTimeoutInClass((double) interval, 1.0,
+  SCH_AddTimeoutInClass((double) interval, 1.0, 0.0,
                         SCH_NtpBroadcastClass,
                         timeout_handler, (void *)(destinations + n_destinations));
   

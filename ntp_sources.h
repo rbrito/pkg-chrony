@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/ntp_sources.h,v 1.12 2002/02/28 23:27:12 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -45,27 +41,27 @@
 typedef enum {
   NSR_Success, /* Operation successful */
   NSR_NoSuchSource, /* Remove - attempt to remove a source that is not known */
-  NSR_AlreadyInUse, /* AddServer, AddPeer - attempt to add a source that is already known */ 
-  NSR_TooManySources, /* AddServer, AddPeer - too many sources already present */
-  NSR_InvalidAF /* AddServer, AddPeer - attempt to add a source with invalid address family */
+  NSR_AlreadyInUse, /* AddSource - attempt to add a source that is already known */ 
+  NSR_TooManySources, /* AddSource - too many sources already present */
+  NSR_InvalidAF /* AddSource - attempt to add a source with invalid address family */
 } NSR_Status;
 
-/* Procedure to add a new server source (to which this machine will be
-   a client) */
-extern NSR_Status NSR_AddServer(NTP_Remote_Address *remote_addr, SourceParameters *params);
+/* Procedure to add a new server or peer source. */
+extern NSR_Status NSR_AddSource(NTP_Remote_Address *remote_addr, NTP_Source_Type type, SourceParameters *params);
 
-/* Procedure to add a new peer source.  We will use symmetric active
-   mode packets when communicating with this source */
-extern NSR_Status NSR_AddPeer(NTP_Remote_Address *remote_addr, SourceParameters *params);
+/* Procedure to add a new server or peer source with currently unknown address.
+   The name will be periodically resolved in exponentially increasing intervals
+   until it succeeds or fails with a non-temporary error. */
+extern void NSR_AddUnresolvedSource(char *name, int port, NTP_Source_Type type, SourceParameters *params);
 
 /* Procedure to remove a source */
 extern NSR_Status NSR_RemoveSource(NTP_Remote_Address *remote_addr);
 
 /* This routine is called by ntp_io when a new packet arrives off the network */
-extern void NSR_ProcessReceive(NTP_Packet *message, struct timeval *now, NTP_Remote_Address *remote_addr);
+extern void NSR_ProcessReceive(NTP_Packet *message, struct timeval *now, double now_err, NTP_Remote_Address *remote_addr);
 
 /* This routine is called by ntp_io when a new packet with an authentication tail arrives off the network */
-extern void NSR_ProcessAuthenticatedReceive(NTP_Packet *message, struct timeval *now, NTP_Remote_Address *remote_addr);
+extern void NSR_ProcessAuthenticatedReceive(NTP_Packet *message, struct timeval *now, double now_err, NTP_Remote_Address *remote_addr);
 
 /* Initialisation function */
 extern void NSR_Initialise(void);
@@ -90,6 +86,12 @@ extern int NSR_ModifyMaxpoll(IPAddr *address, int new_maxpoll);
 extern int NSR_ModifyMaxdelay(IPAddr *address, double new_max_delay);
 
 extern int NSR_ModifyMaxdelayratio(IPAddr *address, double new_max_delay_ratio);
+
+extern int NSR_ModifyMaxdelaydevratio(IPAddr *address, double new_max_delay_ratio);
+
+extern int NSR_ModifyMinstratum(IPAddr *address, int new_min_stratum);
+
+extern int NSR_ModifyPolltarget(IPAddr *address, int new_poll_target);
 
 extern int NSR_InitiateSampleBurst(int n_good_samples, int n_total_samples, IPAddr *mask, IPAddr *address);
 

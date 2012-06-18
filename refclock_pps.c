@@ -25,6 +25,8 @@
 
   */
 
+#include "config.h"
+
 #include "refclock.h"
 
 #if HAVE_PPSAPI
@@ -56,6 +58,8 @@ static int pps_initialise(RCL_Instance instance) {
     LOG_FATAL(LOGF_Refclock, "open() failed on %s", path);
     return 0;
   }
+
+  UTI_FdSetCloexec(fd);
 
   if (time_pps_create(fd, &handle) < 0) {
     LOG_FATAL(LOGF_Refclock, "time_pps_create() failed on %s", path);
@@ -92,6 +96,7 @@ static int pps_initialise(RCL_Instance instance) {
     LOG_FATAL(LOGF_Refclock, "time_pps_setparams() failed on %s", path);
     return 0;
   }
+
 
   pps = MallocNew(struct pps_instance);
   pps->handle = handle;

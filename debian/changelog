@@ -1,14 +1,28 @@
-chrony (1.24-3.1) unstable; urgency=low
+chrony (1.26-1) unstable; urgency=low
 
-  * Non-maintainer upload.
-  * Add patch (directly over the source...), to work with kernels > 3.0.0,
-    by Paul Martin at http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=628919#15.
-    (Closes: #628919)
-  * Fix readline build-depends from "libreadline5-dev | libreadline-dev" to
-    libreadline-gplv2-dev because chrony is GPLv2 only.  (Closes: #634447)
-  * Update copyright file to say that chrony is GPLv2 only. (Closes: #637526)
-
- -- Ana Beatriz Guerrero Lopez <ana@debian.org>  Fri, 12 Aug 2011 12:32:26 +0200
+  * New upstream release
+    Closes: #348554: chrony and hwclock packages not coordinated.
+    Closes: #572964: RTC support is missing.
+    Closes: #642209: add RTC support for linux 3.0.
+    Closes: #644241: new upstream version 1.26 available.
+   
+  * Applied patches from Joachim Wiedorn <ad_debian@joonet.de>:
+    Fixed several typos in man pages and README.
+    Added version.h.
+    Moved default chrony.conf to debian/ .  
+    Renamed cron and init files.
+    Removed debian/NEWS.Debian, debian/info.
+    Added debian/clean.
+    Updated debian/copyright.  COPYING stays.  Upstream requires it.
+    Fixed debian/menu, debian/control, updated debian/compat.
+    Added "--without-readline" to debian/rules: rewrite later.
+    Minor fixes to initscript: rewrite later.
+  
+    Closes: #646732 Move from readline support to editline support.
+    Closes: #598253 Fix typo in LSB init headers ($hwclock to $time).
+    Closes: #600403 Fix init check with PPP connection.
+  
+ -- John G. Hasler <jhasler@debian.org>  Sun, 17 Jun 2012 21:55:47 -0500
 
 chrony (1.24-3) unstable; urgency=high
 

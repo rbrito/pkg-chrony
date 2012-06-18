@@ -1046,6 +1046,9 @@ Information messages and warnings will be logged to syslog.
 The command line options supported are as follows:
 
 @table @code
+@item -n
+When run in this mode, the program will not detach itself from the
+terminal.
 @item -d
 When run in this mode, the program will not detach itself from the
 terminal, and all messages will be sent to the terminal instead of to
@@ -1175,17 +1178,21 @@ directives can occur in any order in the file.
 * driftfile directive::         Specify location of file containing drift data
 * dumpdir directive::           Specify directory for dumping measurements
 * dumponexit directive::        Dump measurements when daemon exits
+* fallbackdrift directive::     Specify fallback drift intervals
+* include directive::           Include a configuration file
 * initstepslew directive::      Trim the system clock on boot-up.
 * keyfile directive::           Specify location of file containing keys
 * linux_hz directive::          Define a non-standard value of the kernel HZ constant
 * linux_freq_scale directive::  Define a non-standard value to compensate the kernel frequency bias
 * local directive::             Allow unsynchronised machine to act as server
 * log directive::               Make daemon log certain sets of information
+* logbanner directive::         Specify how often is banner written to log files
 * logchange directive::         Generate syslog messages if large offsets occur
 * logdir directive::            Specify directory for logging
 * mailonchange directive::      Send email if a clock correction above a threshold occurs
 * makestep directive::          Step system clock if large correction is needed
 * manual directive::            Allow manual entry using chronyc's settime cmd.
+* maxclockerror directive::     Set maximum frequency error of local clock
 * maxupdateskew directive::     Stop bad estimates upsetting machine clock
 * noclientlog directive::       Prevent chronyd from gathering data about clients
 * clientloglimit directive::    Set client log memory limit
@@ -1193,12 +1200,16 @@ directives can occur in any order in the file.
 * pidfile directive::           Specify the file where chronyd's pid is written
 * port directive::              Set port to use for NTP packets
 * refclock directive::          Specify a reference clock
+* reselectdist directive::      Set improvement in distance needed to reselect a source
 * rtcdevice directive::         Specify name of enhanced RTC device (if not /dev/rtc)
 * rtcfile directive::           Specify the file where real-time clock data is stored
 * rtconutc directive::          Specify that the real time clock keeps UTC not local time
+* rtcsync directive::           Specify that RTC should be automatically synchronised by kernel
 * server directive::            Specify an NTP server
 * sched_priority directive::    Require real-time scheduling and specify a priority for it.
+* stratumweight directive::     Specify how important is stratum when selecting source
 * lock_all directive::          Require that chronyd be locked into RAM. 
+* tempcomp directive::          Specify temperature sensor and compensation coefficients
 
 @end menu
 @c }}}
@@ -1563,6 +1574,45 @@ If this command is present, it indicates that @code{chronyd} should save
 the measurement history for each of its time sources recorded whenever
 the program exits.  (See the dumpdir command above).
 @c }}}
+@c {{{ fallbackdrift
+@node fallbackdrift directive
+@subsection fallbackdrift
+Fallback drifts are long-term averages of the system clock drift
+calculated over exponentially increasing intervals.  They are used
+when the clock is unsynchronised to avoid quickly drifting away from
+true time if there was a short-term deviation in drift before the
+synchronisation was lost.
+
+The directive specifies the minimum and maximum interval for how long
+the system clock has to be unsynchronised to switch between fallback
+drifts.  They are defined as a power of 2 (in seconds).  The syntax is
+as follows
+
+@example
+fallbackdrift 16 19
+@end example
+
+In this example, the minimum interval is 16 (18 hours) and maximum
+interval is 19 (6 days).  The system clock frequency will be set to
+the first fallback 18 hours after the synchronisation was lost, to the
+second after 36 hours, etc.  This might be a good setting to cover
+daily and weekly temperature fluctuations.
+
+By default (or if the specified maximum or minimum is 0), no fallbacks
+will be used and the clock frequency will stay at the last value
+calculated before synchronisation was lost.
+@c }}}
+@c {{{ include
+@node include directive
+@subsection include
+The @code{include} directive includes a specified configuration file.
+This is useful when maintaining configuration on multiple hosts to
+keep the differences in a separate file.
+
+@example
+include /etc/chrony/local.conf
+@end example
+@c }}}
 @c {{{ initstepslew
 @node initstepslew directive
 @subsection initstepslew
@@ -1759,8 +1809,11 @@ rate, and any slews made, to a file called tracking.log.
 This option logs information about the system's real-time clock.
 
 @item refclocks
-This option logs the raw reference clock measurements to a file
-called refclocks.log.
+This option logs the raw and filtered reference clock measurements to
+a file called refclocks.log.
+@item tempcomp
+This option logs the temperature measurements and system rate
+compensations to a file called tempcomp.log.
 @end table
 
 The files are written to the directory specified by the logdir
@@ -1778,6 +1831,7 @@ log measurements statistics tracking
 * tracking log::                The format of the tracking log
 * RTC log::                     The format of the RTC log
 * refclocks log::               The format of the refclocks log
+* tempcomp log::                The format of the tempcomp log
 @end menu
 @c }}}
 @c {{{ measurements.log
@@ -1788,7 +1842,7 @@ An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
 @example
-1998-07-22 05:40:50 158.152.1.76    N  8 1111 11 1111 10 10  1 \
+2010-12-22 05:40:50 158.152.1.76    N  8 1111 111 1111 10 10 1.0 \
    -4.966e-03  2.296e-01  1.577e-05  1.615e-01  7.446e-03
 @end example
 
@@ -1797,7 +1851,7 @@ values from the example line above) :
 
 @enumerate 1
 @item
-Date [1998-07-22]
+Date [2010-12-22]
 @item
 Hour:Minute:Second [05:40:50].  Note that the date/time pair is
 expressed in UTC, not the local time zone.
@@ -1813,8 +1867,8 @@ Stratum of remote computer. [2]
 @item
 RFC1305 tests 1 through 4 (1=pass, 0=fail) [1111]
 @item
-Tests for maximum delay and maximum delay ratio, against user defined
-parameters (1=pass, 0=fail) [11]
+Tests for maximum delay, maximum delay ratio and maximum delay dev ratio,
+against defined parameters (1=pass, 0=fail) [111]
 @item
 RFC1305 tests 5 through 8 (1=pass, 0=fail) [1111]
 @item
@@ -1823,8 +1877,8 @@ Local poll [10]
 Remote poll [10]
 @item
 `Score' (an internal score within each polling level used to decide when
-to increase or decrease the polling level.  This is adjusted based on
-changes to the variance of the measurements obtained from the source). [1]
+to increase or decrease the polling level.  This is adjusted based on number
+of measurements currently being used for the regression algorithm). [1.0]
 @item
 The estimated local clock error (`theta' in RFC1305).  Positive indicates that the local clock is slow. [-4.966e-03].
 @item
@@ -1845,7 +1899,7 @@ meanings of the columns.
 @subsubsection Statistics log file format
 
 An example line (which actually appears as a single line in the file)
-from the measurements log file is shown below.
+from the statistics log file is shown below.
 
 @example
 1998-07-22 05:40:50 158.152.1.76     6.261e-03 -3.247e-03 \
@@ -1909,7 +1963,7 @@ meanings of the columns.
 @subsubsection Tracking log file format
 
 An example line (which actually appears as a single line in the file)
-from the measurements log file is shown below.
+from the tracking log file is shown below.
 
 @example
 1998-07-22 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03
@@ -2002,7 +2056,7 @@ An example line (which actually appears as a single line in the file)
 from the refclocks log file is shown below.
 
 @example
-2009-11-30 14:33:27.000000 PPS2    7 N 1  4.900000e-07 -6.741777e-07
+2009-11-30 14:33:27.000000 PPS2    7 N 1  4.900000e-07 -6.741777e-07  1.000e-06
 @end example
 
 The columns are as follows (the quantities in square brackets are the
@@ -2017,24 +2071,68 @@ date/time pair is expressed in UTC, not the local time zone.
 @item
 Reference ID of refclock from which measurement comes. [PPS2]
 @item
-Sequence number of driver poll within one polling interval. [7]
+Sequence number of driver poll within one polling interval for raw
+samples, or @code{-} for filtered samples. [7]
 @item
 Leap status (@code{N} means normal, @code{+} means that the last minute
 of today has 61 seconds, @code{-} means that the last minute of the day
 has 59 seconds). [N]
 @item
 Flag indicating whether the sample comes from PPS source. (1 for yes,
-0 for no). [1]
+0 for no, or @code{-} for filtered sample). [1]
 @item
-Local clock error measured by refclock driver. [4.900000e-07]
+Local clock error measured by refclock driver, or @code{-} for
+filtered sample. [4.900000e-07]
 @item
 Local clock error with applied corrections.  Positive indicates
 that the local clock is slow. [-6.741777e-07]
+@item
+Assumed dispersion of the sample. [1.000e-06]
 @end enumerate
 
 A banner is periodically written to the log file to indicate the
 meanings of the columns.
 @c }}}
+@c {{{ tempcomp.log
+@node tempcomp log
+@subsubsection Tempcomp log file format
+
+An example line (which actually appears as a single line in the file)
+from the tempcomp log file is shown below.
+
+@example
+2010-04-19 10:39:48  2.8000e+04  3.6600e-01
+@end example
+
+The columns are as follows (the quantities in square brackets are the
+values from the example line above) :
+
+@enumerate 1
+@item
+Date [2010-04-19]
+@item
+Hour:Minute:Second [10:39:48].  Note that the
+date/time pair is expressed in UTC, not the local time zone.
+@item
+Temperature read from tempcomp file. [2.8000e+04]
+@item
+Applied compensation in ppm, positive means the system clock is
+running faster than it would be without the compensation. [3.6600e-01]
+@end enumerate
+
+A banner is periodically written to the log file to indicate the
+meanings of the columns.
+@c }}}
+@c }}}
+@c {{{ logbanner
+@node logbanner directive
+@subsection logbanner
+A banner is periodically written to the log files enabled by the
+@code{log} directive to indicate the meanings of the columns.
+
+The @code{logbanner} directive specifies after how many entries in the
+log file should be the banner written. The default is 32, and 0 can be
+used to disable it entirely.
 @c }}}
 @c {{{ logchange
 @node logchange directive
@@ -2126,6 +2224,25 @@ idea of the two commands is that the @code{manual} command controls the
 manual clock driver's behaviour, whereas the @code{settime} command
 allows samples of manually entered time to be provided).
 @c }}}
+@c {{{ maxclockerror
+@node maxclockerror directive
+@subsection maxclockerror
+The @code{maxclockerror} directive sets the maximum assumed frequency
+error of the local clock.  This is a frequency stability of the clock,
+not an absolute frequency error.
+
+By default, the maximum assumed error is set to 1 ppm.
+
+The syntax is
+
+@example
+maxclockerror <error-in-ppm>
+@end example
+
+Typical values for <error-in-ppm> might be 10 for a low quality clock
+to 0.1 for a high quality clock using a temperature compensated
+crystal oscillator.
+@c }}}
 @c {{{ maxupdateskew
 @node maxupdateskew directive
 @subsection maxupdateskew
@@ -2139,6 +2256,7 @@ loss rate is not very reliable.
 
 The @code{maxupdateskew} parameter allows the threshold for determining
 whether an estimate may be so unreliable that it should not be used.
+By default, the threshold is 1000 ppm.
 
 The syntax is
 
@@ -2220,30 +2338,33 @@ udp/11123.
 @c {{{ refclock
 @node refclock directive
 @subsection refclock
-The @code{refclock} directive allows reference clocks to be specified.
-The directive is immediately followed by a refclock driver name and
-its parameter.
+Reference clocks allows very accurate synchronisation and @code{chronyd}
+can function as a stratum 1 server.  They are specified by the
+@code{refclock} directive.  It has two mandatory parameters, a refclock driver
+name and a driver specific parameter.
 
-There are currently three drivers implemented:
+There are currently three drivers included:
 
 @table @code
 @item PPS
-Pulse per second (PPS) API driver.  The parameter is a path to the PPS
-device.  Assert events are used by default.  Driver option
-@code{:clear} can be appended to the path to use clear events instead.
+PPSAPI (pulse per second) driver.  The parameter is the path to a PPS
+device.  Assert events are used by default.  Driver option @code{:clear}
+can be appended to the path if clear events should be used instead.
 
-PPS refclock needs another source (NTP or non-PPS refclock) or local
-directive (@pxref{local directive}) enabled to function.  For example:
+As PPS refclock gets only sub-second time information, it needs another
+source (NTP or non-PPS refclock) or local directive (@pxref{local
+directive}) enabled to work.  For example:
 
 @example
-refclock SHM 0 offset 0.5 delay 0.1
-refclock PPS /dev/pps0
+refclock PPS /dev/pps0 lock NMEA
+refclock SHM 0 offset 0.5 delay 0.1 refid NMEA noselect
 @end example
 
 @item SHM
-NTP shared memory driver.  The parameter is the number of the
-shared memory segment that should be used for receiving timestamps, usually
-0, 1, 2 or 3.  For example:
+NTP shared memory driver.  This driver uses a shared memory segment to
+receive data from another daemon which communicates with an actual
+reference clock.  The parameter is the number of a shared memory segment,
+usually 0, 1, 2 or 3.  For example:
 
 @example
 refclock SHM 1 poll 3 refid GPS1
@@ -2253,15 +2374,25 @@ A driver option in form @code{:perm=NNN} can be appended to the
 segment number to create the segment with permissions other than the
 default @code{0600}. 
 
-Software that can be used as a source of reference time includes
-@code{gpsd} and @code{shmpps}.
+Some examples of applications that can be used as SHM sources are @code{gpsd},
+@code{shmpps} and @code{radioclk}.
 @item SOCK
-Unix domain socket driver.  The parameter is a path to the socket
-which is used as the source of timestamps.  This is as a better
-alternative to SHM, it does not require polling, the offset
-resolution is not limited to microsecond and it supports PPS.
-The format for messages sent over the socket is declared in file
-@code{refclock_sock.c}.
+Unix domain socket driver.  It is similar to the SHM driver, but uses a
+different format and uses a socket instead of shared memory.  It does not
+require polling, the offset resolution is not limited to microseconds and it
+supports transmitting of PPS data.  The parameter is a path to the socket which
+will be created by @code{chronyd} and used to receive the messages.  The format
+of messages sent over the socket is described in the
+@code{refclock_sock.c} file.
+
+Recent versions of the @code{gpsd} daemon include support for the SOCK
+protocol.  The path where the socket should be created is described in the
+@code{gpsd(8)} man page.  For example:
+
+@example
+refclock SOCK /tmp/chrony.tty0.sock
+@end example
+
 @end table
 
 The @code{refclock} command also supports a number of subfields (which
@@ -2273,7 +2404,8 @@ Timestamps produced by refclock drivers are not used immediately, but
 they are stored and processed by a median filter in intervals
 specified by this option.  This is defined as a power of 2.  The
 default is 4 (16 seconds).  A shorter interval allows @code{chronyd}
-to react faster to frequency changes, but it may increase noise.
+to react faster to changes in clock frequency, but it may decrease
+the accuracy if the source is too noisy.
 @item dpoll
 Some drivers are not controlled by external events and thus require
 polling.  Again this is defined as a power of 2 and can be negative
@@ -2282,12 +2414,14 @@ for sub-second intervals.  The default is 0 (1 second).
 This option is used to specify a reference id of the refclock, as up
 to four ASCII characters.  By default, first three characters from
 driver name and the number of the refclock are used as refid.  Each
-refclock has to use an unique refid.
+refclock must have an unique refid.
 @item filter
 This option sets the length of the median filter which is used to
-reduce noise.  With each poll about half of the stored samples are
+reduce noise.  With each poll about 40 percent of the stored samples is
 discarded and one final sample is calculated as average of the
-remaining samples.  The default is 15.
+remaining samples.  If the length is 4 or above, at least 4 samples
+have to be collected between polls.  For lengths below 4, the filter
+has to be full.  The default is 64.
 @item rate
 PPS signal frequency (in Hz).  This option only controls how the
 received pulses are aligned.  To actually receive more than one
@@ -2309,8 +2443,32 @@ to be inaccurate (in seconds).  Increasing the value is useful to
 avoid having no majority in the source selection algorithm or to make
 the algorithm prefer other refclocks.  The default is 1e-9 (1
 nanosecond).
+@item precision
+Refclock precision (in seconds).  The default is 1e-6 (1 microsecond)
+for SHM refclock, and 1e-9 (1 nanosecond) for SOCK and PPS refclocks.
+@item prefer
+Prefer this source over sources without prefer option.
+@item noselect
+Never select this source.  This is useful for monitoring or with sources
+which are not very accurate, but are locked with a PPS refclock.
 @end table
 
+@c }}}
+@c {{{ reselectdist
+@node reselectdist directive
+@subsection reselectdist
+When @code{chronyd} selects synchronisation source from available sources, it
+will prefer the one with minimum synchronisation distance.  However, to
+avoid frequent reselecting when there are sources with similar distance, a
+fixed distance is added to the distance for sources that are currently not
+selected.  This can be set with the @code{reselectdist} option.  By default, the
+distance is 100 microseconds.
+
+The syntax is
+
+@example
+reselectdist <dist-in-seconds>
+@end example
 @c }}}
 @c {{{ rtcdevice
 @node rtcdevice directive
@@ -2384,6 +2542,17 @@ If the @code{rtconutc} directive appears, it means the RTC is required
 to keep UTC.  The directive takes no arguments.  It is equivalent to
 specifying the @code{-u} switch to the Linux @file{/sbin/clock} program.
 @c }}}
+@c {{{ rtcsync
+@node rtcsync directive
+@subsection rtcsync
+
+The @code{rtcsync} directive will enable a kernel mode where the
+system time is copied to the real time clock (RTC) every 11 minutes.
+
+This directive is supported only on Linux and cannot be used when the
+normal RTC tracking is enabled, i.e. when the @code{rtcfile} directive
+is used.
+@c }}}
 @c {{{ sched_priority
 @node sched_priority directive
 @subsection sched_priority
@@ -2402,6 +2571,26 @@ resource requirements are modest, but it should result in lower and
 more consistent latency since Chronyd will not need to wait for the
 scheduler to get around to running it.  You should not use this unless
 you really need it.  The sched_setscheduler man page has more details.
+@c }}}
+@c {{{ stratumweight
+@node stratumweight directive
+@subsection stratumweight
+
+The @code{stratumweight} directive sets how much distance should be added
+per stratum to the synchronisation distance when @code{chronyd} selects
+the synchronisation source from available sources.
+
+The syntax is
+
+@example
+stratumweight <dist-in-seconds>
+@end example
+
+By default, it is 1 second.  This usually means that sources with lower stratum
+will be preferred to sources with higher stratum even when their distance is
+significantly worse.  Setting @code{stratumweight} to 0 makes @code{chronyd}
+ignore stratum when selecting the source.
+
 @c }}}
 @c {{{ lock_all
 @node lock_all directive
@@ -2471,6 +2660,12 @@ measurements that it has buffered.  If a measurement has a round trip
 delay that is greater than the maxdelayratio times the minimum delay, it
 will be rejected.
 
+@item maxdelaydevratio
+If a measurement has ratio of the increase in round-trip delay from
+the minimum delay amongst the previous measurements to the standard
+deviation of the previous measurements that is greater than
+maxdelaydevratio, it will be rejected. The default is 10.0.
+
 @item presend
 If the timing measurements being made by @code{chronyd} are the only
 network data passing between two computers, you may find that some
@@ -2524,7 +2719,74 @@ chrony when disconnecting the dial-up link.  (It will still be necessary to use
 chronyc's @code{online} (@pxref{online command}) command when the link has been
 established, to enable measurements to start.)
 
+@item iburst
+On start, make four measurements over a short duration (rather than
+the usual periodic measurements).
+
+@item minstratum
+When the synchronisation source is selected from available sources, sources
+with lower stratum are normally preferred.  This option can be used to increase
+stratum of the source to the specified minimum, so @code{chronyd} will avoid
+selecting that source.  This is useful with low stratum sources that are known
+to be unrealiable or inaccurate and which should be used only when other
+sources are unreachable.
+
+@item polltarget
+Target number of measurements to use for the regression algorithm which
+@code{chronyd} will try to maintain by adjusting polling interval between
+@code{minpoll} and @code{maxpoll}.  A higher target makes @code{chronyd} prefer
+shorter polling intervals.  The default is 6 and a useful range is 6 to 60.
+
+@item prefer
+Prefer this source over sources without prefer option.
+
+@item noselect
+Never select this source.  This is particularly useful for monitoring.
+
 @end table
+@c }}}
+@c {{{ tempcomp
+@node tempcomp directive
+@subsection tempcomp
+Normally, changes in rate of drift of the system clock are caused mainly by
+changes in temperature of the crystal oscillator on the mainboard.
+
+If there are available temperature measurements from a sensor close to the
+oscillator, @code{tempcomp} directive can be used to compensate for the changes
+in rate and possibly improve clock accuracy.
+
+Whether it will really help depends on many factors, including resolution of
+the sensor, noise in measurements, time source polling interval, compensation
+update interval, how good are the temperature coefficients, and how close is
+the sensor to the oscillator.  The frequency reported in tracking.log should
+be more stable and the offsets should be smaller.
+
+The directive has six parameters: path to the file which contains current
+temperature in text format, update interval (in seconds), and temperature
+coefficients T0, k0, k1, k2.
+
+The frequency compensation is calculated (in ppm) as 
+
+@code{k0 + (T - T0) * k1 + (T - T0)^2 * k2}
+
+The result has to be between -10 ppm and 10 ppm, otherwise the measurement is
+considered to be faulty and will be ignored.  The k0 coefficient can be used to
+get the results in that range.
+
+Valid measurements and calculated corrections are logged to tempcomp.log file if
+enabled with @code{log tempcomp} directive.
+
+An example of use is
+
+@example
+tempcomp /sys/class/hwmon/hwmon1/device/temp2_input 30 26000 0.0 0.000183 0.0
+@end example
+
+The measured temperature will be read from the file in Linux sysfs filesystem
+every 30 seconds.  When the temperature is 26 degress (26000), the system clock
+frequency will not be adjusted.  When it is 27 degrees (27000), the clock will
+be set to run 0.183ppm faster than it would be without the compensation, etc.
+
 @c }}}
 @c }}}
 @c {{{ S:Running chronyc
@@ -2587,6 +2849,9 @@ This option disables resolving IP addresses to hostnames.
 With this option hostnames will be resolved only to IPv4 addresses.
 @item -6
 With this option hostnames will be resolved only to IPv6 addresses.
+@item -m
+With this option multiple commands can be specified on the command line.
+Each argument will be interpreted as a whole command.
 @end table
 @c }}}
 @c {{{ SS:Security with chronyc
@@ -2624,7 +2889,6 @@ password:
 
 @itemize @bullet
 @item @code{activity}
-@item @code{clients}
 @item @code{dns}
 @item @code{exit}
 @item @code{help}
@@ -2634,6 +2898,7 @@ password:
 @item @code{sources}
 @item @code{sourcestats}
 @item @code{tracking}
+@item @code{waitsync}
 @end itemize
 
 All other commands require a password to have been specified previously,
@@ -2674,19 +2939,27 @@ interface.
 * manual command::              Enable/disable/configure options for settime
 * maxdelay command::            Set max measurement delay for a source
 * maxdelayratio command::       Set max measurement delay for a source as ratio
+* maxdelaydevratio command::    Set max measurement delay for a source as ratio to deviation
 * maxpoll command::             Set maximum polling interval for a source
 * maxupdateskew command::       Set safety threshold for clock gain/loss rate
 * minpoll command::             Set minimum polling interval for a source
+* minstratum command::          Set minimum stratum for a source
 * offline command::             Warn that connectivity to a source will be lost
 * online command::              Warn that connectivity to a source has been restored
 * password command::            Provide password needed for most commands
+* polltarget command::          Set poll target for a source
 * quit command::                Exit from chronyc
+* reselect command::            Reselect synchronisation source
+* reselectdist command::        Set improvement in distance needed to reselect a source
+* retries command::             Set maximum number of retries
 * rtcdata command::             Display RTC parameters
 * settime command::             Provide a manual input of the current time
 * sources command::             Display information about the current set of sources
 * sourcestats command::         Display the rate & offset estimation performance of sources
+* timeout command::             Set initial response timeout
 * tracking command::            Display system clock performance
 * trimrtc command::             Correct the RTC time to the current system time
+* waitsync command::            Wait until synchronised
 * writertc command::            Write the RTC parameters to file.
 @end menu
 @c }}}
@@ -3234,6 +3507,22 @@ address @code{2001:db8::1} to be double the retained minimum.
 As for @code{maxdelay}, any measurement whose network delay is too large
 will be discarded.
 @c }}}
+@c {{{ maxdelaydevratio
+@node maxdelaydevratio command
+@subsubsection maxdelaydevratio
+This allows the @code{maxdelaydevratio} option for one of the sources to be
+modified, in the same way as specifying the @code{maxdelaydevratio} option
+for the @code{server} directive in the configuration file (@pxref{server
+directive}).
+
+The following examples illustrate the syntax
+
+@example
+maxdelaydevratio foo.bar.com 0.1
+maxdelaydevratio 1.2.3.4 1.0
+maxdelaydevratio 2001:db8::1 100.0
+@end example
+@c }}}
 @c {{{ maxpoll
 @node maxpoll command
 @subsubsection maxpoll
@@ -3300,6 +3589,35 @@ which sets the minimum polling interval for the host @code{foo.bar.com}
 to 32 seconds.
 
 Note that the new minimum polling interval only takes effect after the
+next measurement has been made.
+@c }}}
+@c {{{ minstratum
+@node minstratum command
+@subsubsection minstratum
+The @code{minstratum} command is used to modify the minimum stratum
+for one of the current set of sources.  It is equivalent to the
+@code{minstratum} option in the @code{server} directive in the
+configuration file (@pxref{server directive}).
+
+The syntax is as follows
+
+@example
+minstratum <host> <new-min-stratum>
+@end example
+
+where the host can be specified as either a machine name or
+IP address.
+
+An example is 
+
+@example
+minpoll foo.bar.com 5
+@end example
+
+which sets the minimum stratum for the host @code{foo.bar.com}
+to 5.
+
+Note that the new minimum stratum only takes effect after the
 next measurement has been made.
 @c }}}
 @c {{{ offline
@@ -3414,11 +3732,63 @@ The password is any string of characters not containing whitespace.  It
 has to match @code{chronyd's} currently defined command key (@pxref{commandkey
 directive}).
 @c }}}
+@c {{{ polltarget
+@node polltarget command
+@subsubsection polltarget
+The @code{polltarget} command is used to modify the poll target for
+one of the current set of sources.  It is equivalent to the
+@code{polltarget} option in the @code{server} directive in the
+configuration file (@pxref{server directive}).
+
+The syntax is as follows
+
+@example
+polltarget <host> <new-poll-target>
+@end example
+
+where the host can be specified as either a machine name or
+IP address.
+
+An example is 
+
+@example
+polltarget foo.bar.com 12
+@end example
+
+which sets the poll target for the host @code{foo.bar.com}
+to 12.
+@c }}}
 @c {{{ quit
 @node quit command
 @subsubsection quit
 The quit command exits from chronyc and returns the user to the shell
 (same as the exit command).
+@c }}}
+@c {{{ reselect command
+@node reselect command
+@subsubsection reselect
+To avoid excessive switching between sources, @code{chronyd} may stay
+synchronised to a source even when it is not currently the best one among the
+available sources.
+
+The @code{reselect} command can be used to force @code{chronyd} to
+reselect the best synchronisation source.
+@c }}}
+@c {{{ reselectdist command
+@node reselectdist command
+@subsubsection reselectdist
+The @code{reselectdist} command sets the reselect distance.  It is equivalent
+to the @code{reselectdist} directive in the configuration file
+(@pxref{reselectdist directive}).
+@c }}}
+@c {{{ retries
+@node retries command
+@subsubsection retries
+The @code{retries} command sets the maximum number of retries for
+@code{chronyc} requests before giving up.  The response timeout is controlled
+by @code{timeout} command (@pxref{timeout command}).
+
+The default is 2.
 @c }}}
 @c {{{ rtcdata
 @node rtcdata command
@@ -3657,6 +4027,16 @@ This is the estimated sample standard deviation.
 
 @end table
 @c }}}
+@c {{{ timeout
+@node timeout command
+@subsubsection timeout
+The @code{timeout} command sets the initial timeout for @code{chronyc} requests
+in milliseconds.  If no response is received from @code{chronyd}, the timeout is
+doubled and the request is resent.  The maximum number of retries is configured
+with the @code{retries} command (@pxref{retries command}).
+
+The default is 1000 milliseconds.
+@c }}}
 @c {{{ tracking
 @node tracking command
 @subsubsection tracking
@@ -3809,6 +4189,31 @@ across machine reboots even if the @code{trimrtc} command is never used
 @code{trimrtc} command is provided as a method by which it can be
 corrected, in a manner compatible with @code{chronyd} using it to
 maintain accurate time across machine reboots.
+@c }}}
+@c {{{ waitsync
+@node waitsync command
+@subsubsection waitsync
+The @code{waitsync} command waits for @code{chronyd} to synchronise.
+
+Up to three optional arguments can be specified, the first is the maximum
+number of tries in 10 second intervals before giving up and returning a
+non-zero error code.  When 0 is specified, or there are no arguments, the
+number of tries will not be limited.
+
+The second and third arguments are the maximum allowed remaining correction of
+the system clock and the maximum allowed skew (in ppm) as reported by the
+@code{tracking} command (@pxref{tracking command}) in the @code{System time}
+and @code{Skew} fields.  If not specified or zero, the value will not be
+checked.
+
+An example is
+
+@example
+waitsync 60 0.01
+@end example
+
+which will wait up to about 10 minutes for @code{chronyd} to synchronise to a
+source and the remaining correction to be less than 10 milliseconds.
 @c }}}
 @c {{{ writertc
 @node writertc command

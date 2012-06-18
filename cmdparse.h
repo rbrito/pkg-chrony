@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/cmdparse.h,v 1.7 2002/02/28 23:27:09 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -42,13 +38,17 @@ typedef enum {
   CPS_BadMinpoll,
   CPS_BadMaxpoll,
   CPS_BadPresend,
+  CPS_BadMaxdelaydevratio,
   CPS_BadMaxdelayratio,
   CPS_BadMaxdelay,
-  CPS_BadKey
+  CPS_BadKey,
+  CPS_BadMinstratum,
+  CPS_BadPolltarget
 } CPS_Status;
 
 typedef struct {
   IPAddr ip_addr;
+  char *name;
   unsigned short port;
   SourceParameters params;
 } CPS_NTP_Source;

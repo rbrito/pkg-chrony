@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/pktlength.c,v 1.12 2002/02/28 23:27:12 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -30,6 +26,8 @@
   integer endianness within the structures.
 
   */
+#include "config.h"
+
 #include "sysincl.h"
 
 #include "util.h"
@@ -65,6 +63,8 @@ PKL_CommandLength(CMD_Request *r)
         return offsetof(CMD_Request, data.modify_maxdelay.EOR);
       case REQ_MODIFY_MAXDELAYRATIO:
         return offsetof(CMD_Request, data.modify_maxdelayratio.EOR);
+      case REQ_MODIFY_MAXDELAYDEVRATIO:
+        return offsetof(CMD_Request, data.modify_maxdelaydevratio.EOR);
       case REQ_MODIFY_MAXUPDATESKEW:
         return offsetof(CMD_Request, data.modify_maxupdateskew.EOR);
       case REQ_LOGON :
@@ -147,6 +147,14 @@ PKL_CommandLength(CMD_Request *r)
         return offsetof(CMD_Request, data.make_step.EOR);
       case REQ_ACTIVITY:
         return offsetof(CMD_Request, data.activity.EOR);
+      case REQ_RESELECT:
+        return offsetof(CMD_Request, data.reselect.EOR);
+      case REQ_RESELECTDISTANCE:
+        return offsetof(CMD_Request, data.reselect_distance.EOR);
+      case REQ_MODIFY_MINSTRATUM:
+        return offsetof(CMD_Request, data.modify_minstratum.EOR);
+      case REQ_MODIFY_POLLTARGET:
+        return offsetof(CMD_Request, data.modify_polltarget.EOR);
       default:
         /* If we fall through the switch, it most likely means we've forgotten to implement a new case */
         assert(0);

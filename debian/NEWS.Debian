@@ -1,6 +1,0 @@
-chrony (1.24-1) unstable; urgency=low
-
-  I have made no substantial changes to the scripts.  I will rewrite
-  them for -2, and backport some of the changes from the upstream
-  development tree.
- -- John Hasler <jhasler@newsguy.com>  Tue, 22 Jun 2010 16:01:29 -0500

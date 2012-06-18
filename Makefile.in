@@ -1,9 +1,5 @@
 ##################################################
 #
-# $Header: /cvs/src/chrony/Makefile.in,v 1.48 2003/09/19 22:48:26 richard Exp $
-#
-# =======================================================================
-#
 # chronyd/chronyc - Programs for keeping computer clocks accurate.
 # 
 # Copyright (C) Richard P. Curnow  1997-2003
@@ -33,9 +29,8 @@ INFODIR=@INFODIR@
 DOCDIR=@DOCDIR@
 
 CC = @CC@
-CCWARNFLAGS = @CCWARNFLAGS@
-OPTFLAGS = @CFLAGS@
-CPPFLAGS = @CPPFLAGS@ @SYSDEFS@ @EXTRA_DEFS@
+CFLAGS = @CFLAGS@
+CPPFLAGS = @CPPFLAGS@
 
 DESTDIR=
 
@@ -46,12 +41,14 @@ OBJS = util.o sched.o regress.o local.o \
 	nameserv.o acquire.o manual.o addrfilt.o \
 	cmdparse.o mkdirpp.o rtc.o pktlength.o clientlog.o \
 	broadcast.o refclock.o refclock_shm.o refclock_sock.o \
-	refclock_pps.o
+	refclock_pps.o tempcomp.o
 
 EXTRA_OBJS=@EXTRA_OBJECTS@
 
 CLI_OBJS = client.o md5.o nameserv.o getdate.o cmdparse.o \
            pktlength.o util.o
+
+ALL_OBJS = $(OBJS) $(EXTRA_OBJS) $(CLI_OBJS)
 
 SRCS = $(patsubst %.o,%.c,$(OBJS))
 EXTRA_SRCS = $(patsubst %.o,%.c,$(EXTRA_OBJS))
@@ -64,36 +61,26 @@ LIBS = @LIBS@
 EXTRA_LIBS=@EXTRA_LIBS@
 EXTRA_CLI_LIBS=@EXTRA_CLI_LIBS@
 
-CFLAGS = $(CCWARNFLAGS) $(OPTFLAGS)
-
 # Until we have a main procedure we can link, just build object files
 # to test compilation
 
 all : chronyd chronyc
 
 chronyd : $(OBJS) $(EXTRA_OBJS)
-	$(CC) $(OPTFLAGS) -o chronyd $(OBJS) $(EXTRA_OBJS) $(LDFLAGS) $(LIBS) $(EXTRA_LIBS)
+	$(CC) $(CFLAGS) -o chronyd $(OBJS) $(EXTRA_OBJS) $(LDFLAGS) $(LIBS) $(EXTRA_LIBS)
 
 chronyc : $(CLI_OBJS)
-	$(CC) $(OPTFLAGS) -o chronyc $(CLI_OBJS) $(LDFLAGS) @READLINE_LINK@ $(LIBS) $(EXTRA_CLI_LIBS)
-
-conf.o : conf.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DDEFAULT_CONF_DIR=\"$(SYSCONFDIR)\" -c $<
+	$(CC) $(CFLAGS) -o chronyc $(CLI_OBJS) $(LDFLAGS) @READLINE_LINK@ $(LIBS) $(EXTRA_CLI_LIBS)
 
 client.o : client.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) @READLINE_COMPILE@ -c $<
 
-.depend : 
-	gcc -MM $(SRCS) $(EXTRA_SRCS) > .depend
-
-distclean :
-	-rm -f *.o *.s chronyc chronyd core options.h Makefile *~
+distclean : clean
+	-rm -f Makefile
 
 clean :
 	-rm -f *.o *.s chronyc chronyd core *~
-
-version.h : version.txt
-	./mkversion
+	-rm -rf .deps
 
 getdate.c : ;
 getdate :
@@ -137,8 +124,6 @@ install: chronyd chronyc
 %.s : %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S $<
 
-main.o logging.o client.o : version.h
-
 # makeinfo v4 required to generate plain text and html
 MAKEINFO:=makeinfo
 
@@ -167,3 +152,10 @@ chrony.info : chrony.texi
 faq.php : faq.txt faqgen.pl
 	perl faqgen.pl < faq.txt > faq.php
 
+.deps:
+	@mkdir .deps
+
+.deps/%.d: %.c | .deps
+	@$(CC) -MM $(CPPFLAGS) -MT '$(<:%.c=%.o) $@' $< -o $@
+
+-include $(ALL_OBJS:%.o=.deps/%.d)

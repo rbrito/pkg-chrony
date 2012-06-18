@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/sourcestats.h,v 1.13 2002/02/28 23:27:14 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -42,7 +38,7 @@ extern void SST_Initialise(void);
 extern void SST_Finalise(void);
 
 /* This function creates a new instance of the statistics handler */
-extern SST_Stats SST_CreateInstance(unsigned long refid, IPAddr *addr);
+extern SST_Stats SST_CreateInstance(uint32_t refid, IPAddr *addr);
 
 /* This function deletes an instance of the statistics handler. */
 extern void SST_DeleteInstance(SST_Stats inst);
@@ -89,14 +85,14 @@ SST_GetSelectionData(SST_Stats inst, struct timeval *now,
                      double *best_offset, double *best_root_delay,
                      double *best_root_dispersion,
                      double *variance,
-                     int *average_ok);
+                     int *select_ok);
 
 /* Get data needed when setting up tracking on this source */
 extern void
-SST_GetTrackingData(SST_Stats inst, struct timeval *now,
+SST_GetTrackingData(SST_Stats inst, struct timeval *ref_time,
                     double *average_offset, double *offset_sd,
-                    double *accrued_dispersion,
-                    double *frequency, double *skew);
+                    double *frequency, double *skew,
+                    double *root_delay, double *root_dispersion);
 
 /* Get parameters for using this source as the reference */
 extern void
@@ -125,6 +121,9 @@ SST_GetReferenceData(SST_Stats inst, struct timeval *now,
 
 extern void SST_SlewSamples(SST_Stats inst, struct timeval *when, double dfreq, double doffset);
 
+/* This routine is called when an indeterminate offset is introduced
+   into the local time. */
+extern void SST_AddDispersion(SST_Stats inst, double dispersion);
 
 /* Predict the offset of the local clock relative to a given source at
    a given local cooked time. Positive indicates local clock is FAST
@@ -133,6 +132,11 @@ extern double SST_PredictOffset(SST_Stats inst, struct timeval *when);
 
 /* Find the minimum round trip delay in the register */
 extern double SST_MinRoundTripDelay(SST_Stats inst);
+
+/* This routine determines if a new sample is good enough that it should be
+   accumulated */
+extern int SST_IsGoodSample(SST_Stats inst, double offset, double delay,
+   double max_delay_dev_ratio, double clock_error, struct timeval *when);
 
 extern void SST_SaveToFile(SST_Stats inst, FILE *out);
 
@@ -150,7 +154,7 @@ typedef enum {
 
 extern SST_Skew_Direction SST_LastSkewChange(SST_Stats inst);
 
-extern void SST_CycleLogFile(void);
+extern int SST_Samples(SST_Stats inst);
 
 #endif /* GOT_SOURCESTATS_H */
 

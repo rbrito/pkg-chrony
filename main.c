@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/main.c,v 1.31 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -29,6 +25,8 @@
   The main program
   */
 
+#include "config.h"
+
 #include "sysincl.h"
 
 #include "main.h"
@@ -47,12 +45,12 @@
 #include "keys.h"
 #include "acquire.h"
 #include "manual.h"
-#include "version.h"
 #include "rtc.h"
 #include "refclock.h"
 #include "clientlog.h"
 #include "broadcast.h"
 #include "nameserv.h"
+#include "tempcomp.h"
 
 /* ================================================== */
 
@@ -86,6 +84,7 @@ MAI_CleanupAndExit(void)
     SRC_DumpSources();
   }
 
+  TMC_Finalise();
   MNL_Finalise();
   ACQ_Finalise();
   KEY_Finalise();
@@ -93,10 +92,10 @@ MAI_CleanupAndExit(void)
   NSR_Finalise();
   NCR_Finalise();
   BRD_Finalise();
-  SRC_Finalise();
   SST_Finalise();
   REF_Finalise();
   RCL_Finalise();
+  SRC_Finalise();
   RTC_Finalise();
   CAM_Finalise();
   NIO_Finalise();
@@ -116,7 +115,6 @@ MAI_CleanupAndExit(void)
 static void
 signal_cleanup(int x)
 {
-  LOG(LOGS_WARN, LOGF_Main, "chronyd exiting on signal");
   if (!initialised) exit(0);
   SCH_QuitProgram();
 }
@@ -208,12 +206,55 @@ write_lockfile(void)
 
 /* ================================================== */
 
+static void
+go_daemon(void)
+{
+#ifdef WINNT
+
+
+#else
+
+  int pid, fd;
+
+  /* Does this preserve existing signal handlers? */
+  pid = fork();
+
+  if (pid < 0) {
+    LOG(LOGS_ERR, LOGF_Logging, "Could not detach, fork failed : %s", strerror(errno));
+  } else if (pid > 0) {
+    exit(0); /* In the 'grandparent' */
+  } else {
+
+    setsid();
+
+    /* Do 2nd fork, as-per recommended practice for launching daemons. */
+    pid = fork();
+
+    if (pid < 0) {
+      LOG(LOGS_ERR, LOGF_Logging, "Could not detach, fork failed : %s", strerror(errno));
+    } else if (pid > 0) {
+      exit(0); /* In the 'parent' */
+    } else {
+      /* In the child we want to leave running as the daemon */
+
+      /* Don't keep stdin/out/err from before. */
+      for (fd=0; fd<1024; fd++) {
+        close(fd);
+      }
+    }
+  }
+
+#endif
+}
+
+/* ================================================== */
+
 int main
 (int argc, char **argv)
 {
   char *conf_file = NULL;
   char *user = NULL;
-  int debug = 0;
+  int debug = 0, nofork = 0;
   int do_init_rtc = 0;
   int other_pid;
   int lock_memory = 0, sched_priority = 0;
@@ -246,10 +287,13 @@ int main
       do_init_rtc = 1;
     } else if (!strcmp("-v", *argv) || !strcmp("--version",*argv)) {
       /* This write to the terminal is OK, it comes before we turn into a daemon */
-      printf("chronyd (chrony) version %s\n", PROGRAM_VERSION_STRING);
+      printf("chronyd (chrony) version %s\n", CHRONY_VERSION);
       exit(0);
+    } else if (!strcmp("-n", *argv)) {
+      nofork = 1;
     } else if (!strcmp("-d", *argv)) {
       debug = 1;
+      nofork = 1;
     } else if (!strcmp("-4", *argv)) {
       DNS_SetAddressFamily(IPADDR_INET4);
     } else if (!strcmp("-6", *argv)) {
@@ -259,6 +303,8 @@ int main
     }
   }
 
+  CNF_ReadFile(conf_file);
+
 #ifndef SYS_WINNT
   if (getuid() != 0) {
     /* This write to the terminal is OK, it comes before we turn into a daemon */
@@ -266,12 +312,17 @@ int main
     exit(1);
   }
 
-
   /* Turn into a daemon */
+  if (!nofork) {
+    go_daemon();
+  }
+
   if (!debug) {
-    LOG_GoDaemon();
+    LOG_OpenSystemLog();
   }
   
+  LOG(LOGS_INFO, LOGF_Main, "chronyd version %s starting", CHRONY_VERSION);
+
   /* Check whether another chronyd may already be running.  Do this after
    * forking, so that message logging goes to the right place (i.e. syslog), in
    * case this chronyd is being run from a boot script. */
@@ -286,8 +337,6 @@ int main
   write_lockfile();
 #endif
 
-  CNF_ReadFile(conf_file);
-
   if (do_init_rtc) {
     RTC_TimePreInit();
   }
@@ -298,6 +347,7 @@ int main
   NIO_Initialise();
   CAM_Initialise();
   RTC_Initialise();
+  SRC_Initialise();
   RCL_Initialise();
 
   /* Command-line switch must have priority */
@@ -316,9 +366,10 @@ int main
     SYS_DropRoot(user);
   }
 
+  LOG_CreateLogFileDir();
+
   REF_Initialise();
   SST_Initialise();
-  SRC_Initialise();
   BRD_Initialise();
   NCR_Initialise();
   NSR_Initialise();
@@ -326,6 +377,7 @@ int main
   KEY_Initialise();
   ACQ_Initialise();
   MNL_Initialise();
+  TMC_Initialise();
 
   /* From now on, it is safe to do finalisation on exit */
   initialised = 1;
@@ -346,6 +398,8 @@ int main
   /* The program normally runs under control of the main loop in
      the scheduler. */
   SCH_MainLoop();
+
+  LOG(LOGS_INFO, LOGF_Main, "chronyd exiting");
 
   MAI_CleanupAndExit();
 

@@ -1,13 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/ntp_core.c,v 1.50 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009
+ * Copyright (C) Miroslav Lichvar  2009-2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,6 +25,8 @@
   Core NTP protocol engine
   */
 
+#include "config.h"
+
 #include "sysincl.h"
 
 #include "ntp_core.h"
@@ -44,26 +42,16 @@
 #include "keys.h"
 #include "md5.h"
 #include "addrfilt.h"
-#include "mkdirpp.h"
 #include "clientlog.h"
 
 /* ================================================== */
-/* File handle for file to which we write the measurement log */
-static FILE *logfile = NULL;
 
-static char *logfilename = NULL;
-static unsigned long logwrites=0;
-
-#define MEASUREMENTS_LOG "measurements.log" 
+static LOG_FileID logfileid;
 
 /* ================================================== */
 
 /* Day number of 1 Jan 1970 */
 #define MJD_1970 40587
-
-/* ================================================== */
-
-#define ZONE_WIDTH 4
 
 /* ================================================== */
 /* Enumeration used for remembering the operating mode of one of the
@@ -113,6 +101,13 @@ struct NCR_Instance_Record {
   int minpoll;                  /* Log2 of minimum defined polling interval */
   int maxpoll;                  /* Log2 of maximum defined polling interval */
 
+  int min_stratum;              /* Increase stratum in received packets to the
+                                   minimum */
+
+  int poll_target;              /* Target number of sourcestats samples */
+
+  double poll_score;            /* Score of current local poll */
+
   double max_delay;             /* Maximum round-trip delay to the
                                    peer that we can tolerate and still
                                    use the sample for generating
@@ -121,6 +116,8 @@ struct NCR_Instance_Record {
   double max_delay_ratio;       /* Largest ratio of delta /
                                    min_delay_in_register that we can
                                    tolerate.  */
+
+  double max_delay_dev_ratio;   /* Maximum ratio of increase in delay / stddev */
 
   int do_auth;                  /* Flag indicating whether we
                                    authenticate packets we send to
@@ -166,8 +163,6 @@ struct NCR_Instance_Record {
 
   SRC_Instance source;
 
-  int score;
-
   int burst_good_samples_to_go;
   int burst_total_samples_to_go;
 
@@ -175,18 +170,31 @@ struct NCR_Instance_Record {
 
 /* ================================================== */
 /* Initial delay period before first packet is transmitted (in seconds) */
-#define INITIAL_DELAY 2.0
+#define INITIAL_DELAY 0.2
 
 /* Spacing required between samples for any two servers/peers (to
    minimise risk of network collisions) (in seconds) */
-#define SAMPLING_SEPARATION 2.0
+#define SAMPLING_SEPARATION 0.2
+
+/* Randomness added to spacing between samples for one server/peer */
+#define SAMPLING_RANDOMNESS 0.02
+
+/* Spacing between samples in burst mode for one server/peer */
+#define BURST_INTERVAL 2.0
 
 /* Time to wait before retransmitting in burst mode, if we did not get
    a reply to the previous probe */
 #define BURST_TIMEOUT 8.0
 
+/* Time to wait after sending echo to 'warm up' link */
+#define WARM_UP_DELAY 4.0
+
 /* The NTP protocol version that we support */
 #define NTP_VERSION 3
+
+/* Compatible NTP protocol versions */
+#define NTP_MAX_COMPAT_VERSION 4
+#define NTP_MIN_COMPAT_VERSION 2
 
 /* Maximum allowed dispersion - as defined in RFC1305 (16 seconds) */
 #define NTP_MAX_DISPERSION 16.0
@@ -217,24 +225,9 @@ static void determine_md5_delay(void);
 void
 NCR_Initialise(void)
 {
-  char *direc;
-
-  if (CNF_GetLogMeasurements()) {
-    direc = CNF_GetLogDir();
-    if (!mkdir_and_parents(direc)) {
-      LOG(LOGS_ERR, LOGF_NtpCore, "Could not create directory %s", direc);
-      logfile = NULL;
-    } else {
-      logfilename = MallocArray(char, 2 + strlen(direc) + strlen(MEASUREMENTS_LOG));
-      strcpy(logfilename, direc);
-      strcat(logfilename, "/");
-      strcat(logfilename, MEASUREMENTS_LOG);
-      logfile = fopen(logfilename, "a");
-      if (!logfile) {
-        LOG(LOGS_WARN, LOGF_NtpCore, "Couldn't open logfile %s for update", logfilename);
-      }
-    }
-  }
+  logfileid = CNF_GetLogMeasurements() ? LOG_FileOpen("measurements",
+      "   Date (UTC) Time     IP Address   L St 1234 abc 5678 LP RP Score Offset     Peer del. Peer disp. Root del.  Root disp.")
+    : -1;
 
   access_auth_table = ADF_CreateTable();
 
@@ -247,10 +240,6 @@ NCR_Initialise(void)
 void
 NCR_Finalise(void)
 {
-  if (logfile) {
-    fclose(logfile);
-  }
-
   ADF_DestroyTable(access_auth_table);
 
 }
@@ -263,6 +252,7 @@ start_initial_timeout(NCR_Instance inst)
 
   /* Start timer for first transmission */
   inst->timeout_id = SCH_AddTimeoutInClass(INITIAL_DELAY, SAMPLING_SEPARATION,
+                                           SAMPLING_RANDOMNESS,
                                            SCH_NtpSamplingClass,
                                            transmit_timeout, (void *)inst);
   inst->timer_running = 1;
@@ -272,18 +262,28 @@ start_initial_timeout(NCR_Instance inst)
 
 /* ================================================== */
 
-static NCR_Instance
-create_instance(NTP_Remote_Address *remote_addr, NTP_Mode mode, SourceParameters *params)
+NCR_Instance
+NCR_GetInstance(NTP_Remote_Address *remote_addr, NTP_Source_Type type, SourceParameters *params)
 {
   NCR_Instance result;
 
   result = MallocNew(struct NCR_Instance_Record);
 
   result->remote_addr = *remote_addr;
-  result->mode = mode;
+  switch (type) {
+    case NTP_SERVER:
+      result->mode = MODE_CLIENT;
+      break;
+    case NTP_PEER:
+      result->mode = MODE_ACTIVE;
+      break;
+    default:
+      assert(0);
+  }
 
   result->minpoll = params->minpoll;
   result->maxpoll = params->maxpoll;
+  result->min_stratum = params->min_stratum;
 
   result->presend_minpoll = params->presend_minpoll;
   result->presend_done = 0;
@@ -298,13 +298,15 @@ create_instance(NTP_Remote_Address *remote_addr, NTP_Mode mode, SourceParameters
 
   result->max_delay = params->max_delay;
   result->max_delay_ratio = params->max_delay_ratio;
+  result->max_delay_dev_ratio = params->max_delay_dev_ratio;
 
   result->tx_count = 0;
 
   result->remote_orig.hi = 0;
   result->remote_orig.lo = 0;
 
-  result->score = 0;
+  result->poll_target = params->poll_target;
+  result->poll_score = 0.0;
 
   if (params->online) {
     start_initial_timeout(result);
@@ -315,12 +317,16 @@ create_instance(NTP_Remote_Address *remote_addr, NTP_Mode mode, SourceParameters
     result->opmode = MD_OFFLINE;
   }
   
+  if (params->iburst) {
+    NCR_InitiateSampleBurst(result, 4, 8);
+  }
+
   result->auto_offline = params->auto_offline;
   
   result->local_poll = params->minpoll;
 
   /* Create a source instance for this NTP source */
-  result->source = SRC_CreateNewInstance(UTI_IPToRefid(&remote_addr->ip_addr), SRC_NTP, &result->remote_addr.ip_addr);
+  result->source = SRC_CreateNewInstance(UTI_IPToRefid(&remote_addr->ip_addr), SRC_NTP, params->sel_option, &result->remote_addr.ip_addr);
 
   result->local_rx.tv_sec = 0;
   result->local_rx.tv_usec = 0;
@@ -331,24 +337,6 @@ create_instance(NTP_Remote_Address *remote_addr, NTP_Mode mode, SourceParameters
 
   return result;
 
-}
-
-/* ================================================== */
-
-/* Get a new instance for a server */
-NCR_Instance
-NCR_GetServerInstance(NTP_Remote_Address *remote_addr, SourceParameters *params)
-{
-  return create_instance(remote_addr, MODE_CLIENT, params);
-}
-
-/* ================================================== */
-
-/* Get a new instance for a peer */
-NCR_Instance
-NCR_GetPeerInstance(NTP_Remote_Address *remote_addr, SourceParameters *params)
-{
-  return create_instance(remote_addr, MODE_ACTIVE, params);
 }
 
 /* ================================================== */
@@ -474,29 +462,28 @@ check_packet_auth(NTP_Packet *pkt, unsigned long keyid)
 /* ================================================== */
 
 static void
-normalise_score(NCR_Instance inst)
+adjust_poll(NCR_Instance inst, double adj)
 {
+  inst->poll_score += adj;
 
-  while (inst->score >= ZONE_WIDTH) {
-    ++inst->local_poll;
-    inst->score -= ZONE_WIDTH;
+  if (inst->poll_score >= 1.0) {
+    inst->local_poll += (int)inst->poll_score;
+    inst->poll_score -= (int)inst->poll_score;
   }
-  while (inst->score < 0) {
-    if (inst->local_poll > 0) {
-      --inst->local_poll;
-    }
-    inst->score += ZONE_WIDTH;
+
+  if (inst->poll_score < 0.0) {
+    inst->local_poll += (int)(inst->poll_score - 1.0);
+    inst->poll_score -= (int)(inst->poll_score - 1.0);
   }
   
   /* Clamp polling interval to defined range */
   if (inst->local_poll < inst->minpoll) {
     inst->local_poll = inst->minpoll;
-    inst->score = 0;
+    inst->poll_score = 0;
   } else if (inst->local_poll > inst->maxpoll) {
     inst->local_poll = inst->maxpoll;
-    inst->score = ZONE_WIDTH - 1;
+    inst->poll_score = 1.0;
   }
-
 }
 
 /* ================================================== */
@@ -523,19 +510,18 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
   NTP_Packet message;
   int version;
   int leap;
-  double local_time_err;
   struct timeval local_transmit;
 
   /* Parameters read from reference module */
   int are_we_synchronised, our_stratum;
   NTP_Leap leap_status;
-  unsigned long our_ref_id;
+  uint32_t our_ref_id;
   struct timeval our_ref_time;
   double our_root_delay, our_root_dispersion;
 
-  version = 3;
+  version = NTP_VERSION;
 
-  LCL_ReadCookedTime(&local_transmit, &local_time_err);
+  LCL_ReadCookedTime(&local_transmit, NULL);
   REF_GetReferenceParams(&local_transmit,
                          &are_we_synchronised, &leap_status,
                          &our_stratum,
@@ -545,7 +531,7 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
   if (are_we_synchronised) {
     leap = (int) leap_status;
   } else {
-    leap = 3;
+    leap = LEAP_Unsynchronised;
   }
 
   /* Generate transmit packet */
@@ -582,7 +568,7 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
   /* Transmit - this our local time right now!  Also, we might need to
      store this for our own use later, next time we receive a message
      from the source we're sending to now. */
-  LCL_ReadCookedTime(&local_transmit, &local_time_err);
+  LCL_ReadCookedTime(&local_transmit, NULL);
 
   /* Authenticate */
   if (do_auth) {
@@ -608,13 +594,6 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
 
 }
 
-
-/* ================================================== */
-
-/* ================================================== */
-
-#define WARM_UP_DELAY 4.0
-
 /* ================================================== */
 /* Timeout handler for transmitting to a source. */
 
@@ -622,7 +601,6 @@ static void
 transmit_timeout(void *arg)
 {
   NCR_Instance inst = (NCR_Instance) arg;
-  NTP_Mode my_mode;
   double timeout_delay=0.0;
   int do_timer = 0;
   int do_auth;
@@ -649,6 +627,7 @@ transmit_timeout(void *arg)
     /* Requeue timeout */
     inst->timer_running = 1;
     inst->timeout_id = SCH_AddTimeoutInClass(WARM_UP_DELAY, SAMPLING_SEPARATION,
+                                             SAMPLING_RANDOMNESS,
                                              SCH_NtpSamplingClass,
                                              transmit_timeout, (void *)inst);
 
@@ -658,38 +637,22 @@ transmit_timeout(void *arg)
   inst->presend_done = 0; /* Reset for next time */
 
   ++inst->tx_count;
-  if (inst->tx_count >= 9) {
-    /* Mark source unreachable */
-    SRC_UnsetReachable(inst->source);
-  } else if (inst->tx_count >= 3) {
-    if (inst->auto_offline) {
+
+  /* If the source loses connectivity, back off the sampling rate to reduce
+     wasted sampling. If it's the source to which we are currently locked,
+     back off slower. */
+
+  if (inst->tx_count >= 2) {
+    /* Implies we have missed at least one transmission */
+
+    adjust_poll(inst, SRC_IsSyncPeer(inst->source) ? 0.1 : 0.25);
+
+    SRC_UpdateReachability(inst->source, 0);
+
+    if (inst->auto_offline && inst->tx_count >= 3) {
       NCR_TakeSourceOffline(inst);
     }
-    /* Do reselection */
-    SRC_SelectSource(0);
-  } else {
-    /* Nothing */
   }
-
-  /* If the source to which we are currently locked starts to lose
-     connectivity, increase the sampling rate to try and bring it
-     back.  If any other source loses connectivity, back off the
-     sampling rate to reduce wasted sampling. */
-
-  if (SRC_IsSyncPeer(inst->source)) {
-    if (inst->tx_count >= 2) {
-      /* Implies we have missed at least one transmission */
-      inst->score -= 3;
-      normalise_score(inst);
-    }
-  } else {
-    if (inst->tx_count >= 2) {
-      inst->score += 1;
-      normalise_score(inst);
-    }
-  }
-
-  my_mode = inst->mode;
 
   if (inst->do_auth && KEY_KeyKnown(inst->auth_key_id)) {
     do_auth = 1;
@@ -697,11 +660,13 @@ transmit_timeout(void *arg)
     do_auth = 0;
   }
 
-  transmit_packet(my_mode, inst->local_poll,
-                  do_auth, inst->auth_key_id,
-                  &inst->remote_orig,
-                  &inst->local_rx, &inst->local_tx, &inst->local_ntp_tx,
-                  &inst->remote_addr);
+  if (inst->opmode != MD_OFFLINE) {
+    transmit_packet(inst->mode, inst->local_poll,
+                    do_auth, inst->auth_key_id,
+                    &inst->remote_orig,
+                    &inst->local_rx, &inst->local_tx, &inst->local_ntp_tx,
+                    &inst->remote_addr);
+  }
 
 
   switch (inst->opmode) {
@@ -730,6 +695,8 @@ transmit_timeout(void *arg)
       break;
     case MD_OFFLINE:
       do_timer = 0;
+      /* Mark source unreachable */
+      SRC_ResetReachability(inst->source);
       break;
     case MD_BURST_WAS_ONLINE:
     case MD_BURST_WAS_OFFLINE:
@@ -741,6 +708,7 @@ transmit_timeout(void *arg)
   if (do_timer) {
     inst->timer_running = 1;
     inst->timeout_id = SCH_AddTimeoutInClass(timeout_delay, SAMPLING_SEPARATION,
+                                             SAMPLING_RANDOMNESS,
                                              SCH_NtpSamplingClass,
                                              transmit_timeout, (void *)inst);
   } else {
@@ -755,7 +723,7 @@ transmit_timeout(void *arg)
 /* ================================================== */
 
 static void
-receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int do_auth)
+receive_packet(NTP_Packet *message, struct timeval *now, double now_err, NCR_Instance inst, int do_auth)
 {
   int pkt_leap;
   int source_is_synchronized;
@@ -804,9 +772,9 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
   struct timeval local_average, remote_average;
   double local_interval, remote_interval;
 
-  int test1, test2, test3, test4, test5, test6, test7, test8;
+  int test1, test2, test3, test4, test5, test6, test7, test7i, test7ii, test8;
 
-  int test4a, test4b;
+  int test4a, test4b, test4c;
 
   /* In the words of section 3.4.4 of RFC1305, valid_data means
      that the NTP protocol association with the peer/server is
@@ -814,8 +782,8 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
      obtained from the packet is suitable for use in synchronising
      our local clock.  Wierd choice of terminology. */
 
-  int valid_data;
-  int valid_header;
+  int valid_data, valid_header;
+  int good_data, good_header;
 
   /* Kiss-of-Death packets */
   int kod_rate = 0;
@@ -835,7 +803,7 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
   int poll_to_use;
   double delay_time = 0;
   int requeue_transmit = 0;
-  int delta_score;
+  double poll_adj;
 
   /* ==================== */
 
@@ -929,7 +897,7 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
     skew = source_freq_hi - source_freq_lo;
     
     /* and then calculate peer dispersion */
-    epsilon = LCL_GetSysPrecisionAsQuantum() + skew * local_interval;
+    epsilon = LCL_GetSysPrecisionAsQuantum() + now_err + skew * local_interval;
     
   } else {
     /* If test3 failed, we probably can't calculate these quantities
@@ -968,6 +936,18 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
     test4b = 0; /* Failed */
   } else {
     test4b = 1; /* Success */
+  }
+
+  /* Test 4c (additional to RFC1305) requires that the ratio of the
+     increase in delay from the minimum one in the stats data register to
+     the standard deviation of the offsets in the register is less than an
+     administrator-defined value or the difference between measured offset
+     and predicted offset is larger than the increase in delay */
+  if (!SRC_IsGoodSample(inst->source, -theta, delta, inst->max_delay_dev_ratio,
+        LCL_GetMaxClockError(), &sample_time)) {
+    test4c = 0; /* Failed */
+  } else {
+    test4c = 1; /* Success */
   }
 
   /* Test 5 relates to authentication. */
@@ -1010,13 +990,26 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
     message->stratum = NTP_MAX_STRATUM + 1;
   }
 
-  /* Test 7 checks that the stratum in the packet is appropriate */
-  if ((message->stratum > REF_GetOurStratum()) ||
-      (message->stratum > NTP_MAX_STRATUM)) {
-    test7 = 0; /* Failed */
-  } else {
-    test7 = 1;
+  /* Increase stratum to the configured minimum */
+  if (message->stratum < inst->min_stratum) {
+    message->stratum = inst->min_stratum;
   }
+
+  /* Test 7i checks that the stratum in the packet is valid */
+  if (message->stratum > NTP_MAX_STRATUM) {
+    test7i = 0; /* Failed */
+  } else {
+    test7i = 1;
+  }
+
+  /* Test 7ii checks that the stratum in the packet is not higher than ours */
+  if (message->stratum > REF_GetOurStratum()) {
+    test7ii = 0; /* Failed */
+  } else {
+    test7ii = 1;
+  }
+
+  test7 = test7i && test7ii;
 
   /* Test 8 checks that the root delay and dispersion quoted in 
      the packet are appropriate */
@@ -1036,7 +1029,9 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
   valid_kod = test1 && test2 && test5;
 
   valid_data = test1 && test2 && test3 && test4 && test4a && test4b;
-  valid_header = test5 && test6 && test7 && test8;
+  good_data = valid_data && test4c;
+  valid_header = test5 && test6 && test7i && test8;
+  good_header = valid_header && test7ii;
 
   root_delay = pkt_root_delay + delta;
   root_dispersion = pkt_root_dispersion + epsilon;
@@ -1064,36 +1059,41 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
   LOG(LOGS_INFO, LOGF_NtpCore, "theta=%f delta=%f epsilon=%f root_delay=%f root_dispersion=%f",
       theta, delta, epsilon, root_delay, root_dispersion);
 
-  LOG(LOGS_INFO, LOGF_NtpCore, "test1=%d test2=%d test3=%d test4=%d valid_data=%d",
-      test1, test2, test3, test4, valid_data);
+  LOG(LOGS_INFO, LOGF_NtpCore, "test1=%d test2=%d test3=%d test4=%d valid_data=%d good_data=%d",
+      test1, test2, test3, test4, valid_data, good_data);
 
-  LOG(LOGS_INFO, LOGF_NtpCore, "test5=%d test6=%d test7=%d test8=%d valid_header=%d",
-      test5, test6, test7, test8, valid_header);
+  LOG(LOGS_INFO, LOGF_NtpCore, "test5=%d test6=%d test7=%d test8=%d valid_header=%d good_header=%d",
+      test5, test6, test7, test8, valid_header, good_header);
 
   LOG(LOGS_INFO, LOGF_NtpCore, "kod_rate=%d valid_kod=%d", kod_rate, valid_kod);
 #endif
 
   if (valid_header && valid_data) {
     inst->tx_count = 0;
-    SRC_SetReachable(inst->source);
+    SRC_UpdateReachability(inst->source, 1);
+
+    /* Mark the source as suitable for synchronisation when both header and
+       data are good, unmark when header is not good (i.e. the stratum is
+       higher than ours) */
+    if (good_header) {
+      if (good_data) {
+        SRC_SetSelectable(inst->source);
+      }
+    } else {
+      SRC_UnsetSelectable(inst->source);
+    }
   }
 
   /* Do this before we accumulate a new sample into the stats registers, obviously */
   estimated_offset = SRC_PredictOffset(inst->source, &sample_time);
 
-  if (valid_data) {
+  if (valid_header && good_data) {
     SRC_AccumulateSample(inst->source,
                          &sample_time,
                          theta, delta, epsilon,
                          root_delay, root_dispersion,
                          message->stratum, (NTP_Leap) pkt_leap);
-  }
 
-
-  /* Only do performance monitoring if we got valid data! */
-
-  if (valid_data) {
-    
     /* Now examine the registers.  First though, if the prediction is
        not even within +/- the peer distance of the peer, we are clearly
        not tracking the peer at all well, so we back off the sampling
@@ -1109,31 +1109,44 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
         temp>>=1;
       } while (temp);
       
-      inst->local_poll -= shift;
-      inst->score = 0;
+      poll_adj = -shift - inst->poll_score + 0.5;
       
     } else {
+      int samples = SRC_Samples(inst->source);
 
-      switch (SRC_LastSkewChange(inst->source)) {
-        case SRC_Skew_Decrease:
-          delta_score = 1;
-          break;
-        case SRC_Skew_Nochange:
-          delta_score = 0;
-          break;
-        case SRC_Skew_Increase:
-          delta_score = -2;
-          break;
-        default: /* Should not happen! */
-          delta_score = 0;
-          break;
-      }      
+      /* Adjust polling interval so that the number of sourcestats samples
+         remains close to the target value */
+      poll_adj = ((double)samples / inst->poll_target - 1.0) / inst->poll_target;
 
-      inst->score += delta_score;
+      /* Use higher gain when decreasing the interval */
+      if (samples < inst->poll_target) {
+        poll_adj *= 2.0;
+      }
     }
 
-    normalise_score(inst);
+    adjust_poll(inst, poll_adj);
+  } else if (valid_header && valid_data) {
 
+    /* Slowly increase the polling interval if we can't get good_data */
+    adjust_poll(inst, 0.1);
+  }
+
+  /* Reduce polling rate if KoD RATE was received */
+  if (kod_rate && valid_kod) {
+    if (inst->remote_poll > inst->minpoll) {
+      inst->minpoll = inst->remote_poll;
+      if (inst->minpoll > inst->maxpoll)
+        inst->maxpoll = inst->minpoll;
+      if (inst->minpoll > inst->local_poll)
+        inst->local_poll = inst->minpoll;
+      LOG(LOGS_WARN, LOGF_NtpCore, "Received KoD RATE from %s, minpoll set to %d", UTI_IPToString(&inst->remote_addr.ip_addr), inst->minpoll);
+    }
+
+    /* Stop ongoing burst */
+    if (inst->opmode == MD_BURST_WAS_OFFLINE || inst->opmode == MD_BURST_WAS_ONLINE) {
+      inst->burst_good_samples_to_go = 0;
+      LOG(LOGS_WARN, LOGF_NtpCore, "Received KoD RATE from %s, burst sampling stopped", UTI_IPToString(&inst->remote_addr.ip_addr), inst->minpoll);
+    }
   }
 
   /* If we're in burst mode, check whether the burst is completed and
@@ -1185,6 +1198,8 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
   switch (inst->opmode) {
     case MD_OFFLINE:
       requeue_transmit = 0;
+      /* Mark source unreachable */
+      SRC_ResetReachability(inst->source);
       break; /* Even if we've received something, we don't want to
                 transmit back.  This might be a symmetric active peer
                 that is trying to talk to us. */
@@ -1219,7 +1234,7 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
           
           break;
         default:
-          CROAK("Impossible");
+          assert(0);
           break;
       }
       
@@ -1229,25 +1244,16 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
     case MD_BURST_WAS_OFFLINE:
 
       requeue_transmit = 1;
-      delay_time = 0.0;
+      delay_time = BURST_INTERVAL;
       break;
 
     default:
-      CROAK("Impossible");
+      assert(0);
       break;
 
   }
 
-  /* Reduce polling if KoD RATE was received */
   if (kod_rate && valid_kod) {
-    if (inst->remote_poll > inst->minpoll) {
-      inst->minpoll = inst->remote_poll;
-      if (inst->minpoll > inst->maxpoll)
-        inst->maxpoll = inst->minpoll;
-      if (inst->minpoll > inst->local_poll)
-        inst->local_poll = inst->minpoll;
-      LOG(LOGS_INFO, LOGF_NtpCore, "Received KoD RATE from %s, minpoll set to %d", UTI_IPToString(&inst->remote_addr.ip_addr), inst->minpoll);
-    }
     /* Back off for a while */
     delay_time += (double) (4 * (1UL << inst->minpoll));
   }
@@ -1256,32 +1262,25 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
     /* Get rid of old timeout and start a new one */
     SCH_RemoveTimeout(inst->timeout_id);
     inst->timeout_id = SCH_AddTimeoutInClass(delay_time, SAMPLING_SEPARATION,
+                                             SAMPLING_RANDOMNESS,
                                              SCH_NtpSamplingClass,
                                              transmit_timeout, (void *)inst);
   }
 
   /* Do measurement logging */
-  if (logfile) {
-    if (((logwrites++) % 32) == 0) {
-      fprintf(logfile,
-              "=====================================================================================================================\n"
-              "   Date (UTC) Time     IP Address   L St 1234 ab 5678 LP RP SC  Offset     Peer del. Peer disp. Root del.  Root disp.\n"
-              "=====================================================================================================================\n");
-    }
-
-    fprintf(logfile, "%s %-15s %1c %2d %1d%1d%1d%1d %1d%1d %1d%1d%1d%1d %2d %2d %2d %10.3e %10.3e %10.3e %10.3e %10.3e\n",
+  if (logfileid != -1) {
+    LOG_FileWrite(logfileid, "%s %-15s %1c %2d %1d%1d%1d%1d %1d%1d%1d %1d%1d%1d%1d %2d %2d %4.2f %10.3e %10.3e %10.3e %10.3e %10.3e",
             UTI_TimeToLogForm(sample_time.tv_sec),
             UTI_IPToString(&inst->remote_addr.ip_addr),
             sync_stats[pkt_leap],
             message->stratum,
             test1, test2, test3, test4,
-            test4a, test4b,
+            test4a, test4b, test4c,
             test5, test6, test7, test8,
             inst->local_poll, inst->remote_poll,
-            (inst->score),
+            inst->poll_score,
             theta, delta, epsilon,
             pkt_root_delay, pkt_root_dispersion);
-    fflush(logfile);
   }            
 
 
@@ -1319,6 +1318,7 @@ static void
 process_known
 (NTP_Packet *message,           /* the received message */
  struct timeval *now,           /* timestamp at time of receipt */
+ double now_err,
  NCR_Instance inst,             /* the instance record for this peer/server */
  int do_auth                   /* whether the received packet allegedly contains
                                    authentication info*/
@@ -1333,7 +1333,7 @@ process_known
 
   /* Check version */
   version = (message->lvm >> 3) & 0x7;
-  if (version != NTP_VERSION) {
+  if (version < NTP_MIN_COMPAT_VERSION || version > NTP_MAX_COMPAT_VERSION) {
     /* Ignore packet, but might want to log it */
     return;
   } 
@@ -1407,7 +1407,7 @@ process_known
         case MODE_ACTIVE:
           /* Ordinary symmetric peering */
           CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
-          receive_packet(message, now, inst, do_auth);
+          receive_packet(message, now, now_err, inst, do_auth);
           break;
         case MODE_PASSIVE:
           /* In this software this case should not arise, we don't
@@ -1417,7 +1417,7 @@ process_known
           /* This is where we have the remote configured as a server and he has
              us configured as a peer - fair enough. */
           CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
-          receive_packet(message, now, inst, do_auth);
+          receive_packet(message, now, now_err, inst, do_auth);
           break;
         case MODE_SERVER:
           /* Nonsense - we can't have a preconfigured server */
@@ -1438,14 +1438,14 @@ process_known
         case MODE_ACTIVE:
           /* Slightly bizarre combination, but we can still process it */
           CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
-          receive_packet(message, now, inst, do_auth);
+          receive_packet(message, now, now_err, inst, do_auth);
           break;
         case MODE_PASSIVE:
           /* We have no passive peers in this software */
           break;
         case MODE_CLIENT:
           /* Standard case where he's a server and we're the client */
-          receive_packet(message, now, inst, do_auth);
+          receive_packet(message, now, now_err, inst, do_auth);
           break;
         case MODE_SERVER:
           /* RFC1305 error condition. */
@@ -1466,7 +1466,7 @@ process_known
           /* This would arise if we have the remote configured as a peer and
              he does not have us configured */
           CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
-          receive_packet(message, now, inst, do_auth);
+          receive_packet(message, now, now_err, inst, do_auth);
           break;
         case MODE_PASSIVE:
           /* Error condition in RFC1305.  Also, we can't have any
@@ -1475,7 +1475,7 @@ process_known
           break;
         case MODE_CLIENT:
           /* This is a wierd combination - how could it arise? */
-          receive_packet(message, now, inst, do_auth);
+          receive_packet(message, now, now_err, inst, do_auth);
           break;
         case MODE_SERVER:
           /* Error condition in RFC1305 */
@@ -1508,10 +1508,10 @@ process_known
    and it relates to a source we have an ongoing protocol exchange with */
 
 void
-NCR_ProcessNoauthKnown(NTP_Packet *message, struct timeval *now, NCR_Instance inst)
+NCR_ProcessNoauthKnown(NTP_Packet *message, struct timeval *now, double now_err, NCR_Instance inst)
 {
 
-  process_known(message, now, inst, 0);
+  process_known(message, now, now_err, inst, 0);
 
 }
 
@@ -1520,12 +1520,19 @@ NCR_ProcessNoauthKnown(NTP_Packet *message, struct timeval *now, NCR_Instance in
    and we do not recognize its source */
 
 void
-NCR_ProcessNoauthUnknown(NTP_Packet *message, struct timeval *now, NTP_Remote_Address *remote_addr)
+NCR_ProcessNoauthUnknown(NTP_Packet *message, struct timeval *now, double now_err, NTP_Remote_Address *remote_addr)
 {
 
   NTP_Mode his_mode;
   NTP_Mode my_mode;
-  int my_poll;
+  int my_poll, version;
+
+  /* Check version */
+  version = (message->lvm >> 3) & 0x7;
+  if (version < NTP_MIN_COMPAT_VERSION || version > NTP_MAX_COMPAT_VERSION) {
+    /* Ignore packet, but might want to log it */
+    return;
+  }
 
   if (ADF_IsAllowed(access_auth_table, &remote_addr->ip_addr)) {
 
@@ -1577,9 +1584,9 @@ NCR_ProcessNoauthUnknown(NTP_Packet *message, struct timeval *now, NTP_Remote_Ad
    exchange with */
 
 void
-NCR_ProcessAuthKnown(NTP_Packet *message, struct timeval *now, NCR_Instance data)
+NCR_ProcessAuthKnown(NTP_Packet *message, struct timeval *now, double now_err, NCR_Instance data)
 {
-  process_known(message, now, data, 1);
+  process_known(message, now, now_err, data, 1);
 
 }
 
@@ -1588,14 +1595,21 @@ NCR_ProcessAuthKnown(NTP_Packet *message, struct timeval *now, NCR_Instance data
    the network, and we do not recognize its source */
 
 void
-NCR_ProcessAuthUnknown(NTP_Packet *message, struct timeval *now, NTP_Remote_Address *remote_addr)
+NCR_ProcessAuthUnknown(NTP_Packet *message, struct timeval *now, double now_err, NTP_Remote_Address *remote_addr)
 {
 
   NTP_Mode his_mode;
   NTP_Mode my_mode;
-  int my_poll;
+  int my_poll, version;
   int valid_key, valid_auth;
   unsigned long key_id;
+
+  /* Check version */
+  version = (message->lvm >> 3) & 0x7;
+  if (version < NTP_MIN_COMPAT_VERSION || version > NTP_MAX_COMPAT_VERSION) {
+    /* Ignore packet, but might want to log it */
+    return;
+  }
 
   if (ADF_IsAllowed(access_auth_table, &remote_addr->ip_addr)) {
 
@@ -1655,17 +1669,20 @@ void
 NCR_SlewTimes(NCR_Instance inst, struct timeval *when, double dfreq, double doffset)
 {
   struct timeval prev;
+  double delta;
   prev = inst->local_rx;
-  UTI_AdjustTimeval(&inst->local_rx, when, &inst->local_rx, dfreq, doffset);
+  UTI_AdjustTimeval(&inst->local_rx, when, &inst->local_rx, &delta, dfreq, doffset);
 #ifdef TRACEON
   LOG(LOGS_INFO, LOGF_NtpCore, "rx prev=[%s] new=[%s]",
       UTI_TimevalToString(&prev), UTI_TimevalToString(&inst->local_rx));
 #endif
   prev = inst->local_tx;
-  UTI_AdjustTimeval(&inst->local_tx, when, &inst->local_tx, dfreq, doffset);
+  UTI_AdjustTimeval(&inst->local_tx, when, &inst->local_tx, &delta, dfreq, doffset);
 #ifdef TRACEON
   LOG(LOGS_INFO, LOGF_NtpCore, "tx prev=[%s] new=[%s]",
       UTI_TimevalToString(&prev), UTI_TimevalToString(&inst->local_tx));
+#else
+  (void)prev;
 #endif
 }
 
@@ -1682,8 +1699,9 @@ NCR_TakeSourceOnline(NCR_Instance inst)
       if (!inst->timer_running) {
         /* We are not already actively polling it */
         LOG(LOGS_INFO, LOGF_NtpCore, "Source %s online", UTI_IPToString(&inst->remote_addr.ip_addr));
+        inst->tx_count = 0;
         inst->local_poll = inst->minpoll;
-        inst->score = (ZONE_WIDTH >> 1);
+        inst->poll_score = 0.5;
         inst->opmode = MD_ONLINE;
         start_initial_timeout(inst);
       }
@@ -1709,6 +1727,8 @@ NCR_TakeSourceOffline(NCR_Instance inst)
         SCH_RemoveTimeout(inst->timeout_id);
         inst->timer_running = 0;
         inst->opmode = MD_OFFLINE;
+        /* Mark source unreachable */
+        SRC_ResetReachability(inst->source);
       }
       break;
     case MD_OFFLINE:
@@ -1763,6 +1783,36 @@ NCR_ModifyMaxdelayratio(NCR_Instance inst, double new_max_delay_ratio)
 /* ================================================== */
 
 void
+NCR_ModifyMaxdelaydevratio(NCR_Instance inst, double new_max_delay_dev_ratio)
+{
+  inst->max_delay_dev_ratio = new_max_delay_dev_ratio;
+  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new max delay dev ratio %f",
+      UTI_IPToString(&inst->remote_addr.ip_addr), new_max_delay_dev_ratio);
+}
+
+/* ================================================== */
+
+void
+NCR_ModifyMinstratum(NCR_Instance inst, int new_min_stratum)
+{
+  inst->min_stratum = new_min_stratum;
+  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new minstratum %d",
+      UTI_IPToString(&inst->remote_addr.ip_addr), new_min_stratum);
+}
+
+/* ================================================== */
+
+void
+NCR_ModifyPolltarget(NCR_Instance inst, int new_poll_target)
+{
+  inst->poll_target = new_poll_target;
+  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new polltarget %d",
+      UTI_IPToString(&inst->remote_addr.ip_addr), new_poll_target);
+}
+
+/* ================================================== */
+
+void
 NCR_InitiateSampleBurst(NCR_Instance inst, int n_good_samples, int n_total_samples)
 {
 
@@ -1789,6 +1839,7 @@ NCR_InitiateSampleBurst(NCR_Instance inst, int n_good_samples, int n_total_sampl
         }
         inst->timer_running = 1;
         inst->timeout_id = SCH_AddTimeoutInClass(0.0, SAMPLING_SEPARATION,
+                                                 SAMPLING_RANDOMNESS,
                                                  SCH_NtpSamplingClass,
                                                  transmit_timeout, (void *) inst);
         break;
@@ -1802,13 +1853,14 @@ NCR_InitiateSampleBurst(NCR_Instance inst, int n_good_samples, int n_total_sampl
         }
         inst->timer_running = 1;
         inst->timeout_id = SCH_AddTimeoutInClass(0.0, SAMPLING_SEPARATION,
+                                                 SAMPLING_RANDOMNESS,
                                                  SCH_NtpSamplingClass,
                                                  transmit_timeout, (void *) inst);
         break;
 
 
       default:
-        CROAK("Impossible");
+        assert(0);
         break;
     }
   }
@@ -1830,7 +1882,7 @@ NCR_ReportSource(NCR_Instance inst, RPT_SourceReport *report, struct timeval *no
       report->mode = RPT_NTP_PEER;
       break;
     default:
-      CROAK("Impossible");
+      assert(0);
   }
   
   return;
@@ -1877,21 +1929,6 @@ NCR_CheckAccessRestriction(IPAddr *ip_addr)
 /* ================================================== */
 
 void
-NCR_CycleLogFile(void)
-{
-  if (logfile && logfilename) {
-    fclose(logfile);
-    logfile = fopen(logfilename, "a");
-    if (!logfile) {
-      LOG(LOGS_WARN, LOGF_NtpCore, "Could not reopen logfile %s", logfilename);
-    }
-    logwrites = 0;
-  }
-}
-
-/* ================================================== */
-
-void
 NCR_IncrementActivityCounters(NCR_Instance inst, int *online, int *offline,
                               int *burst_online, int *burst_offline)
 {
@@ -1909,7 +1946,7 @@ NCR_IncrementActivityCounters(NCR_Instance inst, int *online, int *offline,
       ++*offline;
       break;
     default:
-      CROAK("Impossible");
+      assert(0);
       break;
   }
 }
@@ -1920,6 +1957,13 @@ NTP_Remote_Address *
 NCR_GetRemoteAddress(NCR_Instance inst) 
 {
   return &inst->remote_addr;
+}
+
+/* ================================================== */
+
+int NCR_IsSyncPeer(NCR_Instance inst)
+{
+  return SRC_IsSyncPeer(inst->source);
 }
 
 /* ================================================== */

@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/srcparams.h,v 1.10 2002/02/28 23:27:14 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -31,17 +27,33 @@
 #ifndef GOT_SRCPARAMS_H
 #define GOT_SRCPARAMS_H
 
+#include "sources.h"
+
 typedef struct {
   int minpoll;
   int maxpoll;
   int online;
   int auto_offline;
   int presend_minpoll;
+  int iburst;
+  int min_stratum;
+  int poll_target;
   unsigned long authkey;
   double max_delay;
   double max_delay_ratio;
+  double max_delay_dev_ratio;
+  SRC_SelectOption sel_option;
 } SourceParameters;
 
+#define SRC_DEFAULT_PORT 123
+#define SRC_DEFAULT_MINPOLL 6
+#define SRC_DEFAULT_MAXPOLL 10
+#define SRC_DEFAULT_PRESEND_MINPOLL 0
+#define SRC_DEFAULT_MAXDELAY 16.0
+#define SRC_DEFAULT_MAXDELAYRATIO 16384.0
+#define SRC_DEFAULT_MAXDELAYDEVRATIO 10.0
+#define SRC_DEFAULT_MINSTRATUM 0
+#define SRC_DEFAULT_POLLTARGET 6
 #define INACTIVE_AUTHKEY 0UL
 
 #endif /* GOT_SRCPARAMS_H */

@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/reference.h,v 1.13 2002/02/28 23:27:12 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -75,7 +71,7 @@ extern void REF_GetReferenceParams
  int *is_synchronised,
  NTP_Leap *leap,
  int *stratum,
- unsigned long *ref_id,
+ uint32_t *ref_id,
  struct timeval *ref_time,
  double *root_delay,
  double *root_dispersion
@@ -109,7 +105,7 @@ extern void REF_SetReference
 (
  int stratum,
  NTP_Leap leap,
- unsigned long ref_id,
+ uint32_t ref_id,
  IPAddr *ref_ip,
  struct timeval *ref_time,
  double offset,
@@ -143,7 +139,5 @@ extern void REF_DisableLocal(void);
 extern int REF_IsLocalActive(void);
 
 extern void REF_GetTrackingReport(RPT_TrackingReport *rep);
-
-extern void REF_CycleLogFile(void);
 
 #endif /* GOT_REFERENCE_H */

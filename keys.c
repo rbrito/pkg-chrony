@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/keys.c,v 1.12 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -28,6 +24,8 @@
   Module for managing keys used for authenticating NTP packets and commands
 
   */
+
+#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>

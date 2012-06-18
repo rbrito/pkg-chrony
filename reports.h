@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/reports.h,v 1.17 2002/02/28 23:27:13 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -41,7 +37,7 @@ typedef struct {
   int stratum;
   int poll;
   enum {RPT_NTP_CLIENT, RPT_NTP_PEER, RPT_LOCAL_REFERENCE} mode;
-  enum {RPT_SYNC, RPT_UNREACH, RPT_FALSETICKER, RPT_JITTERY, RPT_OTHER} state;
+  enum {RPT_SYNC, RPT_UNREACH, RPT_FALSETICKER, RPT_JITTERY, RPT_CANDIDATE} state;
 
   unsigned long latest_meas_ago; /* seconds */
   double orig_latest_meas; /* seconds */
@@ -50,7 +46,7 @@ typedef struct {
 } RPT_SourceReport ;
 
 typedef struct {
-  unsigned long ref_id;
+  uint32_t ref_id;
   IPAddr ip_addr;
   unsigned long stratum;
   struct timeval ref_time;
@@ -63,7 +59,7 @@ typedef struct {
 } RPT_TrackingReport;
 
 typedef struct {
-  unsigned long ref_id;
+  uint32_t ref_id;
   IPAddr ip_addr;
   unsigned long n_samples;
   unsigned long n_runs;

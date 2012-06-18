@@ -2,11 +2,12 @@ Source: chrony
 Section: admin
 Priority: extra
 Maintainer: John G. Hasler <jhasler@debian.org>
-Standards-Version: 3.8.3
-Build-Depends: debhelper (>= 7), texinfo, libreadline-gplv2-dev, bison
+Standards-Version: 3.9.2
+Build-Depends: debhelper (>= 8), libedit-dev, texinfo, bison
+Homepage: http://chrony.tuxfamily.org
 
 Package: chrony
-Architecture: any
+Architecture: linux-any
 Depends: ${misc:Depends}, ${shlibs:Depends}, ucf, timelimit, dpkg (>=1.15.4) | install-info
 Recommends: udev (>= 0.124-1)
 Conflicts: ntp, ntp-simple, ntp-refclock, time-daemon

@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/sources.h,v 1.15 2002/02/28 23:27:14 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -55,10 +51,17 @@ typedef enum {
   SRC_REFCLOCK                  /* Rerefence clock */
 } SRC_Type;
 
+/* Options used when selecting sources */ 
+typedef enum {
+  SRC_SelectNormal,
+  SRC_SelectNoselect,
+  SRC_SelectPrefer
+} SRC_SelectOption;
+
 /* Function to create a new instance.  This would be called by one of
    the individual source-type instance creation routines. */
 
-extern SRC_Instance SRC_CreateNewInstance(unsigned long ref_id, SRC_Type type, IPAddr *addr);
+extern SRC_Instance SRC_CreateNewInstance(uint32_t ref_id, SRC_Type type, SRC_SelectOption sel_option, IPAddr *addr);
 
 /* Function to get rid of a source when it is being unconfigured.
    This may cause the current reference source to be reselected, if this
@@ -113,21 +116,32 @@ extern void SRC_AccumulateSample(SRC_Instance instance, struct timeval *sample_t
 
 /* This routine indicates that packets with valid headers are being
    received from the designated source */
-extern void SRC_SetReachable(SRC_Instance instance);
+extern void SRC_SetSelectable(SRC_Instance instance);
 
 /* This routine indicates that we are no longer receiving packets with
    valid headers from the designated source */
-extern void SRC_UnsetReachable(SRC_Instance instance);
+extern void SRC_UnsetSelectable(SRC_Instance instance);
+
+/* This routine updates the reachability register */
+extern void SRC_UpdateReachability(SRC_Instance inst, int reachable);
+
+/* This routine marks the source unreachable */
+extern void SRC_ResetReachability(SRC_Instance inst);
 
 /* This routine is used to select the best source from amongst those
    we currently have valid data on, and use it as the tracking base
-   for the local time.  If match_addr is zero it means we must start
-   tracking the (newly) selected reference unconditionally, otherwise
-   it is equal to the address we should track if it turns out to be
-   the best reference.  (This avoids updating the frequency tracking
-   for every sample from other sources - only the ones from the
-   selected reference make a difference) */
-extern void SRC_SelectSource(unsigned long match_addr);
+   for the local time.  Updates are only made to the local reference
+   if a new source is selected or match_addr is equal to the selected
+   reference source address. (This avoids updating the frequency
+   tracking for every sample from other sources - only the ones from
+   the selected reference make a difference) */
+extern void SRC_SelectSource(uint32_t match_refid);
+
+/* Force reselecting the best source */
+extern void SRC_ReselectSource(void);
+
+/* Set reselect distance */
+extern void SRC_SetReselectDistance(double distance);
 
 /* Predict the offset of the local clock relative to a given source at
    a given local cooked time. Positive indicates local clock is FAST
@@ -137,6 +151,10 @@ extern double SRC_PredictOffset(SRC_Instance inst, struct timeval *when);
 /* Return the minimum peer delay amongst the previous samples
    currently held in the register */
 extern double SRC_MinRoundTripDelay(SRC_Instance inst);
+
+/* This routine determines if a new sample is good enough that it should be
+   accumulated */
+extern int SRC_IsGoodSample(SRC_Instance inst, double offset, double delay, double max_delay_dev_ratio, double clock_error, struct timeval *when);
 
 extern void SRC_DumpSources(void);
 
@@ -157,6 +175,8 @@ typedef enum {
 } SRC_Skew_Direction;
 
 extern SRC_Skew_Direction SRC_LastSkewChange(SRC_Instance inst);
+
+extern int SRC_Samples(SRC_Instance inst);
 
 #endif /* GOT_SOURCES_H */
 

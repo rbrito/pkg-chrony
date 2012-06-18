@@ -1,12 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/sched.c,v 1.17 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Miroslav Lichvar  2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +25,8 @@
   This file contains the scheduling loop and the timeout queue.
 
   */
+
+#include "config.h"
 
 #include "sysincl.h"
 
@@ -71,8 +70,9 @@ typedef struct {
 
 static FileHandlerEntry file_handlers[FD_SET_SIZE];
 
-/* Last timestamp when a file descriptor became readable */
-static struct timeval last_fdready;
+/* Timestamp when last select() returned */
+static struct timeval last_select_ts, last_select_ts_raw;
+static double last_select_ts_err;
 
 /* ================================================== */
 
@@ -109,6 +109,9 @@ static SCH_TimeoutID next_tqe_id;
 /* Pointer to head of free list */
 static TimerQueueEntry *tqe_free_list = NULL;
 
+/* Timestamp when was last timeout dispatched for each class */
+static struct timeval last_class_dispatch[SCH_NumberOfClasses];
+
 /* ================================================== */
 
 static int need_to_exit;
@@ -119,7 +122,6 @@ static void
 handle_slew(struct timeval *raw,
             struct timeval *cooked,
             double dfreq,
-            double afreq,
             double doffset,
             int is_step_change,
             void *anything);
@@ -129,6 +131,7 @@ handle_slew(struct timeval *raw,
 void
 SCH_Initialise(void)
 {
+  struct timeval tv;
 
   FD_ZERO(&read_fds);
   n_read_fds = 0;
@@ -142,6 +145,9 @@ SCH_Initialise(void)
   need_to_exit = 0;
 
   LCL_AddParameterChangeHandler(handle_slew, NULL);
+
+  LCL_ReadRawTime(&tv);
+  srandom(tv.tv_sec * tv.tv_usec);
 
   initialised = 1;
 
@@ -164,16 +170,12 @@ SCH_AddInputFileHandler
 (int fd, SCH_FileHandler handler, SCH_ArbitraryArgument arg)
 {
 
-  if (!initialised) {
-    CROAK("Should be initialised");
-  }
+  assert(initialised);
   
   /* Don't want to allow the same fd to register a handler more than
      once without deleting a previous association - this suggests
      a bug somewhere else in the program. */
-  if (FD_ISSET(fd, &read_fds)) {
-    CROAK("File handler already registered");
-  }
+  assert(!FD_ISSET(fd, &read_fds));
 
   ++n_read_fds;
   
@@ -197,14 +199,10 @@ SCH_RemoveInputFileHandler(int fd)
 {
   int fds_left, fd_to_check;
 
-  if (!initialised) {
-    CROAK("Should be initialised");
-  }
+  assert(initialised);
 
   /* Check that a handler was registered for the fd in question */
-  if (!FD_ISSET(fd, &read_fds)) {
-    CROAK("File handler not registered");
-  }
+  assert(FD_ISSET(fd, &read_fds));
 
   --n_read_fds;
 
@@ -229,9 +227,11 @@ SCH_RemoveInputFileHandler(int fd)
 /* ================================================== */
 
 void
-SCH_GetFileReadyTime(struct timeval *tv)
+SCH_GetFileReadyTime(struct timeval *tv, double *err)
 {
-  *tv = last_fdready;
+  *tv = last_select_ts;
+  if (err)
+    *err = last_select_ts_err;
 }
 
 /* ================================================== */
@@ -276,9 +276,7 @@ SCH_AddTimeout(struct timeval *tv, SCH_TimeoutHandler handler, SCH_ArbitraryArgu
   TimerQueueEntry *new_tqe;
   TimerQueueEntry *ptr;
 
-  if (!initialised) {
-    CROAK("Should be initialised");
-  }
+  assert(initialised);
 
   new_tqe = allocate_tqe();
 
@@ -319,9 +317,8 @@ SCH_AddTimeoutByDelay(double delay, SCH_TimeoutHandler handler, SCH_ArbitraryArg
 {
   struct timeval now, then;
 
-  if (!initialised) {
-    CROAK("Should be initialised");
-  }
+  assert(initialised);
+  assert(delay >= 0.0);
 
   LCL_ReadRawTime(&now);
   UTI_AddDoubleToTimeval(&now, delay, &then);
@@ -332,22 +329,34 @@ SCH_AddTimeoutByDelay(double delay, SCH_TimeoutHandler handler, SCH_ArbitraryArg
 /* ================================================== */
 
 SCH_TimeoutID
-SCH_AddTimeoutInClass(double min_delay, double separation,
+SCH_AddTimeoutInClass(double min_delay, double separation, double randomness,
                       SCH_TimeoutClass class,
                       SCH_TimeoutHandler handler, SCH_ArbitraryArgument arg)
 {
   TimerQueueEntry *new_tqe;
   TimerQueueEntry *ptr;
   struct timeval now;
-  double diff;
+  double diff, r;
   double new_min_delay;
 
-  if (!initialised) {
-    CROAK("Should be initialised");
+  assert(initialised);
+  assert(min_delay >= 0.0);
+  assert(class < SCH_NumberOfClasses);
+
+  if (randomness > 0.0) {
+    r = random() % 0xffff / (0xffff - 1.0) * randomness + 1.0;
+    min_delay *= r;
+    separation *= r;
   }
   
   LCL_ReadRawTime(&now);
   new_min_delay = min_delay;
+
+  /* Check the separation from the last dispatched timeout */
+  UTI_DiffTimevalsToDouble(&diff, &now, &last_class_dispatch[class]);
+  if (diff < separation && diff >= 0.0 && diff + new_min_delay < separation) {
+    new_min_delay = separation - diff;
+  }
 
   /* Scan through list for entries in the same class and increase min_delay
      if necessary to keep at least the separation away */
@@ -358,8 +367,7 @@ SCH_AddTimeoutInClass(double min_delay, double separation,
         if (new_min_delay - diff < separation) {
           new_min_delay = diff + separation;
         }
-      }
-      if (new_min_delay < diff) {
+      } else {
         if (diff - new_min_delay < separation) {
           new_min_delay = diff + separation;
         }
@@ -398,13 +406,8 @@ void
 SCH_RemoveTimeout(SCH_TimeoutID id)
 {
   TimerQueueEntry *ptr;
-  int ok;
 
-  if (!initialised) {
-    CROAK("Should be initialised");
-  }
-
-  ok = 0;
+  assert(initialised);
 
   for (ptr = timer_queue.next; ptr != &timer_queue; ptr = ptr->next) {
 
@@ -421,48 +424,56 @@ SCH_RemoveTimeout(SCH_TimeoutID id)
       /* Release memory back to the operating system */
       release_tqe(ptr);
 
-      ok = 1;
-
       break;
     }
   }
-
-  assert(ok);
-
 }
 
 /* ================================================== */
-/* The current time (now) has to be passed in from the
-   caller to avoid race conditions */
+/* Try to dispatch any timeouts that have already gone by, and
+   keep going until all are done.  (The earlier ones may take so
+   long to do that the later ones come around by the time they are
+   completed). */
 
-static int
+static void
 dispatch_timeouts(struct timeval *now) {
   TimerQueueEntry *ptr;
-  int n_done = 0;
+  SCH_TimeoutHandler handler;
+  SCH_ArbitraryArgument arg;
+  int n_done = 0, n_entries_on_start = n_timer_queue_entries;
 
-  if ((n_timer_queue_entries > 0) &&
-         (UTI_CompareTimevals(now, &(timer_queue.next->tv)) >= 0)) {
+  while (1) {
+    LCL_ReadRawTime(now);
+
+    if (!(n_timer_queue_entries > 0 &&
+          UTI_CompareTimevals(now, &(timer_queue.next->tv)) >= 0)) {
+      break;
+    }
+
     ptr = timer_queue.next;
 
+    last_class_dispatch[ptr->class] = *now;
+
+    handler = ptr->handler;
+    arg = ptr->arg;
+
+    SCH_RemoveTimeout(ptr->id);
+
     /* Dispatch the handler */
-    (ptr->handler)(ptr->arg);
+    (handler)(arg);
 
     /* Increment count of timeouts handled */
     ++n_done;
 
-    /* Unlink entry from the queue */
-    ptr->prev->next = ptr->next;
-    ptr->next->prev = ptr->prev;
-
-    /* Decrement count of entries in queue */
-    --n_timer_queue_entries;
-
-    /* Delete entry */
-    release_tqe(ptr);
+    /* If more timeouts were handled than there were in the timer queue on
+       start, assume some code is scheduling timeouts with negative delays and
+       abort.  Make the actual limit higher in case the machine is temporarily
+       overloaded and dispatching the handlers takes more time than was delay
+       of a scheduled timeout. */
+    if (n_done > n_entries_on_start * 4) {
+      LOG_FATAL(LOGF_Scheduler, "Possible infinite loop in scheduling");
+    }
   }
-
-  return n_done;
-
 }
 
 /* ================================================== */
@@ -495,13 +506,12 @@ static void
 handle_slew(struct timeval *raw,
             struct timeval *cooked,
             double dfreq,
-            double afreq,
             double doffset,
             int is_step_change,
             void *anything)
 {
   TimerQueueEntry *ptr;
-  struct timeval T1;
+  int i;
 
   if (is_step_change) {
     /* We're not interested in anything else - it won't affect the
@@ -509,11 +519,44 @@ handle_slew(struct timeval *raw,
        occurs, just shift all the timeouts by the offset */
     
     for (ptr = timer_queue.next; ptr != &timer_queue; ptr = ptr->next) {
-      UTI_AddDoubleToTimeval(&ptr->tv, -doffset, &T1);
-      ptr->tv = T1;
+      UTI_AddDoubleToTimeval(&ptr->tv, -doffset, &ptr->tv);
     }
 
+    for (i = 0; i < SCH_NumberOfClasses; i++) {
+      UTI_AddDoubleToTimeval(&last_class_dispatch[i], -doffset, &last_class_dispatch[i]);
+    }
+
+    UTI_AddDoubleToTimeval(&last_select_ts_raw, -doffset, &last_select_ts_raw);
+    UTI_AddDoubleToTimeval(&last_select_ts, -doffset, &last_select_ts);
   }
+}
+
+/* ================================================== */
+
+/* Try to handle unexpected backward time jump */
+
+static void
+recover_backjump(struct timeval *raw, struct timeval *cooked, int timeout)
+{
+      double diff, err;
+
+      UTI_DiffTimevalsToDouble(&diff, &last_select_ts_raw, raw);
+
+      if (n_timer_queue_entries > 0) {
+        UTI_DiffTimevalsToDouble(&err, &(timer_queue.next->tv), &last_select_ts_raw);
+      } else {
+        err = 0.0;
+      }
+
+      diff += err;
+
+      if (timeout) {
+        err = 1.0;
+      }
+
+      LOG(LOGS_WARN, LOGF_Scheduler, "Backward time jump detected! (correction %.1f +- %.1f seconds)", diff, err);
+
+      LCL_NotifyExternalTimeStep(raw, cooked, diff, err);
 }
 
 /* ================================================== */
@@ -524,32 +567,25 @@ SCH_MainLoop(void)
   fd_set rd;
   int status;
   struct timeval tv, *ptv;
-  struct timeval now;
+  struct timeval now, cooked;
   double err;
 
-  if (!initialised) {
-    CROAK("Should be initialised");
-  }
+  assert(initialised);
 
   while (!need_to_exit) {
 
     /* Copy current set of read file descriptors */
     memcpy((void *) &rd, (void *) &read_fds, sizeof(fd_set));
     
-    /* Try to dispatch any timeouts that have already gone by, and
-       keep going until all are done.  (The earlier ones may take so
-       long to do that the later ones come around by the time they are
-       completed). */
-
-    do {
-      LCL_ReadRawTime(&now);
-    } while (dispatch_timeouts(&now) > 0);
+    /* Dispatch timeouts and fill now with current raw time */
+    dispatch_timeouts(&now);
     
     /* Check whether there is a timeout and set it up */
     if (n_timer_queue_entries > 0) {
 
       UTI_DiffTimevals(&tv, &(timer_queue.next->tv), &now);
       ptv = &tv;
+      assert(tv.tv_sec > 0 || tv.tv_usec > 0);
 
     } else {
       ptv = NULL;
@@ -564,25 +600,31 @@ SCH_MainLoop(void)
 
     status = select(one_highest_fd, &rd, NULL, NULL, ptv);
 
+    LCL_ReadRawTime(&now);
+    LCL_CookTime(&now, &cooked, &err);
+
+    /* Check if time didn't jump backwards */
+    if (last_select_ts_raw.tv_sec > now.tv_sec + 1) {
+      recover_backjump(&now, &cooked, status == 0);
+    }
+
+    last_select_ts_raw = now;
+    last_select_ts = cooked;
+    last_select_ts_err = err;
+
     if (status < 0) {
-      if (!need_to_exit)
-        CROAK("Status < 0 after select");
+      assert(need_to_exit);
     } else if (status > 0) {
       /* A file descriptor is ready to read */
 
-      LCL_ReadCookedTime(&last_fdready, &err);
       dispatch_filehandlers(status, &rd);
 
     } else {
-      if (status != 0) {
-        CROAK("Unexpected value from select");
-      }
+      assert(status == 0);
 
       /* No descriptors readable, timeout must have elapsed.
        Therefore, tv must be non-null */
-      if (!ptv) {
-        CROAK("No descriptors or timeout?");
-      }
+      assert(ptv);
 
       /* There's nothing to do here, since the timeouts
          will be dispatched at the top of the next loop
@@ -600,9 +642,7 @@ SCH_MainLoop(void)
 void
 SCH_QuitProgram(void)
 {
-  if (!initialised) {
-    CROAK("Should be initialised");
-  }
+  assert(initialised);
   need_to_exit = 1;
 }
 

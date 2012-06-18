@@ -25,6 +25,8 @@
 
   */
 
+#include "config.h"
+
 #include "refclock.h"
 #include "logging.h"
 #include "util.h"
@@ -104,6 +106,8 @@ static int sock_initialise(RCL_Instance instance)
     LOG_FATAL(LOGF_Refclock, "socket() failed");
     return 0;
   }
+
+  UTI_FdSetCloexec(sockfd);
 
   unlink(path);
   if (bind(sockfd, (struct sockaddr *)&s, sizeof (s)) < 0) {

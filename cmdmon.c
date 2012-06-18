@@ -1,13 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/cmdmon.c,v 1.55 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009
+ * Copyright (C) Miroslav Lichvar  2009-2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +24,8 @@
 
   Command and monitoring module in the main program
   */
+
+#include "config.h"
 
 #include "sysincl.h"
 
@@ -152,13 +150,18 @@ static int permissions[] = {
   PERMIT_OPEN, /* RTCREPORT */
   PERMIT_AUTH, /* TRIMRTC */
   PERMIT_AUTH, /* CYCLELOGS */
-  PERMIT_OPEN, /* SUBNETS_ACCESSED */
-  PERMIT_OPEN, /* CLIENT_ACCESSES (by subnet) */
-  PERMIT_OPEN, /* CLIENT_ACCESSES_BY_INDEX */
+  PERMIT_AUTH, /* SUBNETS_ACCESSED */
+  PERMIT_AUTH, /* CLIENT_ACCESSES (by subnet) */
+  PERMIT_AUTH, /* CLIENT_ACCESSES_BY_INDEX */
   PERMIT_OPEN, /* MANUAL_LIST */
   PERMIT_AUTH, /* MANUAL_DELETE */
   PERMIT_AUTH, /* MAKESTEP */
-  PERMIT_OPEN  /* ACTIVITY */
+  PERMIT_OPEN, /* ACTIVITY */
+  PERMIT_AUTH, /* MODIFY_MINSTRATUM */
+  PERMIT_AUTH, /* MODIFY_POLLTARGET */
+  PERMIT_AUTH, /* MODIFY_MAXDELAYDEVRATIO */
+  PERMIT_AUTH, /* RESELECT */
+  PERMIT_AUTH  /* RESELECTDISTANCE */
 };
 
 /* ================================================== */
@@ -194,6 +197,9 @@ prepare_socket(int family)
         family == AF_INET ? "IPv4" : "IPv6", strerror(errno));
     return -1;
   }
+
+  /* Close on exec */
+  UTI_FdSetCloexec(sock_fd);
 
   /* Allow reuse of port number */
   if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (char *) &on_off, sizeof(on_off)) < 0) {
@@ -261,16 +267,10 @@ prepare_socket(int family)
 void
 CAM_Initialise(void)
 {
-
-  if (initialised) {
-    CROAK("Shouldn't be initialised");
-  }
-
+  assert(!initialised);
   initialised = 1;
 
-  if ((sizeof(permissions)/sizeof(permissions[0])) != N_REQUEST_TYPES) {
-    CROAK("Permissions table size wrong");
-  }
+  assert(sizeof (permissions) / sizeof (permissions[0]) == N_REQUEST_TYPES);
 
   utoken = (unsigned long) time(NULL);
 
@@ -909,6 +909,59 @@ handle_modify_maxdelayratio(CMD_Request *rx_message, CMD_Reply *tx_message)
 /* ================================================== */
 
 static void
+handle_modify_maxdelaydevratio(CMD_Request *rx_message, CMD_Reply *tx_message)
+{
+  int status;
+  IPAddr address;
+  UTI_IPNetworkToHost(&rx_message->data.modify_maxdelaydevratio.address, &address);
+  status = NSR_ModifyMaxdelaydevratio(&address,
+                                   UTI_FloatNetworkToHost(rx_message->data.modify_maxdelaydevratio.new_max_delay_dev_ratio));
+  if (status) {
+    tx_message->status = htons(STT_SUCCESS);
+  } else {
+    tx_message->status = htons(STT_NOSUCHSOURCE);
+  }
+}
+
+/* ================================================== */
+
+static void
+handle_modify_minstratum(CMD_Request *rx_message, CMD_Reply *tx_message)
+{
+  int status;
+  IPAddr address;
+  UTI_IPNetworkToHost(&rx_message->data.modify_minpoll.address, &address);
+  status = NSR_ModifyMinstratum(&address,
+                             ntohl(rx_message->data.modify_minstratum.new_min_stratum));
+  
+  if (status) {
+    tx_message->status = htons(STT_SUCCESS);
+  } else {
+    tx_message->status = htons(STT_NOSUCHSOURCE);
+  }
+}
+
+/* ================================================== */
+
+static void
+handle_modify_polltarget(CMD_Request *rx_message, CMD_Reply *tx_message)
+{
+  int status;
+  IPAddr address;
+  UTI_IPNetworkToHost(&rx_message->data.modify_polltarget.address, &address);
+  status = NSR_ModifyPolltarget(&address,
+                             ntohl(rx_message->data.modify_polltarget.new_poll_target));
+  
+  if (status) {
+    tx_message->status = htons(STT_SUCCESS);
+  } else {
+    tx_message->status = htons(STT_NOSUCHSOURCE);
+  }
+}
+
+/* ================================================== */
+
+static void
 handle_modify_maxupdateskew(CMD_Request *rx_message, CMD_Reply *tx_message)
 {
   REF_ModifyMaxupdateskew(UTI_FloatNetworkToHost(rx_message->data.modify_maxupdateskew.new_max_update_skew));
@@ -991,10 +1044,9 @@ handle_source_data(CMD_Request *rx_message, CMD_Reply *tx_message)
 {
   RPT_SourceReport report;
   struct timeval now_corr;
-  double local_clock_err;
 
   /* Get data */
-  LCL_ReadCookedTime(&now_corr, &local_clock_err);
+  LCL_ReadCookedTime(&now_corr, NULL);
   if (SRC_ReportSource(ntohl(rx_message->data.source_data.index), &report, &now_corr)) {
     switch (SRC_GetType(ntohl(rx_message->data.source_data.index))) {
       case SRC_NTP:
@@ -1024,8 +1076,8 @@ handle_source_data(CMD_Request *rx_message, CMD_Reply *tx_message)
       case RPT_JITTERY:
         tx_message->data.source_data.state   = htons(RPY_SD_ST_JITTERY);
         break;
-      case RPT_OTHER:
-        tx_message->data.source_data.state   = htons(RPY_SD_ST_OTHER);
+      case RPT_CANDIDATE:
+        tx_message->data.source_data.state   = htons(RPY_SD_ST_CANDIDATE);
         break;
     }
     switch (report.mode) {
@@ -1216,7 +1268,7 @@ handle_cmdaccheck(CMD_Request *rx_message, CMD_Reply *tx_message)
 /* ================================================== */
 
 static void
-handle_add_server(CMD_Request *rx_message, CMD_Reply *tx_message)
+handle_add_source(NTP_Source_Type type, CMD_Request *rx_message, CMD_Reply *tx_message)
 {
   NTP_Remote_Address rem_addr;
   SourceParameters params;
@@ -1231,9 +1283,18 @@ handle_add_server(CMD_Request *rx_message, CMD_Reply *tx_message)
   params.authkey = ntohl(rx_message->data.ntp_source.authkey);
   params.online  = ntohl(rx_message->data.ntp_source.flags) & REQ_ADDSRC_ONLINE ? 1 : 0;
   params.auto_offline = ntohl(rx_message->data.ntp_source.flags) & REQ_ADDSRC_AUTOOFFLINE ? 1 : 0;
+  params.iburst = ntohl(rx_message->data.ntp_source.flags) & REQ_ADDSRC_IBURST ? 1 : 0;
+  params.sel_option = ntohl(rx_message->data.ntp_source.flags) & REQ_ADDSRC_PREFER ? SRC_SelectPrefer :
+                      ntohl(rx_message->data.ntp_source.flags) & REQ_ADDSRC_NOSELECT ? SRC_SelectNoselect : SRC_SelectNormal;
   params.max_delay = UTI_FloatNetworkToHost(rx_message->data.ntp_source.max_delay);
   params.max_delay_ratio = UTI_FloatNetworkToHost(rx_message->data.ntp_source.max_delay_ratio);
-  status = NSR_AddServer(&rem_addr, &params);
+
+ /* not transmitted in cmdmon protocol yet */
+  params.min_stratum = SRC_DEFAULT_MINSTRATUM;       
+  params.poll_target = SRC_DEFAULT_POLLTARGET;
+  params.max_delay_dev_ratio = SRC_DEFAULT_MAXDELAYDEVRATIO;
+
+  status = NSR_AddSource(&rem_addr, type, &params);
   switch (status) {
     case NSR_Success:
       tx_message->status = htons(STT_SUCCESS);
@@ -1248,47 +1309,7 @@ handle_add_server(CMD_Request *rx_message, CMD_Reply *tx_message)
       tx_message->status = htons(STT_INVALIDAF);
       break;
     case NSR_NoSuchSource:
-      CROAK("Impossible");
-      break;
-  }
-}
-
-/* ================================================== */
-
-static void
-handle_add_peer(CMD_Request *rx_message, CMD_Reply *tx_message)
-{
-  NTP_Remote_Address rem_addr;
-  SourceParameters params;
-  NSR_Status status;
-  
-  UTI_IPNetworkToHost(&rx_message->data.ntp_source.ip_addr, &rem_addr.ip_addr);
-  rem_addr.local_ip_addr.family = IPADDR_UNSPEC;
-  rem_addr.port = (unsigned short)(ntohl(rx_message->data.ntp_source.port));
-  params.minpoll = ntohl(rx_message->data.ntp_source.minpoll);
-  params.maxpoll = ntohl(rx_message->data.ntp_source.maxpoll);
-  params.presend_minpoll = ntohl(rx_message->data.ntp_source.presend_minpoll);
-  params.authkey = ntohl(rx_message->data.ntp_source.authkey);
-  params.online  = ntohl(rx_message->data.ntp_source.flags) & REQ_ADDSRC_ONLINE ? 1 : 0;
-  params.auto_offline = ntohl(rx_message->data.ntp_source.flags) & REQ_ADDSRC_AUTOOFFLINE ? 1 : 0;
-  params.max_delay = UTI_FloatNetworkToHost(rx_message->data.ntp_source.max_delay);
-  params.max_delay_ratio = UTI_FloatNetworkToHost(rx_message->data.ntp_source.max_delay_ratio);
-  status = NSR_AddPeer(&rem_addr, &params);
-  switch (status) {
-    case NSR_Success:
-      tx_message->status = htons(STT_SUCCESS);
-      break;
-    case NSR_AlreadyInUse:
-      tx_message->status = htons(STT_SOURCEALREADYKNOWN);
-      break;
-    case NSR_TooManySources:
-      tx_message->status = htons(STT_TOOMANYSOURCES);
-      break;
-    case NSR_InvalidAF:
-      tx_message->status = htons(STT_INVALIDAF);
-      break;
-    case NSR_NoSuchSource:
-      CROAK("Impossible");
+      assert(0);
       break;
   }
 }
@@ -1316,7 +1337,7 @@ handle_del_source(CMD_Request *rx_message, CMD_Reply *tx_message)
     case NSR_TooManySources:
     case NSR_AlreadyInUse:
     case NSR_InvalidAF:
-      CROAK("Impossible");
+      assert(0);
       break;
   }
 }
@@ -1348,6 +1369,7 @@ handle_dfreq(CMD_Request *rx_message, CMD_Reply *tx_message)
   dfreq = UTI_FloatNetworkToHost(rx_message->data.dfreq.dfreq);
   LCL_AccumulateDeltaFrequency(dfreq * 1.0e-6);
   LOG(LOGS_INFO, LOGF_CmdMon, "Accumulated delta freq of %.3fppm", dfreq);
+  tx_message->status = htons(STT_SUCCESS);
 }
 
 /* ================================================== */
@@ -1362,6 +1384,7 @@ handle_doffset(CMD_Request *rx_message, CMD_Reply *tx_message)
   doffset = (double) sec + 1.0e-6 * (double) usec;
   LOG(LOGS_INFO, LOGF_CmdMon, "Accumulated delta offset of %.6f seconds", doffset);
   LCL_AccumulateOffset(doffset);
+  tx_message->status = htons(STT_SUCCESS);
 }
 
 /* ================================================== */
@@ -1394,9 +1417,8 @@ handle_sourcestats(CMD_Request *rx_message, CMD_Reply *tx_message)
   int status;
   RPT_SourcestatsReport report;
   struct timeval now_corr;
-  double local_clock_err;
 
-  LCL_ReadCookedTime(&now_corr, &local_clock_err);
+  LCL_ReadCookedTime(&now_corr, NULL);
   status = SRC_ReportSourcestats(ntohl(rx_message->data.sourcestats.index),
                                  &report, &now_corr);
 
@@ -1461,11 +1483,7 @@ handle_trimrtc(CMD_Request *rx_message, CMD_Reply *tx_message)
 static void
 handle_cyclelogs(CMD_Request *rx_message, CMD_Reply *tx_message)
 {
-  NCR_CycleLogFile();
-  SST_CycleLogFile();
-  REF_CycleLogFile();
-  RTC_CycleLogFile();
-  RCL_CycleLogFile();
+  LOG_CycleLogFiles();
   
   tx_message->status = htons(STT_SUCCESS);
   return;
@@ -1512,7 +1530,7 @@ handle_subnets_accessed(CMD_Request *rx_message, CMD_Reply *tx_message)
         tx_message->status = htons(STT_INACTIVE);
         return;
       default:
-        CROAK("Impossible");
+        assert(0);
         break;
     }
   }
@@ -1531,9 +1549,8 @@ handle_client_accesses(CMD_Request *rx_message, CMD_Reply *tx_message)
   IPAddr ip;
   int i;
   struct timeval now;
-  double local_time_error;
 
-  LCL_ReadCookedTime(&now, &local_time_error);
+  LCL_ReadCookedTime(&now, NULL);
 
   nc = ntohl(rx_message->data.client_accesses.n_clients);
   tx_message->status = htons(STT_SUCCESS);
@@ -1568,7 +1585,7 @@ handle_client_accesses(CMD_Request *rx_message, CMD_Reply *tx_message)
         tx_message->status = htons(STT_INACTIVE);
         return;
       default:
-        CROAK("Impossible");
+        assert(0);
         break;
     }
   }
@@ -1585,9 +1602,8 @@ handle_client_accesses_by_index(CMD_Request *rx_message, CMD_Reply *tx_message)
   unsigned long first_index, n_indices, last_index, n_indices_in_table;
   int i, j;
   struct timeval now;
-  double local_time_error;
 
-  LCL_ReadCookedTime(&now, &local_time_error);
+  LCL_ReadCookedTime(&now, NULL);
 
   first_index = ntohl(rx_message->data.client_accesses_by_index.first_index);
   n_indices = ntohl(rx_message->data.client_accesses_by_index.n_indices);
@@ -1621,7 +1637,7 @@ handle_client_accesses_by_index(CMD_Request *rx_message, CMD_Reply *tx_message)
         tx_message->status = htons(STT_INACTIVE);
         return;
       default:
-        CROAK("Impossible");
+        assert(0);
         break;
     }
   }
@@ -1698,6 +1714,28 @@ handle_activity(CMD_Request *rx_message, CMD_Reply *tx_message)
 
 /* ================================================== */
 
+static void
+handle_reselect_distance(CMD_Request *rx_message, CMD_Reply *tx_message)
+{
+  double dist;
+  dist = UTI_FloatNetworkToHost(rx_message->data.reselect_distance.distance);
+  SRC_SetReselectDistance(dist);
+  tx_message->status = htons(STT_SUCCESS);
+  return;
+}
+
+/* ================================================== */
+
+static void
+handle_reselect(CMD_Request *rx_message, CMD_Reply *tx_message)
+{
+  SRC_ReselectSource();
+  tx_message->status = htons(STT_SUCCESS);
+  return;
+}
+
+/* ================================================== */
+
 #if 0
 /* ================================================== */
 
@@ -1742,7 +1780,6 @@ read_from_cmd_socket(void *anything)
   unsigned long rx_attempt;
   struct timeval now;
   struct timeval cooked_now;
-  double local_clock_err;
 
   flags = 0;
   rx_message_length = sizeof(rx_message);
@@ -1760,9 +1797,10 @@ read_from_cmd_socket(void *anything)
 
   read_length = status;
   expected_length = PKL_CommandLength(&rx_message);
+  rx_command = ntohs(rx_message.command);
 
   LCL_ReadRawTime(&now);
-  LCL_ReadCookedTime(&cooked_now, &local_clock_err);
+  LCL_CookTime(&now, &cooked_now, NULL);
 
   tx_message.version = PROTO_VERSION_NUMBER;
   tx_message.pkt_type = PKT_TYPE_CMD_REPLY;
@@ -1822,7 +1860,7 @@ read_from_cmd_socket(void *anything)
   if (rx_message.version != PROTO_VERSION_NUMBER) {
     tx_message.status = htons(STT_NOHOSTACCESS);
     if (!LOG_RateLimited()) {
-      LOG(LOGS_WARN, LOGF_CmdMon, "Read packet with protocol version %d (expected %d) from %s:%hu", rx_message.version, PROTO_VERSION_NUMBER, UTI_IPToString(&remote_ip), remote_port);
+      LOG(LOGS_WARN, LOGF_CmdMon, "Read command packet with protocol version %d (expected %d) from %s:%hu", rx_message.version, PROTO_VERSION_NUMBER, UTI_IPToString(&remote_ip), remote_port);
     }
     if (allowed)
       CLG_LogCommandAccess(&remote_ip, CLG_CMD_BAD_PKT, cooked_now.tv_sec);
@@ -1834,9 +1872,21 @@ read_from_cmd_socket(void *anything)
     return;
   }
 
+  if (rx_command >= N_REQUEST_TYPES) {
+    if (!LOG_RateLimited()) {
+      LOG(LOGS_WARN, LOGF_CmdMon, "Read command packet with invalid command %d from %s:%hu", rx_command, UTI_IPToString(&remote_ip), remote_port);
+    }
+    if (allowed)
+      CLG_LogCommandAccess(&remote_ip, CLG_CMD_BAD_PKT, cooked_now.tv_sec);
+
+    tx_message.status = htons(STT_INVALID);
+    transmit_reply(&tx_message, &where_from);
+    return;
+  }
+
   if (read_length != expected_length) {
     if (!LOG_RateLimited()) {
-      LOG(LOGS_WARN, LOGF_CmdMon, "Read incorrectly sized packet from %s:%hu", UTI_IPToString(&remote_ip), remote_port);
+      LOG(LOGS_WARN, LOGF_CmdMon, "Read incorrectly sized command packet from %s:%hu", UTI_IPToString(&remote_ip), remote_port);
     }
     if (allowed)
       CLG_LogCommandAccess(&remote_ip, CLG_CMD_BAD_PKT, cooked_now.tv_sec);
@@ -1863,8 +1913,6 @@ read_from_cmd_socket(void *anything)
 
     return;
   }
-
-  rx_command = ntohs(rx_message.command);
 
   /* OK, we have a valid message.  Now dispatch on message type and process it. */
 
@@ -1991,10 +2039,9 @@ read_from_cmd_socket(void *anything)
   tx_message.token = htonl(tx_message_token);
 
 
-  /* If command type is invalid, send back reply */
   if (rx_command >= N_REQUEST_TYPES) {
-    tx_message.status = htons(STT_INVALID);
-    tx_message.reply = htons(RPY_NULL);
+    /* This should be already handled */
+    assert(0);
   } else {
     allowed = 0;
 
@@ -2018,7 +2065,7 @@ read_from_cmd_socket(void *anything)
         allowed = 1;
         break;
       default:
-        CROAK("Impossible");
+        assert(0);
     }
 
     if (allowed) {
@@ -2058,6 +2105,10 @@ read_from_cmd_socket(void *anything)
 
         case REQ_MODIFY_MAXDELAYRATIO:
           handle_modify_maxdelayratio(&rx_message, &tx_message);
+          break;
+
+        case REQ_MODIFY_MAXDELAYDEVRATIO:
+          handle_modify_maxdelaydevratio(&rx_message, &tx_message);
           break;
 
         case REQ_MODIFY_MAXUPDATESKEW:
@@ -2151,11 +2202,11 @@ read_from_cmd_socket(void *anything)
           break;
 
         case REQ_ADD_SERVER:
-          handle_add_server(&rx_message, &tx_message);
+          handle_add_source(NTP_SERVER, &rx_message, &tx_message);
           break;
 
         case REQ_ADD_PEER:
-          handle_add_peer(&rx_message, &tx_message);
+          handle_add_source(NTP_PEER, &rx_message, &tx_message);
           break;
 
         case REQ_DEL_SOURCE:
@@ -2222,8 +2273,24 @@ read_from_cmd_socket(void *anything)
           handle_activity(&rx_message, &tx_message);
           break;
 
+        case REQ_RESELECTDISTANCE:
+          handle_reselect_distance(&rx_message, &tx_message);
+          break;
+
+        case REQ_RESELECT:
+          handle_reselect(&rx_message, &tx_message);
+          break;
+
+        case REQ_MODIFY_MINSTRATUM:
+          handle_modify_minstratum(&rx_message, &tx_message);
+          break;
+
+        case REQ_MODIFY_POLLTARGET:
+          handle_modify_polltarget(&rx_message, &tx_message);
+          break;
+
         default:
-          /* Ignore message */
+          assert(0);
           break;
       }
     } else {

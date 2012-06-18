@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/manual.c,v 1.21 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -33,6 +29,8 @@
   and adjust the frequency accordingly.
 
   */
+
+#include "config.h"
 
 #include <stddef.h>
 
@@ -74,7 +72,6 @@ static void
 slew_samples(struct timeval *raw,
              struct timeval *cooked, 
              double dfreq,
-             double afreq,
              double doffset,
              int is_step_change,
              void *not_used);
@@ -148,6 +145,8 @@ estimate_and_set_system(struct timeval *now, int offset_provided, double offset,
     }
     b1 = freq = 0.0;
     found_freq = 0;
+    agos[0] = 0.0;
+    offsets[0] = b0;
   }
 
   if (offset_provided) {
@@ -188,14 +187,13 @@ int
 MNL_AcceptTimestamp(struct timeval *ts, long *offset_cs, double *dfreq_ppm, double *new_afreq_ppm)
 {
   struct timeval now;
-  double local_clock_err;
   double offset;
   int i;
 
   if (enabled) {
 
     /* Check whether timestamp is within margin of old one */
-    LCL_ReadCookedTime(&now, &local_clock_err);
+    LCL_ReadCookedTime(&now, NULL);
 
     UTI_DiffTimevalsToDouble(&offset, &now, ts);
 
@@ -230,17 +228,15 @@ static void
 slew_samples(struct timeval *raw,
              struct timeval *cooked, 
              double dfreq,
-             double afreq,
              double doffset,
              int is_step_change,
              void *not_used)
 {
-  double elapsed, delta_time;
+  double delta_time;
   int i;
   for (i=0; i<n_samples; i++) {
-    UTI_DiffTimevalsToDouble(&elapsed, cooked, &samples[i].when);
-    delta_time = elapsed * dfreq - doffset;
-    UTI_AddDoubleToTimeval(&samples[i].when, delta_time, &samples[i].when);
+    UTI_AdjustTimeval(&samples[i].when, cooked, &samples[i].when, &delta_time,
+        dfreq, doffset);
     samples[i].offset += delta_time;
   }
   return;
@@ -303,7 +299,6 @@ MNL_DeleteSample(int index)
 {
   int i;
   struct timeval now;
-  double local_clock_err;
 
   if ((index < 0) || (index >= n_samples)) {
     return 0;
@@ -319,7 +314,7 @@ MNL_DeleteSample(int index)
 
   /* Now re-estimate.  NULLs because we don't want the parameters back
      in this case. */
-  LCL_ReadCookedTime(&now, &local_clock_err);
+  LCL_ReadCookedTime(&now, NULL);
   estimate_and_set_system(&now, 0, 0.0, NULL, NULL, NULL);
 
   return 1;

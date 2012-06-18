@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/ntp_core.h,v 1.16 2002/02/28 23:27:12 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -38,6 +34,10 @@
 #include "ntp.h"
 #include "reports.h"
 
+typedef enum {
+  NTP_SERVER, NTP_PEER
+} NTP_Source_Type;
+
 /* This is a private data type used for storing the instance record for
    each source that we are chiming with */
 typedef struct NCR_Instance_Record *NCR_Instance;
@@ -46,31 +46,28 @@ typedef struct NCR_Instance_Record *NCR_Instance;
 extern void NCR_Initialise(void);
 extern void NCR_Finalise(void);
 
-/* Get a new instance for a server */
-extern NCR_Instance NCR_GetServerInstance(NTP_Remote_Address *remote_addr, SourceParameters *params);
-
-/* Get a new instance for a peer */
-extern NCR_Instance NCR_GetPeerInstance(NTP_Remote_Address *remote_addr, SourceParameters *params);
+/* Get a new instance for a server or peer */
+extern NCR_Instance NCR_GetInstance(NTP_Remote_Address *remote_addr, NTP_Source_Type type, SourceParameters *params);
 
 /* Destroy an instance */
 extern void NCR_DestroyInstance(NCR_Instance instance);
 
 /* This routine is called when a new packet arrives off the network,
    and it relates to a source we have an ongoing protocol exchange with */
-extern void NCR_ProcessNoauthKnown(NTP_Packet *message, struct timeval *now, NCR_Instance data);
+extern void NCR_ProcessNoauthKnown(NTP_Packet *message, struct timeval *now, double now_err, NCR_Instance data);
 
 /* This routine is called when a new packet arrives off the network,
    and we do not recognize its source */
-extern void NCR_ProcessNoauthUnknown(NTP_Packet *message, struct timeval *now, NTP_Remote_Address *remote_addr);
+extern void NCR_ProcessNoauthUnknown(NTP_Packet *message, struct timeval *now, double now_err, NTP_Remote_Address *remote_addr);
 
 /* This routine is called when a new authenticated packet arrives off
    the network, and it relates to a source we have an ongoing protocol
    exchange with */
-extern void NCR_ProcessAuthKnown(NTP_Packet *message, struct timeval *now, NCR_Instance data);
+extern void NCR_ProcessAuthKnown(NTP_Packet *message, struct timeval *now, double now_err, NCR_Instance data);
 
 /* This routine is called when a new authenticated packet arrives off
    the network, and we do not recognize its source */
-extern void NCR_ProcessAuthUnknown(NTP_Packet *message, struct timeval *now, NTP_Remote_Address *remote_addr);
+extern void NCR_ProcessAuthUnknown(NTP_Packet *message, struct timeval *now, double now_err, NTP_Remote_Address *remote_addr);
 
 /* Slew receive and transmit times in instance records */
 extern void NCR_SlewTimes(NCR_Instance inst, struct timeval *when, double dfreq, double doffset);
@@ -90,6 +87,12 @@ extern void NCR_ModifyMaxdelay(NCR_Instance inst, double new_max_delay);
 
 extern void NCR_ModifyMaxdelayratio(NCR_Instance inst, double new_max_delay_ratio);
 
+extern void NCR_ModifyMaxdelaydevratio(NCR_Instance inst, double new_max_delay_dev_ratio);
+
+extern void NCR_ModifyMinstratum(NCR_Instance inst, int new_min_stratum);
+
+extern void NCR_ModifyPolltarget(NCR_Instance inst, int new_poll_target);
+
 extern void NCR_InitiateSampleBurst(NCR_Instance inst, int n_good_samples, int n_total_samples);
 
 extern void NCR_ReportSource(NCR_Instance inst, RPT_SourceReport *report, struct timeval *now);
@@ -97,11 +100,11 @@ extern void NCR_ReportSource(NCR_Instance inst, RPT_SourceReport *report, struct
 extern int NCR_AddAccessRestriction(IPAddr *ip_addr, int subnet_bits, int allow, int all);
 extern int NCR_CheckAccessRestriction(IPAddr *ip_addr);
 
-extern void NCR_CycleLogFile(void);
-
 extern void NCR_IncrementActivityCounters(NCR_Instance inst, int *online, int *offline, 
                                           int *burst_online, int *burst_offline);
 
 extern NTP_Remote_Address *NCR_GetRemoteAddress(NCR_Instance instance);
+
+extern int NCR_IsSyncPeer(NCR_Instance instance);
 
 #endif /* GOT_NTP_CORE_H */

@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/util.c,v 1.22 2003/09/28 22:21:17 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -28,6 +24,8 @@
 
   Various utility functions
   */
+
+#include "config.h"
 
 #include "sysincl.h"
 
@@ -242,7 +240,7 @@ UTI_TimestampToString(NTP_int64 *ts)
 /* ================================================== */
 
 char *
-UTI_RefidToString(unsigned long ref_id)
+UTI_RefidToString(uint32_t ref_id)
 {
   unsigned int i, j, c;
   char buf[5], *result;
@@ -335,7 +333,7 @@ UTI_StringToIP(const char *addr, IPAddr *ip)
 
 /* ================================================== */
 
-unsigned long
+uint32_t
 UTI_IPToRefid(IPAddr *ip)
 {
   MD5_CTX ctx;
@@ -442,13 +440,13 @@ UTI_TimeToLogForm(time_t t)
 /* ================================================== */
 
 void
-UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *new_tv, double dfreq, double doffset)
+UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *new_tv, double *delta_time, double dfreq, double doffset)
 {
-  double elapsed, delta_time;
+  double elapsed;
 
   UTI_DiffTimevalsToDouble(&elapsed, when, old_tv);
-  delta_time = elapsed * dfreq - doffset;
-  UTI_AddDoubleToTimeval(old_tv, delta_time, new_tv);
+  *delta_time = elapsed * dfreq - doffset;
+  UTI_AddDoubleToTimeval(old_tv, *delta_time, new_tv);
 }
 
 /* ================================================== */
@@ -506,9 +504,8 @@ UTI_TimevalNetworkToHost(Timeval *src, struct timeval *dest)
      is only 32-bit */
   if (sizeof (time_t) > 4 && sec_high == TV_NOHIGHSEC) {
     struct timeval now;
-    struct timezone tz;
 
-    gettimeofday(&now, &tz);
+    gettimeofday(&now, NULL);
     sec_high = now.tv_sec >> 16 >> 16;
   }
   dest->tv_sec = (time_t)sec_high << 16 << 16 | sec_low;
@@ -598,6 +595,20 @@ UTI_FloatHostToNetwork(double x)
 
   f.f = htonl(exp << FLOAT_COEF_BITS | coef);
   return f;
+}
+
+/* ================================================== */
+
+void
+UTI_FdSetCloexec(int fd)
+{
+  int flags;
+
+  flags = fcntl(fd, F_GETFD);
+  if (flags != -1) {
+    flags |= FD_CLOEXEC;
+    fcntl(fd, F_SETFD, flags);
+  }
 }
 
 /* ================================================== */

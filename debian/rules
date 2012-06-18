@@ -10,7 +10,7 @@ build: build-stamp
 build-stamp:
 	dh_testdir
 
-	./configure --prefix='usr' --sysconfdir=/etc/chrony
+	./configure --prefix='usr' --sysconfdir=/etc/chrony --without-readline
 	# Add here commands to compile the package.
 	$(MAKE) 
 	$(MAKE) docs
@@ -54,14 +54,10 @@ binary-arch: build install
 	dh_installcron
 	dh_installmanpages
 	dh_installchangelogs 
-	cp chrony.conf debian/chrony/usr/share/chrony
+	cp debian/chrony.conf debian/chrony/usr/share/chrony
 	cp debian/chrony.conf.md5sum debian/chrony/usr/share/chrony
 #	cp chrony.keys debian/chrony/etc/chrony
 	cp chrony.info debian/chrony/usr/share/info
-#	cp chrony.info-1 debian/chrony/usr/share/info
-#	cp chrony.info-2 debian/chrony/usr/share/info
-#	cp chrony.info-3 debian/chrony/usr/share/info
-#	cp chrony.info-4 debian/chrony/usr/share/info
 	cp debian/ip-up debian/chrony/etc/ppp/ip-up.d/chrony
 	cp debian/ip-down debian/chrony/etc/ppp/ip-down.d/chrony
 	cp debian/apm debian/chrony/etc/apm/event.d/01chrony

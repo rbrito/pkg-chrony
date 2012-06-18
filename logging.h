@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/logging.h,v 1.15 2002/02/28 23:27:10 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -63,6 +59,7 @@ typedef enum {
   LOGF_Regress,
   LOGF_Sys,
   LOGF_SysLinux,
+  LOGF_SysNetBSD,
   LOGF_SysSolaris,
   LOGF_SysSunOS,
   LOGF_SysWinnt,
@@ -85,7 +82,8 @@ extern void LOG_Fatal_Function(LOG_Facility facility, const char *format, ...);
 /* Position in code reporting function */
 extern void LOG_Position(const char *filename, int line_number, const char *function_name);
 
-extern void LOG_GoDaemon(void);
+/* Log messages to syslog instead of stderr */
+extern void LOG_OpenSystemLog(void);
 
 /* Return zero once per 10 seconds */
 extern int LOG_RateLimited(void);
@@ -100,13 +98,14 @@ extern int LOG_RateLimited(void);
 #define LOG_FATAL LOG_Position(__FILE__, __LINE__, ""); LOG_Fatal_Function
 #endif /* defined (__GNUC__) */
 
-/* Like assert(0) */
+/* File logging functions */
 
-#if defined(LINUX) && defined(__alpha__)
-#define CROAK(message) assert(0) /* Added JGH Feb 24 2001  FIXME */
-#else
-extern int croak(const char *file, int line, const char *msg);
-#define CROAK(message) croak(__FILE__, __LINE__, message);
-#endif
+typedef int LOG_FileID;
+
+extern LOG_FileID LOG_FileOpen(const char *name, const char *banner);
+extern void LOG_FileWrite(LOG_FileID id, const char *format, ...);
+
+extern void LOG_CreateLogFileDir(void);
+extern void LOG_CycleLogFiles(void);
 
 #endif /* GOT_LOGGING_H */
