@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/ntp_io.c,v 1.24 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -29,6 +25,8 @@
 
   This file deals with the IO aspects of reading and writing NTP packets
   */
+
+#include "config.h"
 
 #include "sysincl.h"
 
@@ -121,6 +119,9 @@ prepare_socket(int family)
     return -1;
   }
 
+  /* Close on exec */
+  UTI_FdSetCloexec(sock_fd);
+
   /* Make the socket capable of re-using an old address */
   if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&on_off, sizeof(on_off)) < 0) {
     LOG(LOGS_ERR, LOGF_NtpIO, "Could not set reuseaddr socket options");
@@ -156,6 +157,16 @@ prepare_socket(int family)
     /* Receive IPv6 packets only */
     if (setsockopt(sock_fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&on_off, sizeof(on_off)) < 0) {
       LOG(LOGS_ERR, LOGF_NtpIO, "Could not request IPV6_V6ONLY socket option");
+    }
+#endif
+
+#ifdef IPV6_RECVPKTINFO
+    if (setsockopt(sock_fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, (char *)&on_off, sizeof(on_off)) < 0) {
+      LOG(LOGS_ERR, LOGF_NtpIO, "Could not request IPv6 packet info socket option");
+    }
+#elif defined(IPV6_PKTINFO)
+    if (setsockopt(sock_fd, IPPROTO_IPV6, IPV6_PKTINFO, (char *)&on_off, sizeof(on_off)) < 0) {
+      LOG(LOGS_ERR, LOGF_NtpIO, "Could not request IPv6 packet info socket option");
     }
 #endif
   }
@@ -281,6 +292,7 @@ read_from_socket(void *anything)
   union sockaddr_in46 where_from;
   unsigned int flags = 0;
   struct timeval now;
+  double now_err;
   NTP_Remote_Address remote_addr;
   char cmsgbuf[256];
   struct msghdr msg;
@@ -289,7 +301,7 @@ read_from_socket(void *anything)
 
   assert(initialised);
 
-  SCH_GetFileReadyTime(&now);
+  SCH_GetFileReadyTime(&now, &now_err);
 
   iov.iov_base = message.arbitrary;
   iov.iov_len = sizeof(message);
@@ -343,30 +355,34 @@ read_from_socket(void *anything)
       }
 #endif
 
+#ifdef IPV6_PKTINFO
+      if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
+        struct in6_pktinfo ipi;
+
+        memcpy(&ipi, CMSG_DATA(cmsg), sizeof(ipi));
+        memcpy(&remote_addr.local_ip_addr.addr.in6, &ipi.ipi6_addr.s6_addr,
+            sizeof (remote_addr.local_ip_addr.addr.in6));
+        remote_addr.local_ip_addr.family = IPADDR_INET6;
+      }
+#endif
+
 #ifdef SO_TIMESTAMP
       if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMP) {
         struct timeval tv;
-        double correction;
 
         memcpy(&tv, CMSG_DATA(cmsg), sizeof(tv));
-        correction = LCL_GetOffsetCorrection(&tv);
-        UTI_AddDoubleToTimeval(&tv, correction, &tv);
-#if 0
-        UTI_DiffTimevalsToDouble(&correction, &now, &tv);
-        LOG(LOGS_INFO, LOGF_NtpIO, "timestamp diff: %f", correction);
-#endif
-        now = tv;
+        LCL_CookTime(&tv, &now, &now_err);
       }
 #endif
     }
 
     if (status == NTP_NORMAL_PACKET_SIZE) {
 
-      NSR_ProcessReceive((NTP_Packet *) &message.ntp_pkt, &now, &remote_addr);
+      NSR_ProcessReceive((NTP_Packet *) &message.ntp_pkt, &now, now_err, &remote_addr);
 
     } else if (status == sizeof(NTP_Packet)) {
 
-      NSR_ProcessAuthenticatedReceive((NTP_Packet *) &message.ntp_pkt, &now, &remote_addr);
+      NSR_ProcessAuthenticatedReceive((NTP_Packet *) &message.ntp_pkt, &now, now_err, &remote_addr);
 
     } else {
 
@@ -450,6 +466,25 @@ send_packet(void *packet, int packetlen, NTP_Remote_Address *remote_addr)
   }
 #endif
 
+#ifdef IPV6_PKTINFO
+  if (remote_addr->local_ip_addr.family == IPADDR_INET6) {
+    struct cmsghdr *cmsg;
+    struct in6_pktinfo *ipi;
+
+    cmsg = CMSG_FIRSTHDR(&msg);
+    memset(cmsg, 0, CMSG_SPACE(sizeof(struct in6_pktinfo)));
+    cmsglen += CMSG_SPACE(sizeof(struct in6_pktinfo));
+
+    cmsg->cmsg_level = IPPROTO_IPV6;
+    cmsg->cmsg_type = IPV6_PKTINFO;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
+
+    ipi = (struct in6_pktinfo *) CMSG_DATA(cmsg);
+    memcpy(&ipi->ipi6_addr.s6_addr, &remote_addr->local_ip_addr.addr.in6,
+        sizeof(ipi->ipi6_addr.s6_addr));
+  }
+#endif
+
 #if 0
     LOG(LOGS_INFO, LOGF_NtpIO, "sending to %s:%d from %s",
         UTI_IPToString(&remote_addr->ip_addr), remote_addr->port, UTI_IPToString(&remote_addr->local_ip_addr));
@@ -460,7 +495,14 @@ send_packet(void *packet, int packetlen, NTP_Remote_Address *remote_addr)
   if (!cmsglen)
     msg.msg_control = NULL;
 
-  if (sendmsg(sock_fd, &msg, 0) < 0 && !LOG_RateLimited()) {
+  if (sendmsg(sock_fd, &msg, 0) < 0 &&
+#ifdef ENETUNREACH
+      errno != ENETUNREACH &&
+#endif
+#ifdef ENETDOWN
+      errno != ENETDOWN &&
+#endif
+      !LOG_RateLimited()) {
     LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to %s:%d : %s",
         UTI_IPToString(&remote_addr->ip_addr), remote_addr->port, strerror(errno));
   }

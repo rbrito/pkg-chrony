@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/rtc.h,v 1.9 2002/02/28 23:27:13 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -46,7 +42,5 @@ extern int  RTC_GetReport(RPT_RTC_Report *report);
 extern int RTC_WriteParameters(void);
 
 extern int RTC_Trim(void);
-
-extern void RTC_CycleLogFile(void);
 
 #endif /* GOT_RTC_H */

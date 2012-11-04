@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/regress.h,v 1.13 2002/02/28 23:27:13 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -61,6 +57,15 @@ RGR_WeightedRegression
 
 extern double RGR_GetTCoef(int dof);
 
+/* Return the value to apply to the variance to make an upper one-sided
+   test assuming a chi-square distribution. */
+
+extern double RGR_GetChi2Coef(int dof);
+
+/* Maximum ratio of number of points used for runs test to number of regression
+   points */
+#define REGRESS_RUNS_RATIO 2
+
 /* Return a status indicating whether there were enough points to
    carry out the regression */
 
@@ -72,6 +77,9 @@ RGR_FindBestRegression
                                    less reliable) */
  
  int n,                         /* number of data points */
+ int m,                         /* number of extra samples in x and y arrays
+                                   (negative index) which can be used to
+                                   extend runs test */
 
  /* And now the results */
 

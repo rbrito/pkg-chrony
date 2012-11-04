@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/rtc_linux.c,v 1.32 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -30,6 +26,8 @@
 
   */
 
+#include "config.h"
+
 #if defined LINUX
 
 #ifdef sparc
@@ -49,6 +47,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <string.h>
+#include <linux/rtc.h>
 
 #include "logging.h"
 #include "sched.h"
@@ -58,22 +57,8 @@
 #include "regress.h"
 #include "rtc.h"
 #include "rtc_linux.h"
-#include "io_linux.h"
 #include "conf.h"
 #include "memory.h"
-#include "mkdirpp.h"
-
-struct rtc_time {
-	int tm_sec;
-	int tm_min;
-	int tm_hour;
-	int tm_mday;
-	int tm_mon;
-	int tm_year;
-	int tm_wday;
-	int tm_yday;
-	int tm_isdst;
-};
 
 /* ================================================== */
 /* Forward prototypes */
@@ -180,11 +165,7 @@ static int rtc_on_utc = 1;
 
 /* ================================================== */
 
-static FILE *logfile=NULL;
-static char *logfilename = NULL;
-static unsigned long logwrites=0;
-
-#define RTC_LOG "rtc.log"
+static LOG_FileID logfileid;
 
 /* ================================================== */
 
@@ -198,12 +179,7 @@ discard_samples(int new_first)
 {
   int n_to_save;
 
-  if (!(new_first < n_samples)) {
-    CROAK("new_first should be < n_samples");
-  }
-  if (!(new_first >= 0)) {
-    CROAK("new_first should be non-negative");
-  }
+  assert(new_first >= 0 && new_first < n_samples);
 
   n_to_save = n_samples - new_first;
 
@@ -258,13 +234,11 @@ run_regression(int new_sample,
 {
   double rtc_rel[MAX_SAMPLES]; /* Relative times on RTC axis */
   double offsets[MAX_SAMPLES]; /* How much the RTC is fast of the system clock */
-  int i, n;
+  int i;
   double est_intercept, est_slope;
   int best_new_start;
 
   if (n_samples > 0) {
-
-    n = n_samples - 1;
 
     for (i=0; i<n_samples; i++) {
       rtc_rel[i] = rtc_trim[i] + (double)(rtc_sec[i] - rtc_ref);
@@ -307,27 +281,17 @@ run_regression(int new_sample,
 static void
 slew_samples
 (struct timeval *raw, struct timeval *cooked,
- double dfreq, double afreq_ppm,
+ double dfreq,
  double doffset, int is_step_change,
  void *anything)
 {
   int i;
-  double elapsed;
-  double new_freq;
-  double old_freq;
   double delta_time;
   double old_seconds_fast, old_gain_rate;
 
-  new_freq = 1.0e-6 * afreq_ppm;
-  old_freq = (new_freq - dfreq) / (1.0 - dfreq);
-
   for (i=0; i<n_samples; i++) {
-    UTI_DiffTimevalsToDouble(&elapsed, cooked, system_times + i);
-
-    delta_time = -(elapsed * dfreq) - doffset;
-
-    UTI_AddDoubleToTimeval(system_times + i, delta_time, system_times + i);
-
+    UTI_AdjustTimeval(system_times + i, cooked, system_times + i, &delta_time,
+        dfreq, doffset);
   }
 
   old_seconds_fast = coef_seconds_fast;
@@ -335,14 +299,16 @@ slew_samples
 
   if (coefs_valid) {
     coef_seconds_fast += doffset;
-    coef_gain_rate = 1.0 - ((1.0 + new_freq) / (1.0 + old_freq)) * (1.0 - coef_gain_rate);
+    coef_gain_rate = (1.0 + dfreq) * (1.0 + coef_gain_rate) - 1.0;
   }
 
 #if 0
-  LOG(LOGS_INFO, LOGF_RtcLinux, "dfreq=%.8f doffset=%.6f new_freq=%.3f old_freq=%.3f old_fast=%.6f old_rate=%.3f new_fast=%.6f new_rate=%.3f",
-      dfreq, doffset, 1.0e6*new_freq, 1.0e6*old_freq,
+  LOG(LOGS_INFO, LOGF_RtcLinux, "dfreq=%.8f doffset=%.6f old_fast=%.6f old_rate=%.3f new_fast=%.6f new_rate=%.3f",
+      dfreq, doffset,
       old_seconds_fast, 1.0e6 * old_gain_rate,
       coef_seconds_fast, 1.0e6 * coef_gain_rate);
+#else
+  (void)old_seconds_fast; (void)old_gain_rate;
 #endif
 
 }
@@ -541,63 +507,6 @@ write_coefs_to_file(int valid,time_t ref_time,double offset,double rate)
 int
 RTC_Linux_Initialise(void)
 {
-  int major, minor, patch;
-  char *direc;
-
-  /* Check whether we can support the real time clock.
-
-     Linux 1.2.x - haven't checked yet
-
-     Linux 1.3.x - don't know, haven't got a system to look at
-
-     Linux 2.0.x - For x<=31, using any variant of the adjtimex() call
-     sets the kernel into a mode where the RTC was updated every 11
-     minutes.  The only way to escape this is to use settimeofday().
-     Since we need to have sole control over the RTC to be able to
-     measure its drift rate, and there is no 'notify' callback to warn
-     you that the kernel is going to do this, I can't see a way to
-     support this.
-
-     Linux 2.0.x - For x>=32 the adjtimex()/RTC behaviour was
-     modified, so that as long as the STA_UNSYNC flag is set the RTC
-     is left alone.  This is the mode we exploit here, so that the RTC
-     continues to go its own sweet way, unless we make updates to it
-     from this module.
-
-     Linux 2.1.x - don't know, haven't got a system to look at.
-
-     Linux 2.2.x, 2.3.x and 2.4.x are believed to be OK for all
-     patch levels
-
-     */
-
-  SYS_Linux_GetKernelVersion(&major, &minor, &patch);
-
-  /* Obviously this test can get more elaborate when we know about
-     more system types. */
-  if (major != 2) {
-    return 0;
-  } else {
-    switch (minor) {
-      case 0:
-        if (patch <= 31) {
-          return 0;
-        }
-        break;
-      case 1:
-        return 0;
-        break;
-      case 2:
-      case 3:
-      case 4:
-      case 5:
-      case 6:
-      case 7:
-      case 8:
-        break; /* OK for all patch levels */
-    } 
-  }
-
   /* Setup details depending on configuration options */
   setup_config();
 
@@ -611,6 +520,9 @@ RTC_Linux_Initialise(void)
     LOG(LOGS_ERR, LOGF_RtcLinux, "Could not open %s, %s", CNF_GetRtcDevice(), strerror(errno));
     return 0;
   }
+
+  /* Close on exec */
+  UTI_FdSetCloexec(fd);
 
   n_samples = 0;
   n_samples_since_regression = 0;
@@ -627,18 +539,9 @@ RTC_Linux_Initialise(void)
   /* Register slew handler */
   LCL_AddParameterChangeHandler(slew_samples, NULL);
 
-  if (CNF_GetLogRtc()) {
-    direc = CNF_GetLogDir();
-    if (!mkdir_and_parents(direc)) {
-      LOG(LOGS_ERR, LOGF_RtcLinux, "Could not create directory %s", direc);
-    } else {
-      logfilename = MallocArray(char, 2 + strlen(direc) + strlen(RTC_LOG));
-      strcpy(logfilename, direc);
-      strcat(logfilename, "/");
-      strcat(logfilename, RTC_LOG);
-    }
-  }
-
+  logfileid = CNF_GetLogRtc() ? LOG_FileOpen("rtc",
+      "   Date (UTC) Time   RTC fast (s) Val   Est fast (s)   Slope (ppm)  Ns  Nr Meas")
+    : -1;
   return 1;
 }
 
@@ -661,11 +564,6 @@ RTC_Linux_Finalise(void)
     (void) RTC_Linux_WriteParameters();
 
   }
-
-  if (logfile) {
-    fclose(logfile);
-  }
-  Free(logfilename);
 }
 
 /* ================================================== */
@@ -717,6 +615,9 @@ set_rtc(time_t new_rtc_time)
   rtc_raw.tm_mday = rtc_tm.tm_mday;
   rtc_raw.tm_mon = rtc_tm.tm_mon;
   rtc_raw.tm_year = rtc_tm.tm_year;
+  rtc_raw.tm_wday = rtc_tm.tm_wday;
+  rtc_raw.tm_yday = rtc_tm.tm_yday;
+  rtc_raw.tm_isdst = rtc_tm.tm_isdst;
 
   status = ioctl(fd, RTC_SET_TIME, &rtc_raw);
   if (status < 0) {
@@ -832,38 +733,19 @@ process_reading(time_t rtc_time, struct timeval *system_time)
       }
       break;
     default:
-      CROAK("Impossible");
+      assert(0);
       break;
   }  
 
 
-  if (logfilename) {
-    if (!logfile) {
-      logfile = fopen(logfilename, "a");
-      if (!logfile) {
-        LOG(LOGS_WARN, LOGF_RtcLinux, "Couldn't open logfile %s for update", logfilename);
-        Free(logfilename);
-        logfilename = NULL;
-        return;
-      }
-    }
-
+  if (logfileid != -1) {
     rtc_fast = (double)(rtc_time - system_time->tv_sec) - 1.0e-6 * (double) system_time->tv_usec;
 
-    if (((logwrites++) % 32) == 0) {
-      fprintf(logfile,
-              "===============================================================================\n"
-              "   Date (UTC) Time   RTC fast (s) Val   Est fast (s)   Slope (ppm)  Ns  Nr Meas\n"
-              "===============================================================================\n");
-    }
-    
-    fprintf(logfile, "%s %14.6f %1d  %14.6f  %12.3f  %2d  %2d %4d\n",
+    LOG_FileWrite(logfileid, "%s %14.6f %1d  %14.6f  %12.3f  %2d  %2d %4d",
             UTI_TimeToLogForm(system_time->tv_sec),
             rtc_fast,
             coefs_valid,
             coef_seconds_fast, coef_gain_rate * 1.0e6, n_samples, n_runs, measurement_period);
-
-    fflush(logfile);
   }    
 
 }
@@ -892,10 +774,6 @@ read_from_device(void *any)
     switch_interrupts(0); /* Likely to raise error too, but just to be sure... */
     close(fd);
     fd = -1;
-    if (logfile) {
-      fclose(logfile);
-      logfile = NULL;
-    }
     return;
   }    
 
@@ -905,13 +783,13 @@ read_from_device(void *any)
     return;
   }
 
-  if ((data & RTC_UIE) == RTC_UIE) {
+  if ((data & RTC_UF) == RTC_UF) {
     /* Update interrupt detected */
     
     /* Read RTC time, sandwiched between two polls of the system clock
        so we can bound any error. */
 
-    SCH_GetFileReadyTime(&sys_time);
+    SCH_GetFileReadyTime(&sys_time, NULL);
 
     status = ioctl(fd, RTC_RD_TIME, &rtc_raw);
     if (status < 0) {
@@ -990,7 +868,7 @@ turn_off_interrupt:
 
       break;
     default:
-      CROAK("Impossible");
+      assert(0);
       break;
   }
 
@@ -1139,7 +1017,6 @@ int
 RTC_Linux_Trim(void)
 {
   struct timeval now;
-  double local_clock_err;
 
 
   /* Remember the slope coefficient - we won't be able to determine a
@@ -1158,7 +1035,7 @@ RTC_Linux_Trim(void)
        want |E| <= 0.5, which implies R <= S <= R+1, i.e. R is just
        the rounded down part of S, i.e. the seconds part. */
 
-    LCL_ReadCookedTime(&now, &local_clock_err);
+    LCL_ReadCookedTime(&now, NULL);
     
     set_rtc(now.tv_sec);
 
@@ -1177,18 +1054,6 @@ RTC_Linux_Trim(void)
 
   return 1;
   
-}
-
-/* ================================================== */
-
-void
-RTC_Linux_CycleLogFile(void)
-{
-  if (logfile) {
-    fclose(logfile);
-    logfile = NULL;
-    logwrites = 0;
-  }
 }
 
 /* ================================================== */

@@ -1,12 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/logging.c,v 1.15 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Miroslav Lichvar  2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,23 +25,41 @@
   Module to handle logging of diagnostic information
   */
 
+#include "config.h"
+
 #include "sysincl.h"
 
 #include "main.h"
+#include "conf.h"
 #include "logging.h"
-#include "version.h"
+#include "mkdirpp.h"
+#include "util.h"
 
 /* ================================================== */
 /* Flag indicating we have initialised */
 static int initialised = 0;
 
-static int is_detached = 0;
+static int system_log = 0;
 
 static time_t last_limited = 0;
 
 #ifdef WINNT
 static FILE *logfile;
 #endif
+
+struct LogFile {
+  const char *name;
+  const char *banner;
+  FILE *file;
+  unsigned long writes;
+};
+
+static int n_filelogs = 0;
+
+/* Increase this when adding a new logfile */
+#define MAX_FILELOGS 6
+
+static struct LogFile logfiles[MAX_FILELOGS];
 
 /* ================================================== */
 /* Init function */
@@ -72,10 +87,12 @@ LOG_Finalise(void)
     fclose(logfile);
   }
 #else
-  if (is_detached) {
+  if (system_log) {
     closelog();
   }
 #endif
+
+  LOG_CycleLogFiles();
 
   initialised = 0;
   return;
@@ -96,7 +113,7 @@ LOG_Line_Function(LOG_Severity severity, LOG_Facility facility, const char *form
     fprintf(logfile, "%s\n", buf);
   }
 #else
-  if (is_detached) {
+  if (system_log) {
     switch (severity) {
       case LOGS_INFO:
         syslog(LOG_INFO, "%s", buf);
@@ -132,7 +149,7 @@ LOG_Fatal_Function(LOG_Facility facility, const char *format, ...)
     fprintf(logfile, "Fatal error : %s\n", buf);
   }
 #else
-  if (is_detached) {
+  if (system_log) {
     syslog(LOG_CRIT, "Fatal error : %s", buf);
   } else {
     fprintf(stderr, "Fatal error : %s\n", buf);
@@ -154,7 +171,7 @@ LOG_Position(const char *filename, int line_number, const char *function_name)
   time_t t;
   struct tm stm;
   char buf[64];
-  if (!is_detached) {
+  if (!system_log) {
     /* Don't clutter up syslog with internal debugging info */
     time(&t);
     stm = *gmtime(&t);
@@ -168,50 +185,12 @@ LOG_Position(const char *filename, int line_number, const char *function_name)
 /* ================================================== */
 
 void
-LOG_GoDaemon(void)
+LOG_OpenSystemLog(void)
 {
 #ifdef WINNT
-
-
 #else
-
-  int pid, fd;
-
-  /* Does this preserve existing signal handlers? */
-  pid = fork();
-
-  if (pid < 0) {
-    LOG(LOGS_ERR, LOGF_Logging, "Could not detach, fork failed : %s", strerror(errno));
-  } else if (pid > 0) {
-    exit(0); /* In the 'grandparent' */
-  } else {
-
-    setsid();
-
-    /* Do 2nd fork, as-per recommended practice for launching daemons. */
-    pid = fork();
-
-    if (pid < 0) {
-      LOG(LOGS_ERR, LOGF_Logging, "Could not detach, fork failed : %s", strerror(errno));
-    } else if (pid > 0) {
-      exit(0); /* In the 'parent' */
-    } else {
-      /* In the child we want to leave running as the daemon */
-
-      /* Don't keep stdin/out/err from before. */
-      for (fd=0; fd<1024; fd++) {
-        close(fd);
-      }
-
-      is_detached = 1;
-
-      openlog("chronyd", LOG_PID, LOG_DAEMON);
-
-      LOG(LOGS_INFO, LOGF_Logging, "chronyd version %s starting", PROGRAM_VERSION_STRING);
-
-    }
-  }
-
+  system_log = 1;
+  openlog("chronyd", LOG_PID, LOG_DAEMON);
 #endif
 }
 
@@ -232,19 +211,101 @@ LOG_RateLimited(void)
 }
 
 /* ================================================== */
-/* Force a core dump and exit without doing abort() or assert(0).
-   These do funny things with the call stack in the core file that is
-   generated, which makes diagnosis difficult. */
 
-int
-croak(const char *file, int line, const char *msg)
+LOG_FileID
+LOG_FileOpen(const char *name, const char *banner)
 {
-  int a;
-  LOG(LOGS_ERR, LOGF_Util, "Unexpected condition [%s] at %s:%d, core dumped",
-      msg, file, line);
-  a = * (int *) 0;
-  return a; /* Can't happen - this stops the optimiser optimising the
-               line above */
+  assert(n_filelogs < MAX_FILELOGS);
+
+  logfiles[n_filelogs].name = name;
+  logfiles[n_filelogs].banner = banner;
+  logfiles[n_filelogs].file = NULL;
+  logfiles[n_filelogs].writes = 0;
+
+  return n_filelogs++;
+}
+
+/* ================================================== */
+
+void
+LOG_FileWrite(LOG_FileID id, const char *format, ...)
+{
+  va_list other_args;
+  int banner;
+
+  if (id < 0 || id >= n_filelogs || !logfiles[id].name)
+    return;
+
+  if (!logfiles[id].file) {
+    char filename[512];
+
+    if (snprintf(filename, sizeof(filename), "%s/%s.log",
+          CNF_GetLogDir(), logfiles[id].name) >= sizeof(filename) ||
+        !(logfiles[id].file = fopen(filename, "a"))) {
+      LOG(LOGS_WARN, LOGF_Refclock, "Couldn't open logfile %s for update", filename);
+      logfiles[id].name = NULL;
+      return;
+    }
+
+    /* Close on exec */
+    UTI_FdSetCloexec(fileno(logfiles[id].file));
+  }
+
+  banner = CNF_GetLogBanner();
+  if (banner && logfiles[id].writes++ % banner == 0) {
+    char bannerline[256];
+    int i, bannerlen;
+
+    bannerlen = strlen(logfiles[id].banner);
+
+    for (i = 0; i < bannerlen; i++)
+      bannerline[i] = '=';
+    bannerline[i] = '\0';
+
+    fprintf(logfiles[id].file, "%s\n", bannerline);
+    fprintf(logfiles[id].file, "%s\n", logfiles[id].banner);
+    fprintf(logfiles[id].file, "%s\n", bannerline);
+  }
+
+  va_start(other_args, format);
+  vfprintf(logfiles[id].file, format, other_args);
+  va_end(other_args);
+  fprintf(logfiles[id].file, "\n");
+
+  fflush(logfiles[id].file);
+}
+
+/* ================================================== */
+
+void
+LOG_CreateLogFileDir(void)
+{
+  const char *logdir;
+
+  if (n_filelogs <= 0)
+    return;
+
+  logdir = CNF_GetLogDir();
+
+  if (!mkdir_and_parents(logdir)) {
+    LOG(LOGS_ERR, LOGF_Logging, "Could not create directory %s", logdir);
+    n_filelogs = 0;
+  }
+}
+
+/* ================================================== */
+
+void
+LOG_CycleLogFiles(void)
+{
+  LOG_FileID i;
+
+  for (i = 0; i < n_filelogs; i++) {
+    if (logfiles[i].file)
+      fclose(logfiles[i].file);
+    logfiles[i].file = NULL;
+    logfiles[i].writes = 0;
+  }
 }
 
 /* ================================================== */

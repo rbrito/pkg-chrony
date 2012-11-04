@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/util.h,v 1.15 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -75,13 +71,13 @@ extern char *UTI_TimevalToString(struct timeval *tv);
 extern char *UTI_TimestampToString(NTP_int64 *ts);
 
 /* Convert ref_id into a temporary string, for diagnostics */
-extern char *UTI_RefidToString(unsigned long ref_id);
+extern char *UTI_RefidToString(uint32_t ref_id);
 
 /* Convert an IP address to string, for diagnostics */
 extern char *UTI_IPToString(IPAddr *ip);
 
 extern int UTI_StringToIP(const char *addr, IPAddr *ip);
-extern unsigned long UTI_IPToRefid(IPAddr *ip);
+extern uint32_t UTI_IPToRefid(IPAddr *ip);
 extern void UTI_IPHostToNetwork(IPAddr *src, IPAddr *dest);
 extern void UTI_IPNetworkToHost(IPAddr *src, IPAddr *dest);
 extern int UTI_CompareIPs(IPAddr *a, IPAddr *b, IPAddr *mask);
@@ -89,7 +85,7 @@ extern int UTI_CompareIPs(IPAddr *a, IPAddr *b, IPAddr *mask);
 extern char *UTI_TimeToLogForm(time_t t);
 
 /* Adjust time following a frequency/offset change */
-extern void UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *new_tv, double dfreq, double doffset);
+extern void UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *new_tv, double *delta, double dfreq, double doffset);
 
 
 extern void UTI_TimevalToInt64(struct timeval *src, NTP_int64 *dest);
@@ -101,6 +97,9 @@ extern void UTI_TimevalHostToNetwork(struct timeval *src, Timeval *dest);
 
 extern double UTI_FloatNetworkToHost(Float x);
 extern Float UTI_FloatHostToNetwork(double x);
+
+/* Set FD_CLOEXEC on descriptor */
+extern void UTI_FdSetCloexec(int fd);
 
 #if defined (INLINE_UTILITIES)
 #define INLINE_STATIC inline static

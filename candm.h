@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/candm.h,v 1.40 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -86,7 +82,12 @@
 #define REQ_MANUAL_DELETE 42
 #define REQ_MAKESTEP 43
 #define REQ_ACTIVITY 44
-#define N_REQUEST_TYPES 45
+#define REQ_MODIFY_MINSTRATUM 45
+#define REQ_MODIFY_POLLTARGET 46
+#define REQ_MODIFY_MAXDELAYDEVRATIO 47
+#define REQ_RESELECT 48
+#define REQ_RESELECTDISTANCE 49
+#define N_REQUEST_TYPES 50
 
 /* Special utoken value used to log on with first exchange being the
    password.  (This time value has long since gone by) */
@@ -163,6 +164,24 @@ typedef struct {
 } REQ_Modify_Maxdelayratio;
 
 typedef struct {
+  IPAddr address;
+  Float new_max_delay_dev_ratio;
+  int32_t EOR;
+} REQ_Modify_Maxdelaydevratio;
+
+typedef struct {
+  IPAddr address;
+  int32_t new_min_stratum;
+  int32_t EOR;
+} REQ_Modify_Minstratum;
+
+typedef struct {
+  IPAddr address;
+  int32_t new_poll_target;
+  int32_t EOR;
+} REQ_Modify_Polltarget;
+
+typedef struct {
   Float new_max_update_skew;
   int32_t EOR;
 } REQ_Modify_Maxupdateskew;
@@ -215,6 +234,9 @@ typedef struct {
 /* Flags used in NTP source requests */
 #define REQ_ADDSRC_ONLINE 0x1
 #define REQ_ADDSRC_AUTOOFFLINE 0x2
+#define REQ_ADDSRC_IBURST 0x4
+#define REQ_ADDSRC_PREFER 0x8
+#define REQ_ADDSRC_NOSELECT 0x10
 
 typedef struct {
   IPAddr ip_addr;
@@ -314,6 +336,15 @@ typedef struct {
   int32_t EOR;
 } REQ_Activity;
 
+typedef struct {
+  int32_t EOR;
+} REQ_Reselect;
+
+typedef struct {
+  Float distance;
+  int32_t EOR;
+} REQ_ReselectDistance;
+
 /* ================================================== */
 
 #define PKT_TYPE_CMD_REQUEST 1
@@ -334,7 +365,8 @@ typedef struct {
    Version 4 : IPv6 addressing added, 64-bit time values, sourcestats 
    and tracking reports extended, added flags to NTP source request,
    trimmed source report, replaced fixed-point format with floating-point
-   and used also instead of integer microseconds
+   and used also instead of integer microseconds, new commands: modify stratum,
+   modify polltarget, modify maxdelaydevratio, reselect, reselectdistance
 
  */
 
@@ -369,6 +401,9 @@ typedef struct {
     REQ_Dump dump;
     REQ_Modify_Maxdelay modify_maxdelay;
     REQ_Modify_Maxdelayratio modify_maxdelayratio;
+    REQ_Modify_Maxdelaydevratio modify_maxdelaydevratio;
+    REQ_Modify_Minstratum modify_minstratum;
+    REQ_Modify_Polltarget modify_polltarget;
     REQ_Modify_Maxupdateskew modify_maxupdateskew;
     REQ_Logon logon;
     REQ_Settime settime;
@@ -396,6 +431,8 @@ typedef struct {
     REQ_ManualDelete manual_delete;
     REQ_MakeStep make_step;
     REQ_Activity activity;
+    REQ_Reselect reselect;
+    REQ_ReselectDistance reselect_distance;
   } data; /* Command specific parameters */
 
 } CMD_Request;
@@ -463,7 +500,8 @@ typedef struct {
 #define RPY_SD_ST_UNREACH 1
 #define RPY_SD_ST_FALSETICKER 2
 #define RPY_SD_ST_JITTERY 3
-#define RPY_SD_ST_OTHER 4
+#define RPY_SD_ST_CANDIDATE 4
+#define RPY_SD_ST_OUTLYER 5
 
 typedef struct {
   IPAddr ip_addr;

@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/sys_linux.h,v 1.8 2002/02/28 23:27:15 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -34,8 +30,6 @@
 extern void SYS_Linux_Initialise(void);
 
 extern void SYS_Linux_Finalise(void);
-
-extern void SYS_Linux_GetKernelVersion(int *major, int *minor, int *patchlevel);
 
 extern void SYS_Linux_DropRoot(char *user);
 

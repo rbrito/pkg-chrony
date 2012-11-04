@@ -2,7 +2,7 @@
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
- * Copyright (C) Richard P. Curnow  1997-2002
+ * Copyright (C) Miroslav Lichvar  2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -21,18 +21,9 @@
 
   =======================================================================
 
-  Header for pktlength.c, routines for working out the expected length
-  of a network command/reply packet.
+  Header file for temperature compensation.
 
   */
 
-#ifndef GOT_PKTLENGTH_H
-#define GOT_PKTLENGTH_H
-
-#include "candm.h"
-
-extern int PKL_CommandLength(CMD_Request *r);
-
-extern int PKL_ReplyLength(CMD_Reply *r);
-
-#endif /* GOT_PKTLENGTH_H */
+extern void TMC_Initialise(void);
+extern void TMC_Finalise(void);

@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/mkdirpp.c,v 1.10 2002/11/03 22:49:17 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -29,6 +25,8 @@
   don't exist.
 
   */
+
+#include "config.h"
 
 #include "sysincl.h"
 
@@ -86,6 +84,7 @@ mkdir_and_parents(const char *path)
       p[i] = 0;
 
       if (do_dir(p) < 0) {
+        free(p);
         return 0;
       }
 

@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/wrap_adjtimex.h,v 1.6 2002/11/19 21:33:42 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -70,12 +66,15 @@ struct tmx_params {
 
 int TMX_SetTick(long tick);
 int TMX_ApplyOffset(long *offset);
-int TMX_SetFrequency(double freq, long tick);
-int TMX_GetFrequency(double *freq);
-int TMX_GetOffsetLeftOld(long *offset);
+int TMX_SetFrequency(double *freq, long tick);
+int TMX_GetFrequency(double *freq, long *tick);
 int TMX_GetOffsetLeft(long *offset);
 int TMX_ReadCurrentParams(struct tmx_params *params);
 int TMX_SetLeap(int leap);
+int TMX_SetSync(int sync);
+int TMX_EnableNanoPLL(void);
+int TMX_ApplyPLLOffset(long offset);
+int TMX_GetPLLOffsetLeft(long *offset);
 
 #endif  /* GOT_WRAP_ADJTIMEX_H */
 

@@ -1,12 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/regress.c,v 1.32 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Miroslav Lichvar  2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +25,8 @@
   Regression algorithms.
 
   */
+
+#include "config.h"
 
 #include <assert.h>
 #include <math.h>
@@ -69,9 +68,7 @@ RGR_WeightedRegression
   double u, ui, aa;
   int i;
 
-  if (n<3) {
-    CROAK("Insufficient points");
-  }
+  assert(n >= 3);
 
   W = U = 0;
   for (i=0; i<n; i++) {
@@ -136,6 +133,30 @@ RGR_GetTCoef(int dof)
 }
 
 /* ================================================== */
+/* Get 90% quantile of chi-square distribution */
+
+double
+RGR_GetChi2Coef(int dof)
+{
+  static double coefs[] = {
+    2.706, 4.605, 6.251, 7.779, 9.236, 10.645, 12.017, 13.362,
+    14.684, 15.987, 17.275, 18.549, 19.812, 21.064, 22.307, 23.542,
+    24.769, 25.989, 27.204, 28.412, 29.615, 30.813, 32.007, 33.196,
+    34.382, 35.563, 36.741, 37.916, 39.087, 40.256, 41.422, 42.585,
+    43.745, 44.903, 46.059, 47.212, 48.363, 49.513, 50.660, 51.805,
+    52.949, 54.090, 55.230, 56.369, 57.505, 58.641, 59.774, 60.907,
+    62.038, 63.167, 64.295, 65.422, 66.548, 67.673, 68.796, 69.919,
+    71.040, 72.160, 73.279, 74.397, 75.514, 76.630, 77.745, 78.860
+  };
+
+  if (dof <= 64) {
+    return coefs[dof-1];
+  } else {
+    return 1.2 * dof; /* Until I can be bothered to do something better */
+  }
+}
+
+/* ================================================== */
 /* Structure used for holding results of each regression */
 
 typedef struct {
@@ -150,23 +171,23 @@ typedef struct {
 } RegressionResult;
 
 /* ================================================== */
-/* Critical value for number of runs of residuals with same sign.  10%
-   critical region for now */
+/* Critical value for number of runs of residuals with same sign.
+   5% critical region for now. */
 
-static int critical_runs10[] =
-{ 0,  0,  0,  0,  0,  0,  0,  0,  3,  3,
-  4,  4,  4,  4,  5,  5,  6,  6,  7,  7,
-  7,  8,  8,  9,  9, 10, 10, 10, 11, 11,
- 12, 12, 13, 13, 14, 14, 14, 15, 15, 16,
- 16, 17, 17, 18, 18, 18, 19, 19, 20, 20,
-
-  /* Note that 66 onwards are bogus - I haven't worked out the
-     critical values */
- 21, 21, 22, 22, 23, 23, 23, 24, 24, 25,
- 25, 26, 26, 27, 27, 28, 28, 28, 28, 28,
- 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,
- 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,
- 28, 28, 28, 28, 28, 28, 28, 28, 28, 28
+static char critical_runs[] = {
+  0,  0,  0,  0,  0,  0,  0,  0,  2,  3,
+  3,  3,  4,  4,  5,  5,  5,  6,  6,  7,
+  7,  7,  8,  8,  9,  9,  9, 10, 10, 11,
+ 11, 11, 12, 12, 13, 13, 14, 14, 14, 15,
+ 15, 16, 16, 17, 17, 18, 18, 18, 19, 19,
+ 20, 20, 21, 21, 21, 22, 22, 23, 23, 24,
+ 24, 25, 25, 26, 26, 26, 27, 27, 28, 28,
+ 29, 29, 30, 30, 30, 31, 31, 32, 32, 33,
+ 33, 34, 34, 35, 35, 35, 36, 36, 37, 37,
+ 38, 38, 39, 39, 40, 40, 40, 41, 41, 42,
+ 42, 43, 43, 44, 44, 45, 45, 46, 46, 46,
+ 47, 47, 48, 48, 49, 49, 50, 50, 51, 51,
+ 52, 52, 52, 53, 53, 54, 54, 55, 55, 56
 };
 
 /* ================================================== */
@@ -194,7 +215,6 @@ n_runs_from_residuals(double *resid, int n)
 /* Return a boolean indicating whether we had enough points for
    regression */
 
-#define RESID_SIZE 1024
 #define MIN_SAMPLES_FOR_REGRESS 3
 
 int
@@ -205,6 +225,9 @@ RGR_FindBestRegression
                                    less reliable) */
  
  int n,                         /* number of data points */
+ int m,                         /* number of extra samples in x and y arrays
+                                   (negative index) which can be used to
+                                   extend runs test */
 
  /* And now the results */
 
@@ -228,12 +251,15 @@ RGR_FindBestRegression
 )
 {
   double P, Q, U, V, W; /* total */
-  double resid[RESID_SIZE];
+  double resid[MAX_POINTS * REGRESS_RUNS_RATIO];
   double ss;
   double a, b, u, ui, aa;
 
-  int start, nruns, npoints, npoints_left;
+  int start, resid_start, nruns, npoints;
   int i;
+
+  assert(n <= MAX_POINTS);
+  assert(n * REGRESS_RUNS_RATIO < sizeof (critical_runs) / sizeof (critical_runs[0]));
 
   if (n < MIN_SAMPLES_FOR_REGRESS) {
     return 0;
@@ -258,20 +284,26 @@ RGR_FindBestRegression
       V += ui   * ui   / w[i];
     }
 
-    npoints = n - start;
     b = Q / V;
     a = (P / W) - (b * u);
 
-    for (i=start; i<n; i++) {
-      resid[i] = y[i] - a - b*x[i];
+    /* Get residuals also for the extra samples before start */
+    resid_start = n - (n - start) * REGRESS_RUNS_RATIO;
+    if (resid_start < -m)
+      resid_start = -m;
+
+    for (i=resid_start; i<n; i++) {
+      resid[i - resid_start] = y[i] - a - b*x[i];
     }
 
     /* Count number of runs */
-    nruns = n_runs_from_residuals(resid + start, npoints); 
+    nruns = n_runs_from_residuals(resid, n - resid_start); 
 
-    npoints_left = n - start - 1;
-
-    if ((nruns > critical_runs10[npoints]) || (npoints_left < MIN_SAMPLES_FOR_REGRESS)) {
+    if (nruns > critical_runs[n - resid_start] || n - start <= MIN_SAMPLES_FOR_REGRESS) {
+      if (resid_start < 0) {
+        /* Ignore extra samples in returned nruns */
+        nruns = n_runs_from_residuals(resid - resid_start, n); 
+      }
       break;
     } else {
       /* Try dropping one sample at a time until the runs test passes. */
@@ -286,7 +318,7 @@ RGR_FindBestRegression
 
   ss = 0.0;
   for (i=start; i<n; i++) {
-    ss += resid[i]*resid[i] / w[i];
+    ss += resid[i - resid_start]*resid[i - resid_start] / w[i];
   }
 
   npoints = n - start;
@@ -332,9 +364,7 @@ find_ordered_entry_with_flags(double *x, int n, int index, int *flags)
   double piv;
   int pivind;
 
-  if (index < 0) {
-    CROAK("Negative index");
-  }
+  assert(index >= 0);
 
   /* If this bit of the array is already sorted, simple! */
   if (flags[index]) {
@@ -378,8 +408,6 @@ find_ordered_entry_with_flags(double *x, int n, int index, int *flags)
         v = r - 1;
       } else if (index > r) {
         u = l;
-      } else {
-        CROAK("Impossible");
       }
     }
   } while (1);
@@ -498,6 +526,8 @@ RGR_FindBestRobustRegression
   double mx, dx, my, dy;
   int nruns = 0;
 
+  assert(n < MAX_POINTS);
+
   if (n < 2) {
     return 0;
   } else if (n == 2) {
@@ -591,7 +621,7 @@ RGR_FindBestRobustRegression
         bhi = bmid;
         rhi = rmid;
       } else {
-        CROAK("Impossible");
+        assert(0);
       }
     } while ((bhi - blo) > tol);
 
@@ -610,7 +640,7 @@ RGR_FindBestRobustRegression
 
     nruns = n_runs_from_residuals(resids + start, n_points);
 
-    if (nruns > critical_runs10[n_points]) {
+    if (nruns > critical_runs[n_points]) {
       break;
     } else {
       start++;

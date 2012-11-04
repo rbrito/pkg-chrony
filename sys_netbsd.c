@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/sys_netbsd.c,v 1.2 2002/02/17 22:13:49 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -28,6 +24,8 @@
 
   Driver file for the NetBSD operating system.
   */
+
+#include "config.h"
 
 #ifdef __NetBSD__
 
@@ -78,21 +76,20 @@ static void
 clock_initialise(void)
 {
   struct timeval newadj, oldadj;
-  struct timezone tz;
 
   offset_register = 0.0;
   adjustment_requested = 0.0;
   current_freq = 0.0;
 
-  if (gettimeofday(&T0, &tz) < 0) {
-    CROAK("gettimeofday() failed in clock_initialise()");
+  if (gettimeofday(&T0, NULL) < 0) {
+    LOG_FATAL(LOGF_SysNetBSD, "gettimeofday() failed");
   }
 
   newadj.tv_sec = 0;
   newadj.tv_usec = 0;
 
   if (adjtime(&newadj, &oldadj) < 0) {
-    CROAK("adjtime() failed in clock_initialise");
+    LOG_FATAL(LOGF_SysNetBSD, "adjtime() failed");
   }
 
 }
@@ -113,7 +110,6 @@ start_adjust(void)
 {
   struct timeval newadj, oldadj;
   struct timeval T1;
-  struct timezone tz;
   double elapsed, accrued_error;
   double adjust_required;
   struct timeval exact_newadj;
@@ -122,8 +118,8 @@ start_adjust(void)
   double old_adjust_remaining;
 
   /* Determine the amount of error built up since the last adjustment */
-  if (gettimeofday(&T1, &tz) < 0) {
-    CROAK("gettimeofday() failed in start_adjust");
+  if (gettimeofday(&T1, NULL) < 0) {
+    LOG_FATAL(LOGF_SysNetBSD, "gettimeofday() failed");
   }
 
   UTI_DiffTimevalsToDouble(&elapsed, &T1, &T0);
@@ -151,7 +147,7 @@ start_adjust(void)
   UTI_DiffTimevalsToDouble(&rounding_error, &newadj, &exact_newadj);
 
   if (adjtime(&newadj, &oldadj) < 0) {
-    CROAK("adjtime() failed in start_adjust");
+    LOG_FATAL(LOGF_SysNetBSD, "adjtime() failed");
   }
 
   UTI_TimevalToDouble(&oldadj, &old_adjust_remaining);
@@ -169,7 +165,6 @@ static void
 stop_adjust(void)
 {
   struct timeval T1;
-  struct timezone tz;
   struct timeval zeroadj, remadj;
   double adjustment_remaining, adjustment_achieved;
   double elapsed, elapsed_plus_adjust;
@@ -178,11 +173,11 @@ stop_adjust(void)
   zeroadj.tv_usec = 0;
 
   if (adjtime(&zeroadj, &remadj) < 0) {
-    CROAK("adjtime() failed in stop_adjust");
+    LOG_FATAL(LOGF_SysNetBSD, "adjtime() failed");
   }
 
-  if (gettimeofday(&T1, &tz) < 0) {
-    CROAK("gettimeofday() failed in stop_adjust");
+  if (gettimeofday(&T1, NULL) < 0) {
+    LOG_FATAL(LOGF_SysNetBSD, "gettimeofday() failed");
   }
   
   UTI_DiffTimevalsToDouble(&elapsed, &T1, &T0);
@@ -221,18 +216,17 @@ static void
 apply_step_offset(double offset)
 {
   struct timeval old_time, new_time, T1;
-  struct timezone tz;
   
   stop_adjust();
 
-  if (gettimeofday(&old_time, &tz) < 0) {
-    CROAK("gettimeofday in apply_step_offset");
+  if (gettimeofday(&old_time, NULL) < 0) {
+    LOG_FATAL(LOGF_SysNetBSD, "gettimeofday() failed");
   }
 
   UTI_AddDoubleToTimeval(&old_time, -offset, &new_time);
 
-  if (settimeofday(&new_time, &tz) < 0) {
-    CROAK("settimeofday in apply_step_offset");
+  if (settimeofday(&new_time, NULL) < 0) {
+    LOG_FATAL(LOGF_SysNetBSD, "settimeofday() failed");
   }
 
   UTI_AddDoubleToTimeval(&T0, offset, &T1);
@@ -244,12 +238,14 @@ apply_step_offset(double offset)
 
 /* ================================================== */
 
-static void
+static double
 set_frequency(double new_freq_ppm)
 {
   stop_adjust();
   current_freq = new_freq_ppm * 1.0e-6;
   start_adjust();
+
+  return current_freq * 1.0e6;
 }
 
 /* ================================================== */
@@ -264,11 +260,13 @@ read_frequency(void)
 
 static void
 get_offset_correction(struct timeval *raw,
-                      double *corr)
+                      double *corr, double *err)
 {
   stop_adjust();
   *corr = -offset_register;
   start_adjust();
+  if (err)
+    *err = 0.0;
 }
 
 /* ================================================== */
@@ -287,15 +285,15 @@ SYS_NetBSD_Initialise(void)
 
   kt = kvm_open(NULL, NULL, NULL, O_RDONLY, NULL);
   if (!kt) {
-    CROAK("Cannot open kvm\n");
+    LOG_FATAL(LOGF_SysNetBSD, "Cannot open kvm");
   }
 
   if (kvm_nlist(kt, nl) < 0) {
-    CROAK("Cannot read kernel symbols\n");
+    LOG_FATAL(LOGF_SysNetBSD, "Cannot read kernel symbols");
   }
 
   if (kvm_read(kt, nl[0].n_value, (char *)(&kern_tickadj), sizeof(int)) < 0) {
-    CROAK("Cannot read from _tickadj\n");
+    LOG_FATAL(LOGF_SysNetBSD, "Cannot read from _tickadj");
   }
 
   if (kvm_read(kt, nl[1].n_value, (char *)(&kern_bigadj), sizeof(long)) < 0) {

@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/sched.h,v 1.10 2002/02/28 23:27:14 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -35,10 +31,12 @@
 
 typedef unsigned long SCH_TimeoutID;
 
-typedef unsigned long SCH_TimeoutClass;
-static const SCH_TimeoutClass SCH_ReservedTimeoutValue = 0;
-static const SCH_TimeoutClass SCH_NtpSamplingClass = 1;
-static const SCH_TimeoutClass SCH_NtpBroadcastClass = 2;
+typedef enum {
+  SCH_ReservedTimeoutValue = 0,
+  SCH_NtpSamplingClass,
+  SCH_NtpBroadcastClass,
+  SCH_NumberOfClasses /* needs to be last */
+} SCH_TimeoutClass;
 
 typedef void* SCH_ArbitraryArgument;
 typedef void (*SCH_FileHandler)(SCH_ArbitraryArgument);
@@ -62,7 +60,7 @@ extern void SCH_RemoveInputFileHandler(int fd);
 
 /* Get the time (cooked) when file descriptor became ready, intended for use
    in file handlers */
-extern void SCH_GetFileReadyTime(struct timeval *tv);
+extern void SCH_GetFileReadyTime(struct timeval *tv, double *err);
 
 /* This queues a timeout to elapse at a given (raw) local time */
 extern SCH_TimeoutID SCH_AddTimeout(struct timeval *tv, SCH_TimeoutHandler, SCH_ArbitraryArgument);
@@ -72,8 +70,9 @@ extern SCH_TimeoutID SCH_AddTimeoutByDelay(double delay, SCH_TimeoutHandler, SCH
 
 /* This queues a timeout in a particular class, ensuring that the
    expiry time is at least a given separation away from any other
-   timeout in the same class */
-extern SCH_TimeoutID SCH_AddTimeoutInClass(double min_delay, double separation,
+   timeout in the same class, given randomness is added to the delay
+   and separation */
+extern SCH_TimeoutID SCH_AddTimeoutInClass(double min_delay, double separation, double randomness,
                                            SCH_TimeoutClass class,
                                            SCH_TimeoutHandler handler, SCH_ArbitraryArgument);
 

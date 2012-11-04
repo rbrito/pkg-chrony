@@ -1,4 +1,4 @@
-.TH CHRONYD 8 "December 04, 2009" chrony "System Administration"
+.TH CHRONYD 8 "July 2011" "chrony 1.26" "System Administration"
 .SH NAME
 chronyd \- chrony background daemon
 
@@ -44,6 +44,10 @@ Linux.
 .B \-m
 This option will lock chronyd into RAM so that it will never be paged out.
 This mode is only supported on Linux.
+.TP
+.B \-n
+When run in this mode, the program will not detach itself from the
+terminal.
 .TP
 .B \-d
 When run in this mode, the program will not detach itself from the
@@ -103,9 +107,6 @@ Resolve hostnames only to IPv6 addresses.
 
 .SH FILES
 \fI/etc/chrony.conf\fR
-
-.SH VERSION
-Version 1.24
 
 .SH BUGS
 To report bugs, please visit \fIhttp://chrony.tuxfamily.org/\fR

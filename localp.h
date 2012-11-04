@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/localp.h,v 1.9 2002/02/28 23:27:10 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -40,8 +36,9 @@ typedef double (*lcl_ReadFrequencyDriver)(void);
 
 /* System driver to set the current local frequency, in ppm relative
    to nominal.  A positive value indicates that the local clock runs
-   fast when uncompensated. */
-typedef void (*lcl_SetFrequencyDriver)(double freq_ppm);
+   fast when uncompensated.  Return actual frequency (may be different
+   from the requested frequency due to clamping or rounding). */
+typedef double (*lcl_SetFrequencyDriver)(double freq_ppm);
 
 /* System driver to accrue an offset. A positive argument means slew
    the clock forwards. */
@@ -54,7 +51,7 @@ typedef void (*lcl_ApplyStepOffsetDriver)(double offset);
 /* System driver to convert a raw time to an adjusted (cooked) time.
    The number of seconds returned in 'corr' have to be added to the
    raw time to get the corrected time */
-typedef void (*lcl_OffsetCorrectionDriver)(struct timeval *raw, double *corr);
+typedef void (*lcl_OffsetCorrectionDriver)(struct timeval *raw, double *corr, double *err);
 
 /* System driver to schedule leap second */
 typedef void (*lcl_SetLeapDriver)(int leap);

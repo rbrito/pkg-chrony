@@ -854,6 +854,10 @@ the command
 
    The command line options supported are as follows:
 
+`-n'
+     When run in this mode, the program will not detach itself from the
+     terminal.
+
 `-d'
      When run in this mode, the program will not detach itself from the
      terminal, and all messages will be sent to the terminal instead of
@@ -1309,7 +1313,42 @@ If this command is present, it indicates that `chronyd' should save the
 measurement history for each of its time sources recorded whenever the
 program exits.  (See the dumpdir command above).
 
-4.2.15 initstepslew
+4.2.15 fallbackdrift
+--------------------
+
+Fallback drifts are long-term averages of the system clock drift
+calculated over exponentially increasing intervals.  They are used when
+the clock is unsynchronised to avoid quickly drifting away from true
+time if there was a short-term deviation in drift before the
+synchronisation was lost.
+
+   The directive specifies the minimum and maximum interval for how long
+the system clock has to be unsynchronised to switch between fallback
+drifts.  They are defined as a power of 2 (in seconds).  The syntax is
+as follows
+
+     fallbackdrift 16 19
+
+   In this example, the minimum interval is 16 (18 hours) and maximum
+interval is 19 (6 days).  The system clock frequency will be set to the
+first fallback 18 hours after the synchronisation was lost, to the
+second after 36 hours, etc.  This might be a good setting to cover
+daily and weekly temperature fluctuations.
+
+   By default (or if the specified maximum or minimum is 0), no
+fallbacks will be used and the clock frequency will stay at the last
+value calculated before synchronisation was lost.
+
+4.2.16 include
+--------------
+
+The `include' directive includes a specified configuration file.  This
+is useful when maintaining configuration on multiple hosts to keep the
+differences in a separate file.
+
+     include /etc/chrony/local.conf
+
+4.2.17 initstepslew
 -------------------
 
 In normal operation, `chronyd' always slews the time when it needs to
@@ -1365,7 +1404,7 @@ references some or all of the slaves.  Then, if the master machine has
 to be rebooted, the slaves can be relied on to 'flywheel' the time for
 the master.
 
-4.2.16 keyfile
+4.2.18 keyfile
 --------------
 
 This command is used to specify the location of the file containing
@@ -1399,7 +1438,7 @@ mode with `xntpd' running on other computers.
    The ID for the chronyc authentication key is specified with the
 commandkey command (see earlier).
 
-4.2.17 local
+4.2.19 local
 ------------
 
 The local keyword is used to allow `chronyd' to appear synchronised to
@@ -1431,7 +1470,7 @@ like 10 for the local command prevents the machine's own time from ever
 being confused with real time, were it ever to leak out to clients that
 have visibility of real servers.
 
-4.2.18 linux_hz
+4.2.20 linux_hz
 ---------------
 
 (This option only applies to Linux).
@@ -1450,7 +1489,7 @@ from the default value.
 
      linux_hz 100
 
-4.2.19 linux_freq_scale
+4.2.21 linux_freq_scale
 -----------------------
 
 (This option only applies to Linux).
@@ -1472,7 +1511,7 @@ differ from those on the system where chronyd was built.
 
      linux_freq_scale 0.99902439
 
-4.2.20 log
+4.2.22 log
 ----------
 
 The log command indicates that certain information is to be logged.
@@ -1493,8 +1532,12 @@ The log command indicates that certain information is to be logged.
      This option logs information about the system's real-time clock.
 
 `refclocks'
-     This option logs the raw reference clock measurements to a file
-     called refclocks.log.
+     This option logs the raw and filtered reference clock measurements
+     to a file called refclocks.log.
+
+`tempcomp'
+     This option logs the temperature measurements and system rate
+     compensations to a file called tempcomp.log.
 
    The files are written to the directory specified by the logdir
 command.
@@ -1503,19 +1546,19 @@ command.
 
      log measurements statistics tracking
 
-4.2.20.1 Measurements log file format
+4.2.22.1 Measurements log file format
 .....................................
 
 An example line (which actually appears as a single line in the file)
 from the measurements log file is shown below.
 
-     1998-07-22 05:40:50 158.152.1.76    N  8 1111 11 1111 10 10  1 \
+     2010-12-22 05:40:50 158.152.1.76    N  8 1111 111 1111 10 10 1.0 \
         -4.966e-03  2.296e-01  1.577e-05  1.615e-01  7.446e-03
 
    The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-  1. Date [1998-07-22]
+  1. Date [2010-12-22]
 
   2. Hour:Minute:Second [05:40:50].  Note that the date/time pair is
      expressed in UTC, not the local time zone.
@@ -1532,8 +1575,8 @@ values from the example line above) :
 
   6. RFC1305 tests 1 through 4 (1=pass, 0=fail) [1111]
 
-  7. Tests for maximum delay and maximum delay ratio, against user
-     defined parameters (1=pass, 0=fail) [11]
+  7. Tests for maximum delay, maximum delay ratio and maximum delay dev
+     ratio, against defined parameters (1=pass, 0=fail) [111]
 
   8. RFC1305 tests 5 through 8 (1=pass, 0=fail) [1111]
 
@@ -1543,8 +1586,8 @@ values from the example line above) :
 
  11. `Score' (an internal score within each polling level used to
      decide when to increase or decrease the polling level.  This is
-     adjusted based on changes to the variance of the measurements
-     obtained from the source). [1]
+     adjusted based on number of measurements currently being used for
+     the regression algorithm). [1.0]
 
  12. The estimated local clock error (`theta' in RFC1305).  Positive
      indicates that the local clock is slow. [-4.966e-03].
@@ -1560,11 +1603,11 @@ values from the example line above) :
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.20.2 Statistics log file format
+4.2.22.2 Statistics log file format
 ...................................
 
 An example line (which actually appears as a single line in the file)
-from the measurements log file is shown below.
+from the statistics log file is shown below.
 
      1998-07-22 05:40:50 158.152.1.76     6.261e-03 -3.247e-03 \
           2.220e-03  1.874e-06  1.080e-06 7.8e-02  16   0   8
@@ -1621,11 +1664,11 @@ values from the example line above) :
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.20.3 Tracking log file format
+4.2.22.3 Tracking log file format
 .................................
 
 An example line (which actually appears as a single line in the file)
-from the measurements log file is shown below.
+from the tracking log file is shown below.
 
      1998-07-22 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03
 
@@ -1654,7 +1697,7 @@ values from the example line above) :
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.20.4 Real-time clock log file format
+4.2.22.4 Real-time clock log file format
 ........................................
 
 An example line (which actually appears as a single line in the file)
@@ -1700,13 +1743,13 @@ values from the example line above) :
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.20.5 Refclocks log file format
+4.2.22.5 Refclocks log file format
 ..................................
 
 An example line (which actually appears as a single line in the file)
 from the refclocks log file is shown below.
 
-     2009-11-30 14:33:27.000000 PPS2    7 N 1  4.900000e-07 -6.741777e-07
+     2009-11-30 14:33:27.000000 PPS2    7 N 1  4.900000e-07 -6.741777e-07  1.000e-06
 
    The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
@@ -1718,24 +1761,63 @@ values from the example line above) :
 
   3. Reference ID of refclock from which measurement comes. [PPS2]
 
-  4. Sequence number of driver poll within one polling interval. [7]
+  4. Sequence number of driver poll within one polling interval for raw
+     samples, or `-' for filtered samples. [7]
 
   5. Leap status (`N' means normal, `+' means that the last minute of
      today has 61 seconds, `-' means that the last minute of the day
      has 59 seconds). [N]
 
   6. Flag indicating whether the sample comes from PPS source. (1 for
-     yes, 0 for no). [1]
+     yes, 0 for no, or `-' for filtered sample). [1]
 
-  7. Local clock error measured by refclock driver. [4.900000e-07]
+  7. Local clock error measured by refclock driver, or `-' for filtered
+     sample. [4.900000e-07]
 
   8. Local clock error with applied corrections.  Positive indicates
      that the local clock is slow. [-6.741777e-07]
 
+  9. Assumed dispersion of the sample. [1.000e-06]
+
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.21 logchange
+4.2.22.6 Tempcomp log file format
+.................................
+
+An example line (which actually appears as a single line in the file)
+from the tempcomp log file is shown below.
+
+     2010-04-19 10:39:48  2.8000e+04  3.6600e-01
+
+   The columns are as follows (the quantities in square brackets are the
+values from the example line above) :
+
+  1. Date [2010-04-19]
+
+  2. Hour:Minute:Second [10:39:48].  Note that the date/time pair is
+     expressed in UTC, not the local time zone.
+
+  3. Temperature read from tempcomp file. [2.8000e+04]
+
+  4. Applied compensation in ppm, positive means the system clock is
+     running faster than it would be without the compensation.
+     [3.6600e-01]
+
+   A banner is periodically written to the log file to indicate the
+meanings of the columns.
+
+4.2.23 logbanner
+----------------
+
+A banner is periodically written to the log files enabled by the `log'
+directive to indicate the meanings of the columns.
+
+   The `logbanner' directive specifies after how many entries in the
+log file should be the banner written. The default is 32, and 0 can be
+used to disable it entirely.
+
+4.2.24 logchange
 ----------------
 
 This directive forces `chronyd' to send a message to syslog if it makes
@@ -1755,7 +1837,7 @@ somebody can see them.  This allows that person to see if a large error
 has arisen, e.g. because of a fault, or because of faulty timezone
 handling, for example when summer time (daylight saving) starts or ends.
 
-4.2.22 logdir
+4.2.25 logdir
 -------------
 
 This directive allows the directory where log files are written to be
@@ -1765,7 +1847,7 @@ specified.
 
      logdir /var/log/chrony
 
-4.2.23 mailonchange
+4.2.26 mailonchange
 -------------------
 
 This directive defines an email address to which mail should be sent if
@@ -1779,7 +1861,7 @@ system clock.
    This would send a mail message to root if a change of more than 0.5
 seconds were applied to the system clock.
 
-4.2.24 makestep
+4.2.27 makestep
 ---------------
 
 Normally chronyd will cause the system to gradually correct any time
@@ -1803,7 +1885,7 @@ with NTP sources.
    This would step system clock if the adjustment is larger than 1000
 seconds, but only in the first ten clock updates.
 
-4.2.25 manual
+4.2.28 manual
 -------------
 
 The `manual' directive enables support at run-time for the `settime'
@@ -1817,7 +1899,24 @@ two commands is that the `manual' command controls the manual clock
 driver's behaviour, whereas the `settime' command allows samples of
 manually entered time to be provided).
 
-4.2.26 maxupdateskew
+4.2.29 maxclockerror
+--------------------
+
+The `maxclockerror' directive sets the maximum assumed frequency error
+of the local clock.  This is a frequency stability of the clock, not an
+absolute frequency error.
+
+   By default, the maximum assumed error is set to 1 ppm.
+
+   The syntax is
+
+     maxclockerror <error-in-ppm>
+
+   Typical values for <error-in-ppm> might be 10 for a low quality clock
+to 0.1 for a high quality clock using a temperature compensated crystal
+oscillator.
+
+4.2.30 maxupdateskew
 --------------------
 
 One of `chronyd's' tasks is to work out how fast or slow the computer's
@@ -1830,6 +1929,7 @@ loss rate is not very reliable.
 
    The `maxupdateskew' parameter allows the threshold for determining
 whether an estimate may be so unreliable that it should not be used.
+By default, the threshold is 1000 ppm.
 
    The syntax is
 
@@ -1849,14 +1949,14 @@ highly-reliable master estimate and a new estimate is generated which
 has large error bounds, the existing master estimate will dominate in
 the new master estimate.
 
-4.2.27 noclientlog
+4.2.31 noclientlog
 ------------------
 
 This directive, which takes no arguments, specifies that client accesses
 are not to be logged.  Normally they are logged, allowing statistics to
 be reported using the `clients' command in `chronyc'.
 
-4.2.28 clientloglimit
+4.2.32 clientloglimit
 ---------------------
 
 This directive specifies the maximum size of the memory allocated to
@@ -1869,14 +1969,14 @@ bytes.
 
      clientloglimit 1048576
 
-4.2.29 peer
+4.2.33 peer
 -----------
 
 The syntax of this directive is identical to that for the `server'
 directive (*note server directive::), except that it is used to specify
 an NTP peer rather than an NTP server.
 
-4.2.30 pidfile
+4.2.34 pidfile
 --------------
 
 chronyd always writes its process ID (pid) to a file, and checks this
@@ -1886,7 +1986,7 @@ system.  By default, the file used is `/var/run/chronyd.pid'.  The
 
      pidfile /var/tmp/chronyd.pid
 
-4.2.31 port
+4.2.35 port
 -----------
 
 This option allows you to configure the port used for the NTP service
@@ -1904,31 +2004,34 @@ mode and never be available as a server to xntpd clients.
    This would change the NTP port served by chronyd on the computer to
 udp/11123.
 
-4.2.32 refclock
+4.2.36 refclock
 ---------------
 
-The `refclock' directive allows reference clocks to be specified.  The
-directive is immediately followed by a refclock driver name and its
-parameter.
+Reference clocks allows very accurate synchronisation and `chronyd' can
+function as a stratum 1 server.  They are specified by the `refclock'
+directive.  It has two mandatory parameters, a refclock driver name and
+a driver specific parameter.
 
-   There are currently three drivers implemented:
+   There are currently three drivers included:
 
 `PPS'
-     Pulse per second (PPS) API driver.  The parameter is a path to the
+     PPSAPI (pulse per second) driver.  The parameter is the path to a
      PPS device.  Assert events are used by default.  Driver option
-     `:clear' can be appended to the path to use clear events instead.
+     `:clear' can be appended to the path if clear events should be
+     used instead.
 
-     PPS refclock needs another source (NTP or non-PPS refclock) or
-     local directive (*note local directive::) enabled to function.
-     For example:
+     As PPS refclock gets only sub-second time information, it needs
+     another source (NTP or non-PPS refclock) or local directive (*note
+     local directive::) enabled to work.  For example:
 
-          refclock SHM 0 offset 0.5 delay 0.1
-          refclock PPS /dev/pps0
+          refclock PPS /dev/pps0 lock NMEA
+          refclock SHM 0 offset 0.5 delay 0.1 refid NMEA noselect
 
 `SHM'
-     NTP shared memory driver.  The parameter is the number of the
-     shared memory segment that should be used for receiving
-     timestamps, usually 0, 1, 2 or 3.  For example:
+     NTP shared memory driver.  This driver uses a shared memory
+     segment to receive data from another daemon which communicates
+     with an actual reference clock.  The parameter is the number of a
+     shared memory segment, usually 0, 1, 2 or 3.  For example:
 
           refclock SHM 1 poll 3 refid GPS1
 
@@ -1936,16 +2039,25 @@ parameter.
      number to create the segment with permissions other than the
      default `0600'.
 
-     Software that can be used as a source of reference time includes
-     `gpsd' and `shmpps'.
+     Some examples of applications that can be used as SHM sources are
+     `gpsd', `shmpps' and `radioclk'.
 
 `SOCK'
-     Unix domain socket driver.  The parameter is a path to the socket
-     which is used as the source of timestamps.  This is as a better
-     alternative to SHM, it does not require polling, the offset
-     resolution is not limited to microsecond and it supports PPS.  The
-     format for messages sent over the socket is declared in file
-     `refclock_sock.c'.
+     Unix domain socket driver.  It is similar to the SHM driver, but
+     uses a different format and uses a socket instead of shared
+     memory.  It does not require polling, the offset resolution is not
+     limited to microseconds and it supports transmitting of PPS data.
+     The parameter is a path to the socket which will be created by
+     `chronyd' and used to receive the messages.  The format of
+     messages sent over the socket is described in the
+     `refclock_sock.c' file.
+
+     Recent versions of the `gpsd' daemon include support for the SOCK
+     protocol.  The path where the socket should be created is
+     described in the `gpsd(8)' man page.  For example:
+
+          refclock SOCK /tmp/chrony.tty0.sock
+
 
    The `refclock' command also supports a number of subfields (which
 may be defined in any order):
@@ -1955,7 +2067,8 @@ may be defined in any order):
      but they are stored and processed by a median filter in intervals
      specified by this option.  This is defined as a power of 2.  The
      default is 4 (16 seconds).  A shorter interval allows `chronyd' to
-     react faster to frequency changes, but it may increase noise.
+     react faster to changes in clock frequency, but it may decrease
+     the accuracy if the source is too noisy.
 
 `dpoll'
      Some drivers are not controlled by external events and thus require
@@ -1966,13 +2079,15 @@ may be defined in any order):
      This option is used to specify a reference id of the refclock, as
      up to four ASCII characters.  By default, first three characters
      from driver name and the number of the refclock are used as refid.
-     Each refclock has to use an unique refid.
+     Each refclock must have an unique refid.
 
 `filter'
      This option sets the length of the median filter which is used to
-     reduce noise.  With each poll about half of the stored samples are
-     discarded and one final sample is calculated as average of the
-     remaining samples.  The default is 15.
+     reduce noise.  With each poll about 40 percent of the stored
+     samples is discarded and one final sample is calculated as average
+     of the remaining samples.  If the length is 4 or above, at least 4
+     samples have to be collected between polls.  For lengths below 4,
+     the filter has to be full.  The default is 64.
 
 `rate'
      PPS signal frequency (in Hz).  This option only controls how the
@@ -1999,7 +2114,34 @@ may be defined in any order):
      the algorithm prefer other refclocks.  The default is 1e-9 (1
      nanosecond).
 
-4.2.33 rtcdevice
+`precision'
+     Refclock precision (in seconds).  The default is 1e-6 (1
+     microsecond) for SHM refclock, and 1e-9 (1 nanosecond) for SOCK
+     and PPS refclocks.
+
+`prefer'
+     Prefer this source over sources without prefer option.
+
+`noselect'
+     Never select this source.  This is useful for monitoring or with
+     sources which are not very accurate, but are locked with a PPS
+     refclock.
+
+4.2.37 reselectdist
+-------------------
+
+When `chronyd' selects synchronisation source from available sources, it
+will prefer the one with minimum synchronisation distance.  However, to
+avoid frequent reselecting when there are sources with similar
+distance, a fixed distance is added to the distance for sources that
+are currently not selected.  This can be set with the `reselectdist'
+option.  By default, the distance is 100 microseconds.
+
+   The syntax is
+
+     reselectdist <dist-in-seconds>
+
+4.2.38 rtcdevice
 ----------------
 
 The `rtcdevice' directive defines the name of the device file for
@@ -2009,7 +2151,7 @@ systems with devfs.  An example of use is
 
      rtcdevice /dev/misc/rtc
 
-4.2.34 rtcfile
+4.2.39 rtcfile
 --------------
 
 The `rtcfile' directive defines the name of the file in which `chronyd'
@@ -2041,7 +2183,7 @@ conditions apply:
      `/dev/rtc' at all.
 
 
-4.2.35 rtconutc
+4.2.40 rtconutc
 ---------------
 
 `chronyd' assumes by default that the real time clock (RTC) keeps local
@@ -2061,7 +2203,17 @@ saving starts or ends.
 keep UTC.  The directive takes no arguments.  It is equivalent to
 specifying the `-u' switch to the Linux `/sbin/clock' program.
 
-4.2.36 sched_priority
+4.2.41 rtcsync
+--------------
+
+The `rtcsync' directive will enable a kernel mode where the system time
+is copied to the real time clock (RTC) every 11 minutes.
+
+   This directive is supported only on Linux and cannot be used when the
+normal RTC tracking is enabled, i.e. when the `rtcfile' directive is
+used.
+
+4.2.42 sched_priority
 ---------------------
 
 The `sched_priority' directive will select the SCHED_FIFO real-time
@@ -2079,7 +2231,23 @@ consistent latency since Chronyd will not need to wait for the
 scheduler to get around to running it.  You should not use this unless
 you really need it.  The sched_setscheduler man page has more details.
 
-4.2.37 lock_all
+4.2.43 stratumweight
+--------------------
+
+The `stratumweight' directive sets how much distance should be added
+per stratum to the synchronisation distance when `chronyd' selects the
+synchronisation source from available sources.
+
+   The syntax is
+
+     stratumweight <dist-in-seconds>
+
+   By default, it is 1 second.  This usually means that sources with
+lower stratum will be preferred to sources with higher stratum even
+when their distance is significantly worse.  Setting `stratumweight' to
+0 makes `chronyd' ignore stratum when selecting the source.
+
+4.2.44 lock_all
 ---------------
 
 The `lock_all' directive will lock chronyd into RAM so that it will
@@ -2090,7 +2258,7 @@ consistent latency.  It should not have significant impact on
 performance as Chronyd's memory usage is modest.  The mlockall man page
 has more details.
 
-4.2.38 server
+4.2.45 server
 -------------
 
 The `server' directive allows NTP servers to be specified.  The
@@ -2148,6 +2316,12 @@ number of subfields (which may be defined in any order):
      trip delay that is greater than the maxdelayratio times the
      minimum delay, it will be rejected.
 
+`maxdelaydevratio'
+     If a measurement has ratio of the increase in round-trip delay from
+     the minimum delay amongst the previous measurements to the standard
+     deviation of the previous measurements that is greater than
+     maxdelaydevratio, it will be rejected. The default is 10.0.
+
 `presend'
      If the timing measurements being made by `chronyd' are the only
      network data passing between two computers, you may find that some
@@ -2200,6 +2374,76 @@ number of subfields (which may be defined in any order):
      `online' (*note online command::) command when the link has been
      established, to enable measurements to start.)
 
+`iburst'
+     On start, make four measurements over a short duration (rather than
+     the usual periodic measurements).
+
+`minstratum'
+     When the synchronisation source is selected from available
+     sources, sources with lower stratum are normally preferred.  This
+     option can be used to increase stratum of the source to the
+     specified minimum, so `chronyd' will avoid selecting that source.
+     This is useful with low stratum sources that are known to be
+     unrealiable or inaccurate and which should be used only when other
+     sources are unreachable.
+
+`polltarget'
+     Target number of measurements to use for the regression algorithm
+     which `chronyd' will try to maintain by adjusting polling interval
+     between `minpoll' and `maxpoll'.  A higher target makes `chronyd'
+     prefer shorter polling intervals.  The default is 6 and a useful
+     range is 6 to 60.
+
+`prefer'
+     Prefer this source over sources without prefer option.
+
+`noselect'
+     Never select this source.  This is particularly useful for
+     monitoring.
+
+
+4.2.46 tempcomp
+---------------
+
+Normally, changes in rate of drift of the system clock are caused
+mainly by changes in temperature of the crystal oscillator on the
+mainboard.
+
+   If there are available temperature measurements from a sensor close
+to the oscillator, `tempcomp' directive can be used to compensate for
+the changes in rate and possibly improve clock accuracy.
+
+   Whether it will really help depends on many factors, including
+resolution of the sensor, noise in measurements, time source polling
+interval, compensation update interval, how good are the temperature
+coefficients, and how close is the sensor to the oscillator.  The
+frequency reported in tracking.log should be more stable and the
+offsets should be smaller.
+
+   The directive has six parameters: path to the file which contains
+current temperature in text format, update interval (in seconds), and
+temperature coefficients T0, k0, k1, k2.
+
+   The frequency compensation is calculated (in ppm) as
+
+   `k0 + (T - T0) * k1 + (T - T0)^2 * k2'
+
+   The result has to be between -10 ppm and 10 ppm, otherwise the
+measurement is considered to be faulty and will be ignored.  The k0
+coefficient can be used to get the results in that range.
+
+   Valid measurements and calculated corrections are logged to
+tempcomp.log file if enabled with `log tempcomp' directive.
+
+   An example of use is
+
+     tempcomp /sys/class/hwmon/hwmon1/device/temp2_input 30 26000 0.0 0.000183 0.0
+
+   The measured temperature will be read from the file in Linux sysfs
+filesystem every 30 seconds.  When the temperature is 26 degress
+(26000), the system clock frequency will not be adjusted.  When it is
+27 degrees (27000), the clock will be set to run 0.183ppm faster than
+it would be without the compensation, etc.
 
 4.3 Running chronyc
 ===================
@@ -2256,6 +2500,10 @@ Chronyc supports the following command line options.
 `-6'
      With this option hostnames will be resolved only to IPv6 addresses.
 
+`-m'
+     With this option multiple commands can be specified on the command
+     line.  Each argument will be interpreted as a whole command.
+
 4.3.3 Security with chronyc
 ---------------------------
 
@@ -2288,8 +2536,6 @@ password:
 
    * `activity'
 
-   * `clients'
-
    * `dns'
 
    * `exit'
@@ -2307,6 +2553,8 @@ password:
    * `sourcestats'
 
    * `tracking'
+
+   * `waitsync'
 
    All other commands require a password to have been specified
 previously, because they affect `chronyd's' operation.
@@ -2826,7 +3074,21 @@ host with IPv4 address `1.2.3.4' and the host with IPv6 address
    As for `maxdelay', any measurement whose network delay is too large
 will be discarded.
 
-4.3.4.27 maxpoll
+4.3.4.27 maxdelaydevratio
+.........................
+
+This allows the `maxdelaydevratio' option for one of the sources to be
+modified, in the same way as specifying the `maxdelaydevratio' option
+for the `server' directive in the configuration file (*note server
+directive::).
+
+   The following examples illustrate the syntax
+
+     maxdelaydevratio foo.bar.com 0.1
+     maxdelaydevratio 1.2.3.4 1.0
+     maxdelaydevratio 2001:db8::1 100.0
+
+4.3.4.28 maxpoll
 ................
 
 The `maxpoll' command is used to modify the minimum polling interval
@@ -2853,13 +3115,13 @@ to 1024 seconds.
    Note that the new maximum polling interval only takes effect after
 the next measurement has been made.
 
-4.3.4.28 maxupdateskew
+4.3.4.29 maxupdateskew
 ......................
 
 This command has the same effect as the `maxupdateskew' directive in
 the configuration file, see *note maxupdateskew directive::.
 
-4.3.4.29 minpoll
+4.3.4.30 minpoll
 ................
 
 The `minpoll' command is used to modify the minimum polling interval
@@ -2886,7 +3148,31 @@ to 32 seconds.
    Note that the new minimum polling interval only takes effect after
 the next measurement has been made.
 
-4.3.4.30 offline
+4.3.4.31 minstratum
+...................
+
+The `minstratum' command is used to modify the minimum stratum for one
+of the current set of sources.  It is equivalent to the `minstratum'
+option in the `server' directive in the configuration file (*note
+server directive::).
+
+   The syntax is as follows
+
+     minstratum <host> <new-min-stratum>
+
+   where the host can be specified as either a machine name or IP
+address.
+
+   An example is
+
+     minpoll foo.bar.com 5
+
+   which sets the minimum stratum for the host `foo.bar.com' to 5.
+
+   Note that the new minimum stratum only takes effect after the next
+measurement has been made.
+
+4.3.4.32 offline
 ................
 
 The `offline' command is used to warn `chronyd' that the network
@@ -2951,7 +3237,7 @@ command is to be applied to all sources whose IPv6 addresses have first
      offline 0.0.0.0/0.0.0.0
      offline ::/0
 
-4.3.4.31 online
+4.3.4.33 online
 ...............
 
 The `online' command is opposite in function to the `offline' command.
@@ -2961,7 +3247,7 @@ particular source or sources has been restored.
    The syntax is identical to that of the `offline' command, see *note
 offline command::.
 
-4.3.4.32 password
+4.3.4.34 password
 .................
 
 The password command is used to allow chronyc to send privileged
@@ -2984,13 +3270,60 @@ library.  Other systems do not have this restriction.)
 It has to match `chronyd's' currently defined command key (*note
 commandkey directive::).
 
-4.3.4.33 quit
+4.3.4.35 polltarget
+...................
+
+The `polltarget' command is used to modify the poll target for one of
+the current set of sources.  It is equivalent to the `polltarget'
+option in the `server' directive in the configuration file (*note
+server directive::).
+
+   The syntax is as follows
+
+     polltarget <host> <new-poll-target>
+
+   where the host can be specified as either a machine name or IP
+address.
+
+   An example is
+
+     polltarget foo.bar.com 12
+
+   which sets the poll target for the host `foo.bar.com' to 12.
+
+4.3.4.36 quit
 .............
 
 The quit command exits from chronyc and returns the user to the shell
 (same as the exit command).
 
-4.3.4.34 rtcdata
+4.3.4.37 reselect
+.................
+
+To avoid excessive switching between sources, `chronyd' may stay
+synchronised to a source even when it is not currently the best one
+among the available sources.
+
+   The `reselect' command can be used to force `chronyd' to reselect
+the best synchronisation source.
+
+4.3.4.38 reselectdist
+.....................
+
+The `reselectdist' command sets the reselect distance.  It is equivalent
+to the `reselectdist' directive in the configuration file (*note
+reselectdist directive::).
+
+4.3.4.39 retries
+................
+
+The `retries' command sets the maximum number of retries for `chronyc'
+requests before giving up.  The response timeout is controlled by
+`timeout' command (*note timeout command::).
+
+   The default is 2.
+
+4.3.4.40 rtcdata
 ................
 
 The `rtcdata' command displays the current real time clock RTC
@@ -3043,7 +3376,7 @@ parameters.
      boundary.  Then it would be 1 microsecond fast when it crosses its
      next second boundary.
 
-4.3.4.35 settime
+4.3.4.41 settime
 ................
 
 The `settime' command allows the current time to be entered manually,
@@ -3086,7 +3419,7 @@ Consequently, you can only specify time to the nearest second.
    For a full description of `getdate', get hold of the getdate
 documentation (bundled, for example, with the source for GNU tar).
 
-4.3.4.36 sources
+4.3.4.42 sources
 ................
 
 This command displays information about the current time sources that
@@ -3159,7 +3492,7 @@ of the columns.
      source.
 
 
-4.3.4.37 sourcestats
+4.3.4.43 sourcestats
 ....................
 
 The `sourcestats' command displays information about the drift rate and
@@ -3217,7 +3550,18 @@ of the columns.
      This is the estimated sample standard deviation.
 
 
-4.3.4.38 tracking
+4.3.4.44 timeout
+................
+
+The `timeout' command sets the initial timeout for `chronyc' requests
+in milliseconds.  If no response is received from `chronyd', the
+timeout is doubled and the request is resent.  The maximum number of
+retries is configured with the `retries' command (*note retries
+command::).
+
+   The default is 1000 milliseconds.
+
+4.3.4.45 tracking
 .................
 
 The `tracking' command displays parameters about the system's clock
@@ -3330,7 +3674,7 @@ performance.  An example of the output is shown below.
           clock_error <= root_dispersion + (0.5 * |root_delay|)
 
 
-4.3.4.39 trimrtc
+4.3.4.46 trimrtc
 ................
 
 The `trimrtc' command is used to correct the system's real time clock
@@ -3366,7 +3710,31 @@ command is provided as a method by which it can be corrected, in a
 manner compatible with `chronyd' using it to maintain accurate time
 across machine reboots.
 
-4.3.4.40 writertc
+4.3.4.47 waitsync
+.................
+
+The `waitsync' command waits for `chronyd' to synchronise.
+
+   Up to three optional arguments can be specified, the first is the
+maximum number of tries in 10 second intervals before giving up and
+returning a non-zero error code.  When 0 is specified, or there are no
+arguments, the number of tries will not be limited.
+
+   The second and third arguments are the maximum allowed remaining
+correction of the system clock and the maximum allowed skew (in ppm) as
+reported by the `tracking' command (*note tracking command::) in the
+`System time' and `Skew' fields.  If not specified or zero, the value
+will not be checked.
+
+   An example is
+
+     waitsync 60 0.01
+
+   which will wait up to about 10 minutes for `chronyd' to synchronise
+to a source and the remaining correction to be less than 10
+milliseconds.
+
+4.3.4.48 writertc
 .................
 
 The `writertc' command writes the currently estimated error and
@@ -3852,35 +4220,44 @@ User guide for the chrony suite
     4.2.12 driftfile
     4.2.13 dumpdir
     4.2.14 dumponexit
-    4.2.15 initstepslew
-    4.2.16 keyfile
-    4.2.17 local
-    4.2.18 linux_hz
-    4.2.19 linux_freq_scale
-    4.2.20 log
-      4.2.20.1 Measurements log file format
-      4.2.20.2 Statistics log file format
-      4.2.20.3 Tracking log file format
-      4.2.20.4 Real-time clock log file format
-      4.2.20.5 Refclocks log file format
-    4.2.21 logchange
-    4.2.22 logdir
-    4.2.23 mailonchange
-    4.2.24 makestep
-    4.2.25 manual
-    4.2.26 maxupdateskew
-    4.2.27 noclientlog
-    4.2.28 clientloglimit
-    4.2.29 peer
-    4.2.30 pidfile
-    4.2.31 port
-    4.2.32 refclock
-    4.2.33 rtcdevice
-    4.2.34 rtcfile
-    4.2.35 rtconutc
-    4.2.36 sched_priority
-    4.2.37 lock_all
-    4.2.38 server
+    4.2.15 fallbackdrift
+    4.2.16 include
+    4.2.17 initstepslew
+    4.2.18 keyfile
+    4.2.19 local
+    4.2.20 linux_hz
+    4.2.21 linux_freq_scale
+    4.2.22 log
+      4.2.22.1 Measurements log file format
+      4.2.22.2 Statistics log file format
+      4.2.22.3 Tracking log file format
+      4.2.22.4 Real-time clock log file format
+      4.2.22.5 Refclocks log file format
+      4.2.22.6 Tempcomp log file format
+    4.2.23 logbanner
+    4.2.24 logchange
+    4.2.25 logdir
+    4.2.26 mailonchange
+    4.2.27 makestep
+    4.2.28 manual
+    4.2.29 maxclockerror
+    4.2.30 maxupdateskew
+    4.2.31 noclientlog
+    4.2.32 clientloglimit
+    4.2.33 peer
+    4.2.34 pidfile
+    4.2.35 port
+    4.2.36 refclock
+    4.2.37 reselectdist
+    4.2.38 rtcdevice
+    4.2.39 rtcfile
+    4.2.40 rtconutc
+    4.2.41 rtcsync
+    4.2.42 sched_priority
+    4.2.43 stratumweight
+    4.2.44 lock_all
+    4.2.45 server
+    4.2.46 tempcomp
   4.3 Running chronyc
     4.3.1 Basic use
     4.3.2 Command line options
@@ -3912,20 +4289,28 @@ User guide for the chrony suite
       4.3.4.24 manual
       4.3.4.25 maxdelay
       4.3.4.26 maxdelayratio
-      4.3.4.27 maxpoll
-      4.3.4.28 maxupdateskew
-      4.3.4.29 minpoll
-      4.3.4.30 offline
-      4.3.4.31 online
-      4.3.4.32 password
-      4.3.4.33 quit
-      4.3.4.34 rtcdata
-      4.3.4.35 settime
-      4.3.4.36 sources
-      4.3.4.37 sourcestats
-      4.3.4.38 tracking
-      4.3.4.39 trimrtc
-      4.3.4.40 writertc
+      4.3.4.27 maxdelaydevratio
+      4.3.4.28 maxpoll
+      4.3.4.29 maxupdateskew
+      4.3.4.30 minpoll
+      4.3.4.31 minstratum
+      4.3.4.32 offline
+      4.3.4.33 online
+      4.3.4.34 password
+      4.3.4.35 polltarget
+      4.3.4.36 quit
+      4.3.4.37 reselect
+      4.3.4.38 reselectdist
+      4.3.4.39 retries
+      4.3.4.40 rtcdata
+      4.3.4.41 settime
+      4.3.4.42 sources
+      4.3.4.43 sourcestats
+      4.3.4.44 timeout
+      4.3.4.45 tracking
+      4.3.4.46 trimrtc
+      4.3.4.47 waitsync
+      4.3.4.48 writertc
 Appendix A Porting guide
   A.1 System driver files
   A.2 Quirks of particular systems

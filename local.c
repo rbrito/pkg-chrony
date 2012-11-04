@@ -1,12 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/local.c,v 1.21 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Miroslav Lichvar  2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,9 +28,12 @@
   They interface with the system specific driver files in sys_*.c
   */
 
+#include "config.h"
+
 #include <assert.h>
 #include <stddef.h>
 
+#include "conf.h"
 #include "local.h"
 #include "localp.h"
 #include "memory.h"
@@ -44,6 +44,9 @@
 
 /* Variable to store the current frequency, in ppm */
 static double current_freq_ppm;
+
+/* Temperature compensation, in ppm */
+static double temp_comp_ppm;
 
 /* ================================================== */
 /* Store the system dependent drivers */
@@ -88,6 +91,8 @@ static DispersionNotifyListEntry dispersion_notify_list;
 static int precision_log;
 static double precision_quantum;
 
+static double max_clock_error;
+
 /* ================================================== */
 
 /* Define the number of increments of the system clock that we want
@@ -100,17 +105,15 @@ static double precision_quantum;
 static void
 calculate_sys_precision(void)
 {
-  struct timeval tv, old_tv, first_tv;
-  struct timezone tz;
+  struct timeval tv, old_tv;
   int dusec, best_dusec;
   int iters;
 
-  gettimeofday(&old_tv, &tz);
-  first_tv = old_tv;
+  gettimeofday(&old_tv, NULL);
   best_dusec = 1000000; /* Assume we must be better than a second */
   iters = 0;
   do {
-    gettimeofday(&tv, &tz);
+    gettimeofday(&tv, NULL);
     dusec = 1000000*(tv.tv_sec - old_tv.tv_sec) + (tv.tv_usec - old_tv.tv_usec);
     old_tv = tv;
     if (dusec > 0)  {
@@ -120,16 +123,15 @@ calculate_sys_precision(void)
       iters++;
     }
   } while (iters < NITERS);
-  if (!(best_dusec > 0)) {
-    CROAK("best_dusec should be positive");
-  }
+
+  assert(best_dusec > 0);
+
+  precision_quantum = best_dusec * 1.0e-6;
   precision_log = 0;
   while (best_dusec < 500000) {
     precision_log--;
     best_dusec *= 2;
   }
-
-  precision_quantum = 1.0 / (double)(1<<(-precision_log));
 
   return;
 }
@@ -153,8 +155,11 @@ LCL_Initialise(void)
 
   /* This ought to be set from the system driver layer */
   current_freq_ppm = 0.0;
+  temp_comp_ppm = 0.0;
 
   calculate_sys_precision();
+
+  max_clock_error = CNF_GetMaxClockError() * 1e-6;
 }
 
 /* ================================================== */
@@ -185,6 +190,14 @@ LCL_GetSysPrecisionAsQuantum(void)
 
 /* ================================================== */
 
+double
+LCL_GetMaxClockError(void)
+{
+  return max_clock_error;
+}
+
+/* ================================================== */
+
 void
 LCL_AddParameterChangeHandler(LCL_ParameterChangeHandler handler, void *anything)
 {
@@ -193,7 +206,7 @@ LCL_AddParameterChangeHandler(LCL_ParameterChangeHandler handler, void *anything
   /* Check that the handler is not already registered */
   for (ptr = change_list.next; ptr != &change_list; ptr = ptr->next) {
     if (!(ptr->handler != handler || ptr->anything != anything)) {
-      CROAK("a handler is already registered");
+      assert(0);
     }
   }
 
@@ -231,9 +244,7 @@ void LCL_RemoveParameterChangeHandler(LCL_ParameterChangeHandler handler, void *
     }
   }
 
-  if (!ok) {
-    CROAK("did not find a matching handler");
-  }
+  assert(ok);
 
   /* Unlink entry from the list */
   ptr->next->prev = ptr->prev;
@@ -254,7 +265,7 @@ LCL_AddDispersionNotifyHandler(LCL_DispersionNotifyHandler handler, void *anythi
   /* Check that the handler is not already registered */
   for (ptr = dispersion_notify_list.next; ptr != &dispersion_notify_list; ptr = ptr->next) {
     if (!(ptr->handler != handler || ptr->anything != anything)) {
-      CROAK("a handler is already registered");
+      assert(0);
     }
   }
 
@@ -292,9 +303,7 @@ void LCL_RemoveDispersionNotifyHandler(LCL_DispersionNotifyHandler handler, void
     }
   }
 
-  if (!ok) {
-    CROAK("no matching handler found");
-  }
+  assert(ok);
 
   /* Unlink entry from the list */
   ptr->next->prev = ptr->prev;
@@ -312,13 +321,9 @@ void LCL_RemoveDispersionNotifyHandler(LCL_DispersionNotifyHandler handler, void
 void
 LCL_ReadRawTime(struct timeval *result)
 {
-  struct timezone tz;
-
-  if (!(gettimeofday(result, &tz) >= 0)) {
-    CROAK("Could not get time of day");
+  if (gettimeofday(result, NULL) < 0) {
+    LOG_FATAL(LOGF_Local, "gettimeofday() failed");
   }
-  return;
-
 }
 
 /* ================================================== */
@@ -327,39 +332,47 @@ void
 LCL_ReadCookedTime(struct timeval *result, double *err)
 {
   struct timeval raw;
-  double correction;
 
   LCL_ReadRawTime(&raw);
-
-  /* For now, cheat and set the error to zero in all cases.
-   */
-
-  *err = 0.0;
-
-  /* Call system specific driver to get correction */
-  (*drv_offset_convert)(&raw, &correction);
-  UTI_AddDoubleToTimeval(&raw, correction, result);
-
-  return;
+  LCL_CookTime(&raw, result, err);
 }
 
 /* ================================================== */
 
-double
-LCL_GetOffsetCorrection(struct timeval *raw)
+void
+LCL_CookTime(struct timeval *raw, struct timeval *cooked, double *err)
 {
   double correction;
-  (*drv_offset_convert)(raw, &correction);
-  return correction;
+
+  LCL_GetOffsetCorrection(raw, &correction, err);
+  UTI_AddDoubleToTimeval(raw, correction, cooked);
 }
 
 /* ================================================== */
-/* This is just a simple passthrough of the system specific routine */
+
+void
+LCL_GetOffsetCorrection(struct timeval *raw, double *correction, double *err)
+{
+  /* Call system specific driver to get correction */
+  (*drv_offset_convert)(raw, correction, err);
+}
+
+/* ================================================== */
+/* Return current frequency */
 
 double
 LCL_ReadAbsoluteFrequency(void)
 {
-  return (*drv_read_freq)();
+  double freq;
+
+  freq = current_freq_ppm; 
+
+  /* Undo temperature compensation */
+  if (temp_comp_ppm != 0.0) {
+    freq = (freq + temp_comp_ppm) / (1.0 - 1.0e-6 * temp_comp_ppm);
+  }
+
+  return freq;
 }
 
 /* ================================================== */
@@ -371,22 +384,25 @@ LCL_SetAbsoluteFrequency(double afreq_ppm)
 {
   ChangeListEntry *ptr;
   struct timeval raw, cooked;
-  double correction;
   double dfreq;
   
+  /* Apply temperature compensation */
+  if (temp_comp_ppm != 0.0) {
+    afreq_ppm = afreq_ppm * (1.0 - 1.0e-6 * temp_comp_ppm) - temp_comp_ppm;
+  }
+
   /* Call the system-specific driver for setting the frequency */
   
-  (*drv_set_freq)(afreq_ppm);
+  afreq_ppm = (*drv_set_freq)(afreq_ppm);
 
-  dfreq = 1.0e-6 * (afreq_ppm - current_freq_ppm) / (1.0 - 1.0e-6 * current_freq_ppm);
+  dfreq = (afreq_ppm - current_freq_ppm) / (1.0e6 + current_freq_ppm);
 
   LCL_ReadRawTime(&raw);
-  (drv_offset_convert)(&raw, &correction);
-  UTI_AddDoubleToTimeval(&raw, correction, &cooked);
+  LCL_CookTime(&raw, &cooked, NULL);
 
   /* Dispatch to all handlers */
   for (ptr = change_list.next; ptr != &change_list; ptr = ptr->next) {
-    (ptr->handler)(&raw, &cooked, dfreq, afreq_ppm, 0.0, 0, ptr->anything);
+    (ptr->handler)(&raw, &cooked, dfreq, 0.0, 0, ptr->anything);
   }
 
   current_freq_ppm = afreq_ppm;
@@ -400,25 +416,26 @@ LCL_AccumulateDeltaFrequency(double dfreq)
 {
   ChangeListEntry *ptr;
   struct timeval raw, cooked;
-  double correction;
+  double old_freq_ppm;
+
+  old_freq_ppm = current_freq_ppm;
 
   /* Work out new absolute frequency.  Note that absolute frequencies
    are handled in units of ppm, whereas the 'dfreq' argument is in
    terms of the gradient of the (offset) v (local time) function. */
 
-  current_freq_ppm = (1.0 - dfreq) * current_freq_ppm +
-    (1.0e6 * dfreq);
+  current_freq_ppm = (1.0 + dfreq) * current_freq_ppm + 1.0e6 * dfreq;
 
   /* Call the system-specific driver for setting the frequency */
-  (*drv_set_freq)(current_freq_ppm);
+  current_freq_ppm = (*drv_set_freq)(current_freq_ppm);
+  dfreq = (current_freq_ppm - old_freq_ppm) / (1.0e6 + old_freq_ppm);
 
   LCL_ReadRawTime(&raw);
-  (drv_offset_convert)(&raw, &correction);
-  UTI_AddDoubleToTimeval(&raw, correction, &cooked);
+  LCL_CookTime(&raw, &cooked, NULL);
 
   /* Dispatch to all handlers */
   for (ptr = change_list.next; ptr != &change_list; ptr = ptr->next) {
-    (ptr->handler)(&raw, &cooked, dfreq, current_freq_ppm, 0.0, 0, ptr->anything);
+    (ptr->handler)(&raw, &cooked, dfreq, 0.0, 0, ptr->anything);
   }
 
 }
@@ -430,20 +447,18 @@ LCL_AccumulateOffset(double offset)
 {
   ChangeListEntry *ptr;
   struct timeval raw, cooked;
-  double correction;
 
   /* In this case, the cooked time to be passed to the notify clients
      has to be the cooked time BEFORE the change was made */
 
   LCL_ReadRawTime(&raw);
-  (drv_offset_convert)(&raw, &correction);
-  UTI_AddDoubleToTimeval(&raw, correction, &cooked);
+  LCL_CookTime(&raw, &cooked, NULL);
 
   (*drv_accrue_offset)(offset);
 
   /* Dispatch to all handlers */
   for (ptr = change_list.next; ptr != &change_list; ptr = ptr->next) {
-    (ptr->handler)(&raw, &cooked, 0.0, current_freq_ppm, offset, 0, ptr->anything);
+    (ptr->handler)(&raw, &cooked, 0.0, offset, 0, ptr->anything);
   }
 
 }
@@ -455,22 +470,36 @@ LCL_ApplyStepOffset(double offset)
 {
   ChangeListEntry *ptr;
   struct timeval raw, cooked;
-  double correction;
 
   /* In this case, the cooked time to be passed to the notify clients
      has to be the cooked time BEFORE the change was made */
 
   LCL_ReadRawTime(&raw);
-  (drv_offset_convert)(&raw, &correction);
-  UTI_AddDoubleToTimeval(&raw, correction, &cooked);
+  LCL_CookTime(&raw, &cooked, NULL);
 
   (*drv_apply_step_offset)(offset);
 
   /* Dispatch to all handlers */
   for (ptr = change_list.next; ptr != &change_list; ptr = ptr->next) {
-    (ptr->handler)(&raw, &cooked, 0.0, current_freq_ppm, offset, 1, ptr->anything);
+    (ptr->handler)(&raw, &cooked, 0.0, offset, 1, ptr->anything);
   }
 
+}
+
+/* ================================================== */
+
+void
+LCL_NotifyExternalTimeStep(struct timeval *raw, struct timeval *cooked,
+    double offset, double dispersion)
+{
+  ChangeListEntry *ptr;
+
+  /* Dispatch to all handlers */
+  for (ptr = change_list.next; ptr != &change_list; ptr = ptr->next) {
+    (ptr->handler)(raw, cooked, 0.0, offset, 1, ptr->anything);
+  }
+
+  lcl_InvokeDispersionNotifyHandlers(dispersion);
 }
 
 /* ================================================== */
@@ -480,22 +509,19 @@ LCL_AccumulateFrequencyAndOffset(double dfreq, double doffset)
 {
   ChangeListEntry *ptr;
   struct timeval raw, cooked;
-  double correction;
   double old_freq_ppm;
 
   LCL_ReadRawTime(&raw);
-  (drv_offset_convert)(&raw, &correction);
   /* Due to modifying the offset, this has to be the cooked time prior
      to the change we are about to make */
-  UTI_AddDoubleToTimeval(&raw, correction, &cooked);
+  LCL_CookTime(&raw, &cooked, NULL);
 
   old_freq_ppm = current_freq_ppm;
 
   /* Work out new absolute frequency.  Note that absolute frequencies
    are handled in units of ppm, whereas the 'dfreq' argument is in
    terms of the gradient of the (offset) v (local time) function. */
-  current_freq_ppm = (1.0 - dfreq) * old_freq_ppm +
-    (1.0e6 * dfreq);
+  current_freq_ppm = (1.0 + dfreq) * old_freq_ppm + 1.0e6 * dfreq;
 
 #ifdef TRACEON
   LOG(LOGS_INFO, LOGF_Local, "old_freq=%.3fppm new_freq=%.3fppm offset=%.6fsec",
@@ -503,12 +529,14 @@ LCL_AccumulateFrequencyAndOffset(double dfreq, double doffset)
 #endif
 
   /* Call the system-specific driver for setting the frequency */
-  (*drv_set_freq)(current_freq_ppm);
+  current_freq_ppm = (*drv_set_freq)(current_freq_ppm);
+  dfreq = (current_freq_ppm - old_freq_ppm) / (1.0e6 + old_freq_ppm);
+
   (*drv_accrue_offset)(doffset);
 
   /* Dispatch to all handlers */
   for (ptr = change_list.next; ptr != &change_list; ptr = ptr->next) {
-    (ptr->handler)(&raw, &cooked, dfreq, current_freq_ppm, doffset, 0, ptr->anything);
+    (ptr->handler)(&raw, &cooked, dfreq, doffset, 0, ptr->anything);
   }
 
 
@@ -564,7 +592,7 @@ LCL_MakeStep(double threshold)
   double correction;
 
   LCL_ReadRawTime(&raw);
-  correction = LCL_GetOffsetCorrection(&raw);
+  LCL_GetOffsetCorrection(&raw, &correction, NULL);
 
   if (fabs(correction) <= threshold)
     return 0;
@@ -588,6 +616,34 @@ LCL_SetLeap(int leap)
   }
 
   return;
+}
+
+/* ================================================== */
+
+double
+LCL_SetTempComp(double comp)
+{
+  double uncomp_freq_ppm;
+
+  if (temp_comp_ppm == comp)
+    return comp;
+
+  /* Undo previous compensation */
+  current_freq_ppm = (current_freq_ppm + temp_comp_ppm) /
+    (1.0 - 1.0e-6 * temp_comp_ppm);
+
+  uncomp_freq_ppm = current_freq_ppm;
+
+  /* Apply new compensation */
+  current_freq_ppm = current_freq_ppm * (1.0 - 1.0e-6 * comp) - comp;
+
+  /* Call the system-specific driver for setting the frequency */
+  current_freq_ppm = (*drv_set_freq)(current_freq_ppm);
+
+  temp_comp_ppm = (uncomp_freq_ppm - current_freq_ppm) /
+    (1.0e-6 * uncomp_freq_ppm + 1.0);
+
+  return temp_comp_ppm;
 }
 
 /* ================================================== */

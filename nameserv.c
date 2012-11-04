@@ -1,13 +1,9 @@
 /*
-  $Header: /cvs/src/chrony/nameserv.c,v 1.15 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009
+ * Copyright (C) Miroslav Lichvar  2009-2011
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +26,8 @@
 
   */
 
+#include "config.h"
+
 #include "sysincl.h"
 
 #include "nameserv.h"
@@ -37,9 +35,6 @@
 #include <resolv.h>
 
 /* ================================================== */
-
-#define MAXRETRIES 10
-static unsigned int retries = 0;
 
 static int address_family = IPADDR_UNSPEC;
 
@@ -49,8 +44,8 @@ DNS_SetAddressFamily(int family)
   address_family = family;
 }
 
-int 
-DNS_Name2IPAddress(const char *name, IPAddr *addr, int retry)
+DNS_Status 
+DNS_Name2IPAddress(const char *name, IPAddr *addr)
 {
 #ifdef HAVE_IPV6
   struct addrinfo hints, *res, *ai;
@@ -59,21 +54,15 @@ DNS_Name2IPAddress(const char *name, IPAddr *addr, int retry)
   memset(&hints, 0, sizeof (hints));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-#ifdef AI_ADDRCONFIG
-  hints.ai_flags = AI_ADDRCONFIG;
-#endif
 
-try_again:
   result = getaddrinfo(name, NULL, &hints, &res);
 
   if (result) {
-    if (retry && result == EAI_AGAIN && retries < MAXRETRIES) {
-      sleep(2 << retries);
-      retries++;
-      res_init();
-      goto try_again;
-    }
-    return 0;
+#ifdef FORCE_DNSRETRY
+    return DNS_TryAgain;
+#else
+    return result == EAI_AGAIN ? DNS_TryAgain : DNS_Failure;
+#endif
   }
 
   for (ai = res; !result && ai != NULL; ai = ai->ai_next) {
@@ -96,32 +85,27 @@ try_again:
   }
 
   freeaddrinfo(res);
-  return result;
+  return result ? DNS_Success : DNS_Failure;
 #else
   struct hostent *host;
-  char *address0;
   
-try_again:
   host = gethostbyname(name);
 
   if (host == NULL) {
-    if (retry && h_errno == TRY_AGAIN && retries < MAXRETRIES) {
-      sleep(2 << retries);
-      retries++;
-      res_init();
-      goto try_again;
-    }
+    if (h_errno == TRY_AGAIN)
+      return DNS_TryAgain;
   } else {
     addr->family = IPADDR_INET4;
-    address0 = host->h_addr_list[0];
-    addr->addr.in4 = ((((unsigned long)address0[0])<<24) |
-                     (((unsigned long)address0[1])<<16) |
-                     (((unsigned long)address0[2])<<8) |
-                     (((unsigned long)address0[3])));
-    return 1;
+    addr->addr.in4 = ntohl(*(uint32_t *)host->h_addr_list[0]);
+    return DNS_Success;
   }
 
-  return 0;
+#ifdef FORCE_DNSRETRY
+  return DNS_TryAgain;
+#else
+  return DNS_Failure;
+#endif
+
 #endif
 }
 
@@ -186,6 +170,14 @@ DNS_IPAddress2Name(IPAddr *ip_addr, char *name, int len)
     return 0;
 
   return 1;
+}
+
+/* ================================================== */
+
+void
+DNS_Reload(void)
+{
+  res_init();
 }
 
 /* ================================================== */

@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/cmdparse.c,v 1.12 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -30,9 +26,12 @@
 
   */
 
+#include "config.h"
+
 #include "sysincl.h"
 
 #include "cmdparse.h"
+#include "memory.h"
 #include "nameserv.h"
 
 #define MAXLEN 2047
@@ -46,23 +45,34 @@ CPS_ParseNTPSourceAdd(const char *line, CPS_NTP_Source *src)
   int ok, n, done;
   char cmd[MAXLEN+1], hostname[MAXLEN+1];
   CPS_Status result;
+  DNS_Status s;
   
-  src->port = 123;
-  src->params.minpoll = 6;
-  src->params.maxpoll = 10;
-  src->params.presend_minpoll = 0;
+  src->port = SRC_DEFAULT_PORT;
+  src->params.minpoll = SRC_DEFAULT_MINPOLL;
+  src->params.maxpoll = SRC_DEFAULT_MAXPOLL;
+  src->params.presend_minpoll = SRC_DEFAULT_PRESEND_MINPOLL;
   src->params.authkey = INACTIVE_AUTHKEY;
-  src->params.max_delay = 16.0;
-  src->params.max_delay_ratio = 16384.0;
+  src->params.max_delay = SRC_DEFAULT_MAXDELAY;
+  src->params.max_delay_ratio = SRC_DEFAULT_MAXDELAYRATIO;
+  src->params.max_delay_dev_ratio = SRC_DEFAULT_MAXDELAYDEVRATIO;
   src->params.online = 1;
   src->params.auto_offline = 0;
+  src->params.iburst = 0;
+  src->params.min_stratum = SRC_DEFAULT_MINSTRATUM;
+  src->params.poll_target = SRC_DEFAULT_POLLTARGET;
+  src->params.sel_option = SRC_SelectNormal;
 
   result = CPS_Success;
   
   ok = 0;
   if (sscanf(line, "%" SMAXLEN "s%n", hostname, &n) == 1) {
-    if (DNS_Name2IPAddress(hostname, &src->ip_addr, 1)) {
+    s = DNS_Name2IPAddress(hostname, &src->ip_addr);
+    if (s == DNS_Success) {
       ok = 1;
+      src->name = NULL;
+    } else if (s == DNS_TryAgain) {
+      ok = 1;
+      src->ip_addr.family = IPADDR_UNSPEC;
     }
   }
 
@@ -112,6 +122,14 @@ CPS_ParseNTPSourceAdd(const char *line, CPS_NTP_Source *src)
           } else {
             line += n;
           }
+        } else if (!strncasecmp(cmd, "maxdelaydevratio", 16)) {
+          if (sscanf(line, "%lf%n", &src->params.max_delay_dev_ratio, &n) != 1) {
+            result = CPS_BadMaxdelaydevratio;
+            ok = 0;
+            done = 1;
+          } else {
+            line += n;
+          }
           /* This MUST come before the following one ! */
         } else if (!strncasecmp(cmd, "maxdelayratio", 13)) {
           if (sscanf(line, "%lf%n", &src->params.max_delay_ratio, &n) != 1) {
@@ -143,6 +161,33 @@ CPS_ParseNTPSourceAdd(const char *line, CPS_NTP_Source *src)
         } else if (!strncasecmp(cmd, "auto_offline", 12)) {
           src->params.auto_offline = 1;
         
+        } else if (!strncasecmp(cmd, "iburst", 6)) {
+          src->params.iburst = 1;
+
+        } else if (!strncasecmp(cmd, "minstratum", 10)) {
+          if (sscanf(line, "%d%n", &src->params.min_stratum, &n) != 1) {
+            result = CPS_BadMinstratum;
+            ok = 0;
+            done = 1;
+          } else {
+            line += n;
+          }
+
+        } else if (!strncasecmp(cmd, "polltarget", 10)) {
+          if (sscanf(line, "%d%n", &src->params.poll_target, &n) != 1) {
+            result = CPS_BadPolltarget;
+            ok = 0;
+            done = 1;
+          } else {
+            line += n;
+          }
+
+        } else if (!strncasecmp(cmd, "noselect", 8)) {
+          src->params.sel_option = SRC_SelectNoselect;
+        
+        } else if (!strncasecmp(cmd, "prefer", 6)) {
+          src->params.sel_option = SRC_SelectPrefer;
+        
         } else {
           result = CPS_BadOption;
           ok = 0;
@@ -152,6 +197,13 @@ CPS_ParseNTPSourceAdd(const char *line, CPS_NTP_Source *src)
         done = 1;
       }
     } while (!done);
+  }
+
+  if (ok && src->ip_addr.family == IPADDR_UNSPEC) {
+    n = strlen(hostname);
+    src->name = MallocArray(char, n + 1);
+    strncpy(src->name, hostname, n);
+    src->name[n] = '\0';
   }
 
   return result;

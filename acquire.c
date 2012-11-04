@@ -1,8 +1,4 @@
 /*
-  $Header: /cvs/src/chrony/acquire.c,v 1.24 2003/09/22 21:22:30 richard Exp $
-
-  =======================================================================
-
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
  **********************************************************************
@@ -41,6 +37,8 @@
 
   */
 
+#include "config.h"
+
 #include "sysincl.h"
 
 #include "acquire.h"
@@ -64,6 +62,10 @@
 #define N_GOOD_SAMPLES 4
 
 #define RETRANSMISSION_TIMEOUT (1.0)
+
+#define NTP_VERSION 3
+#define NTP_MAX_COMPAT_VERSION 4
+#define NTP_MIN_COMPAT_VERSION 2
 
 typedef struct {
   IPAddr ip_addr;               /* Address of the server */
@@ -168,6 +170,9 @@ prepare_socket(int family)
     LOG_FATAL(LOGF_Acquire, "Could not open socket : %s", strerror(errno));
   }
 
+  /* Close on exec */
+  UTI_FdSetCloexec(sock_fd);
+
   if (port_number == 0) {
     /* Don't bother binding this socket - we're not fussed what port
        number it gets */
@@ -245,10 +250,9 @@ static void
 probe_source(SourceRecord *src)
 {
   NTP_Packet pkt;
-  int version = 3;
+  int version = NTP_VERSION;
   NTP_Mode my_mode = MODE_CLIENT;
   struct timeval cooked;
-  double local_time_err;
   union sockaddr_in46 his_addr;
   int sock_fd;
   socklen_t addrlen;
@@ -266,7 +270,7 @@ probe_source(SourceRecord *src)
   pkt.precision = -6; /* as ntpdate */
   pkt.root_delay = double_to_int32(1.0); /* 1 second */
   pkt.root_dispersion = double_to_int32(1.0); /* likewise */
-  pkt.reference_id = 0UL;
+  pkt.reference_id = 0;
   pkt.reference_ts.hi = 0; /* Set to 0 */
   pkt.reference_ts.lo = 0; /* Set to 0 */
   pkt.originate_ts.hi = 0; /* Set to 0 */
@@ -300,7 +304,7 @@ probe_source(SourceRecord *src)
   }
 
 
-  LCL_ReadCookedTime(&cooked, &local_time_err);
+  LCL_ReadCookedTime(&cooked, NULL);
   UTI_TimevalToInt64(&cooked, &pkt.transmit_ts);
 
   if (sendto(sock_fd, (void *) &pkt, NTP_NORMAL_PACKET_SIZE,
@@ -372,7 +376,7 @@ process_receive(NTP_Packet *msg, SourceRecord *src, struct timeval *now)
   mode = lvm & 0x7;
 
   if ((leap == LEAP_Unsynchronised) ||
-      (version != 3) ||
+      (version  < NTP_MIN_COMPAT_VERSION || version > NTP_MAX_COMPAT_VERSION) ||
       (mode != MODE_SERVER && mode != MODE_PASSIVE)) {
     return;
   }
@@ -449,7 +453,7 @@ read_from_socket(void *anything)
   his_addr_len = sizeof(his_addr);
 
   /* Get timestamp */
-  SCH_GetFileReadyTime(&now);
+  SCH_GetFileReadyTime(&now, NULL);
 
   sock_fd = (long)anything;
   status = recvfrom (sock_fd, (char *)&msg, message_length, flags,
