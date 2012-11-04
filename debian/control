@@ -7,7 +7,7 @@ Build-Depends:
  bison,
  debhelper (>= 8),
  dpkg-dev (>= 1.16.1~),
- libedit-dev,
+ libreadline-gplv2-dev,
  lsb-base,
  texinfo
 Homepage: http://chrony.tuxfamily.org
