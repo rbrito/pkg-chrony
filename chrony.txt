@@ -353,10 +353,8 @@ typical command line would be
 
    Now that the software is successfully installed, the next step is to
 set up a configuration file.  The contents of this depend on the
-network environment in which the computer operates.  The Debian package
-installs a simple configuration file suitable for a dial-up pc.  You
-should edit it to suit your situation.  Typical scenarios are described
-in the following section of the document.
+network environment in which the computer operates.  Typical scenarios
+are described in the following section of the document.
 
 2.1 Support for the readline library
 ====================================
@@ -445,10 +443,9 @@ suitable servers by one of the following methods:
 
    Assuming that you have found some servers, you need to set up a
 configuration file to run chrony.  The (compiled-in) default location
-for this file is `/etc/chrony.conf'.  In the Debian package the
-configuration files are in the directory `/etc/chrony'.  Assuming that
-your ntp servers are called `a.b.c' and `d.e.f', your `chrony.conf'
-file could contain as a minimum
+for this file is `/etc/chrony.conf'.  Assuming that your ntp servers
+are called `a.b.c' and `d.e.f', your `chrony.conf' file could contain
+as a minimum
 
      server a.b.c
      server d.e.f
@@ -519,11 +516,9 @@ as `files' comes before `dns' in the `hosts' line of the
 
    In order to notify `chronyd' of the presence of the link, you will
 need to be able to log in to it with the program chronyc.  To do this,
-`chronyd' needs to be configured with an administrator password.  The
-Debian package puts a randomly generated key in
-`/etc/chrony/chrony.keys'.  You should change it.  To set up an
-administrator password, you can create a file `/etc/chrony.keys'
-containing a single line
+`chronyd' needs to be configured with an administrator password.  To
+set up an administrator password, you can create a file
+`/etc/chrony.keys' containing a single line
 
      1 xyzzy
 
@@ -571,9 +566,6 @@ command key has been set up as described in the previous section.
      password xyzzy
      offline
      EOF
-
-   The Debian package puts scripts similar to those above in the
-directories `/etc/ppp/ip-up.d' and `/etc/ppp/ip-down.d'.
 
    `chronyd's' polling of the servers will now only occur whilst the
 machine is actually connected to the Internet.
@@ -799,9 +791,6 @@ machine).
        echo "Start chronyd"
      fi
 
-   The Debian package puts a script which handles this and shutdown in
-`/etc/init.d/chrony'.
-
    The placement of this command may be important on some systems.  In
 particular, `chronyd' may need to be started several seconds (about 10
 as a minimum) before any software that depends on the system clock not
@@ -863,8 +852,6 @@ If `chronyd' has been installed to its default location
 the command
 
      /usr/local/sbin/chronyd
-
-   The Debian package uses `/usr/sbin/chronyd'.
 
    Information messages and warnings will be logged to syslog.
 
