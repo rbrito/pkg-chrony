@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/wrap_adjtimex.c,v 1.4 2000/08/08 21:37:24 richard Exp $
+  $Header: /cvs/src/chrony/wrap_adjtimex.c,v 1.9 2002/11/19 21:33:42 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2002
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -25,6 +38,7 @@
 
 #include <linux/time.h>
 #include <linux/timex.h>
+#include <asm/param.h>
 
 #include "wrap_adjtimex.h"
 
@@ -89,6 +103,51 @@ TMX_GetOffsetLeft(long *offset)
   txc.modes = 0; /* pure read */
   result = adjtimex(&txc);
   *offset = txc.offset;
+  return result;
+}
+
+int
+TMX_ReadCurrentParams(struct tmx_params *params)
+{
+  struct timex txc;
+  int result;
+  
+  txc.modes = 0; /* pure read */
+  result = adjtimex(&txc);
+
+  params->tick     = txc.tick;
+  params->offset   = txc.offset;
+  params->freq     = txc.freq;
+  params->dfreq    = txc.freq / (double)(1 << SHIFT_USEC);
+  params->maxerror = txc.maxerror;
+  params->esterror = txc.esterror;
+  
+  params->sta_pll       = (txc.status & STA_PLL);
+  params->sta_ppsfreq   = (txc.status & STA_PPSFREQ);
+  params->sta_ppstime   = (txc.status & STA_PPSTIME);
+  params->sta_fll       = (txc.status & STA_FLL);
+  params->sta_ins       = (txc.status & STA_INS);
+  params->sta_del       = (txc.status & STA_DEL);
+  params->sta_unsync    = (txc.status & STA_UNSYNC);
+  params->sta_freqhold  = (txc.status & STA_FREQHOLD);
+  params->sta_ppssignal = (txc.status & STA_PPSSIGNAL);
+  params->sta_ppsjitter = (txc.status & STA_PPSJITTER);
+  params->sta_ppswander = (txc.status & STA_PPSWANDER);
+  params->sta_ppserror  = (txc.status & STA_PPSERROR);
+  params->sta_clockerr  = (txc.status & STA_CLOCKERR);
+
+  params->constant  = txc.constant;
+  params->precision = txc.precision;
+  params->tolerance = txc.tolerance;
+  params->ppsfreq   = txc.ppsfreq;
+  params->jitter    = txc.jitter;
+  params->shift     = txc.shift;
+  params->stabil    = txc.stabil;
+  params->jitcnt    = txc.jitcnt;
+  params->calcnt    = txc.calcnt;
+  params->errcnt    = txc.errcnt;
+  params->stbcnt    = txc.stbcnt;
+
   return result;
 }
 

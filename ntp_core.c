@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/ntp_core.c,v 1.40 2000/07/24 21:44:45 richard Exp $
+  $Header: /cvs/src/chrony/ntp_core.c,v 1.50 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -76,6 +89,10 @@ struct NCR_Instance_Record {
                                    pending to transmit to the source */
   SCH_TimeoutID timeout_id;     /* Scheduler's timeout ID, if we are
                                    running on a timer. */
+
+  int auto_offline;             /* If 1, automatically go offline if server/peer
+                                   isn't responding */
+
   int local_poll;               /* Log2 of polling interval at our end */
   int remote_poll;              /* Log2 of server/peer's polling interval (recovered
                                    from received packets) */
@@ -201,7 +218,7 @@ NCR_Initialise(void)
   if (CNF_GetLogMeasurements()) {
     direc = CNF_GetLogDir();
     if (!mkdir_and_parents(direc)) {
-      LOG(LOGS_ERR, LOGF_NtpCore, "Could not create directory %s\n", direc);
+      LOG(LOGS_ERR, LOGF_NtpCore, "Could not create directory %s", direc);
       logfile = NULL;
     } else {
       logfilename = MallocArray(char, 2 + strlen(direc) + strlen(MEASUREMENTS_LOG));
@@ -210,7 +227,7 @@ NCR_Initialise(void)
       strcat(logfilename, MEASUREMENTS_LOG);
       logfile = fopen(logfilename, "a");
       if (!logfile) {
-        LOG(LOGS_WARN, LOGF_NtpCore, "Couldn't open logfile %s for update\n", logfilename);
+        LOG(LOGS_WARN, LOGF_NtpCore, "Couldn't open logfile %s for update", logfilename);
       }
     }
   }
@@ -291,6 +308,8 @@ create_instance(NTP_Remote_Address *remote_addr, NTP_Mode mode, SourceParameters
     result->opmode = MD_OFFLINE;
   }
   
+  result->auto_offline = params->auto_offline;
+  
   result->local_poll = params->minpoll;
 
   /* Create a source instance for this NTP source */
@@ -345,61 +364,6 @@ NCR_DestroyInstance(NCR_Instance instance)
 
 /* ================================================== */
 
-inline static double
-int32_to_double(NTP_int32 x)
-{
-  return (double) ntohl(x) / 65536.0;
-}
-
-/* ================================================== */
-
-inline static NTP_int32
-double_to_int32(double x)
-{
-  return htonl((NTP_int32)(0.5 + 65536.0 * x));
-}
-
-/* ================================================== */
-
-/* Seconds part of RFC1305 timestamp correponding to the origin of the
-   struct timeval format. */
-#define JAN_1970 0x83aa7e80UL
-
-inline static void
-timeval_to_int64(struct timeval *src,
-                 NTP_int64 *dest)
-{
-  unsigned long usec = src->tv_usec;
-  unsigned long sec = src->tv_sec;
-
-  /* Recognize zero as a special case - it always signifies
-     an 'unknown' value */
-  if (!usec && !sec) {
-    dest->hi = dest->lo = 0;
-  } else {
-    dest->hi = htonl(src->tv_sec + JAN_1970);
-
-    /* This formula gives an error of about 0.1us worst case */
-    dest->lo = htonl(4295 * usec - (usec>>5) - (usec>>9));
-  }
-
-}
-
-/* ================================================== */
-
-inline static void
-int64_to_timeval(NTP_int64 *src,
-                 struct timeval *dest)
-{
-  /* As yet, there is no need to check for zero - all processing that
-     has to detect that case is in the NTP layer */
-
-  dest->tv_sec = ntohl(src->hi) - JAN_1970;
-  
-  /* Until I invent a slick way to do this, just do it the obvious way */
-  dest->tv_usec = (int)(0.5 + (double)(ntohl(src->lo)) / 4294.967296);
-}
-
 /* ================================================== */
 
 static int
@@ -434,7 +398,7 @@ determine_md5_delay(void)
   struct timeval before, after;
   unsigned long usecs, min_usecs=0;
   MD5_CTX ctx;
-  static char *example_key = "#a0,243asd=-b ds";
+  static const char *example_key = "#a0,243asd=-b ds";
   int slen;
   int i;
 
@@ -443,8 +407,8 @@ determine_md5_delay(void)
   for (i=0; i<10; i++) {
     LCL_ReadRawTime(&before);
     MD5Init(&ctx);
-    MD5Update(&ctx, (unsigned char *) example_key, slen);
-    MD5Update(&ctx, (unsigned char *) &pkt, offsetof(NTP_Packet, auth_keyid));
+    MD5Update(&ctx, (unsigned const char *) example_key, slen);
+    MD5Update(&ctx, (unsigned const char *) &pkt, offsetof(NTP_Packet, auth_keyid));
     MD5Final(&ctx);
     LCL_ReadRawTime(&after);
     
@@ -460,7 +424,9 @@ determine_md5_delay(void)
 
   }
 
-  LOG(LOGS_INFO, LOGF_NtpCore, "MD5 took %d useconds\n", min_usecs);
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_NtpCore, "MD5 took %d useconds", min_usecs);
+#endif
 
   /* Add on a bit extra to allow for copying, conversions etc */
   md5_offset_usecs = min_usecs + (min_usecs >> 4);
@@ -585,7 +551,7 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
   message.reference_id = htonl((NTP_int32) our_ref_id);
 
   /* Now fill in timestamps */
-  timeval_to_int64(&our_ref_time, &message.reference_ts);
+  UTI_TimevalToInt64(&our_ref_time, &message.reference_ts);
 
   /* Originate - this comes from the last packet the source sent us */
   message.originate_ts = *orig_ts;
@@ -594,7 +560,7 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
      This timestamp will have been adjusted so that it will now look to
      the source like we have been running on our latest estimate of
      frequency all along */
-  timeval_to_int64(local_rx, &message.receive_ts);
+  UTI_TimevalToInt64(local_rx, &message.receive_ts);
 
   /* Transmit - this our local time right now!  Also, we might need to
      store this for our own use later, next time we receive a message
@@ -607,11 +573,11 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
        take to generate the MD5 authentication bytes. */
     local_transmit.tv_usec += md5_offset_usecs;
     UTI_NormaliseTimeval(&local_transmit);
-    timeval_to_int64(&local_transmit, &message.transmit_ts);
+    UTI_TimevalToInt64(&local_transmit, &message.transmit_ts);
     generate_packet_auth(&message, key_id);
     NIO_SendAuthenticatedPacket(&message, where_to);
   } else {
-    timeval_to_int64(&local_transmit, &message.transmit_ts);
+    UTI_TimevalToInt64(&local_transmit, &message.transmit_ts);
     NIO_SendNormalPacket(&message, where_to);
   }
 
@@ -644,8 +610,8 @@ transmit_timeout(void *arg)
   int do_timer = 0;
   int do_auth;
 
-#if 0
-  LOG(LOGS_INFO, LOGF_NtpCore, "Transmit timeout for [%s:%d]\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_NtpCore, "Transmit timeout for [%s:%d]",
       UTI_IPToDottedQuad(inst->remote_addr.ip_addr), inst->remote_addr.port);
 #endif
 
@@ -675,10 +641,13 @@ transmit_timeout(void *arg)
   inst->presend_done = 0; /* Reset for next time */
 
   ++inst->tx_count;
-  if (inst->tx_count == 9) {
+  if (inst->tx_count >= 9) {
     /* Mark source unreachable */
     SRC_UnsetReachable(inst->source);
-  } else if (inst->tx_count == 3) {
+  } else if (inst->tx_count >= 3) {
+    if (inst->auto_offline) {
+      NCR_TakeSourceOffline(inst);
+    }
     /* Do reselection */
     SRC_SelectSource(0);
   } else {
@@ -905,8 +874,8 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
 
   SRC_GetFrequencyRange(inst->source, &source_freq_lo, &source_freq_hi);
 
-  int64_to_timeval(&message->receive_ts, &remote_receive_tv);
-  int64_to_timeval(&message->transmit_ts, &remote_transmit_tv);
+  UTI_Int64ToTimeval(&message->receive_ts, &remote_receive_tv);
+  UTI_Int64ToTimeval(&message->transmit_ts, &remote_transmit_tv);
 
   if (test3) {
     
@@ -1005,7 +974,7 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
      transmit timestamp is not before the time it was synchronized (clearly
      bogus if it is), and (iii) that it was not synchronised too long ago
      */
-  int64_to_timeval(&message->reference_ts, &remote_reference_tv);
+  UTI_Int64ToTimeval(&message->reference_ts, &remote_reference_tv);
   if ((!source_is_synchronized) ||
       (UTI_CompareTimevals(&remote_reference_tv, &remote_transmit_tv) == 1) ||
       ((remote_reference_tv.tv_sec + NTP_MAXAGE - remote_transmit_tv.tv_sec) < 0)) {
@@ -1037,33 +1006,33 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
   root_delay = pkt_root_delay + delta;
   root_dispersion = pkt_root_dispersion + epsilon;
 
-#if 0
-  LOG(LOGS_INFO, LOGF_NtpCore, "lvm=%o stratum=%d poll=%d prec=%d\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_NtpCore, "lvm=%o stratum=%d poll=%d prec=%d",
       message->lvm, message->stratum, message->poll, message->precision);
-  LOG(LOGS_INFO, LOGF_NtpCore, "Root delay=%08lx (%f), dispersion=%08lx (%f)\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "Root delay=%08lx (%f), dispersion=%08lx (%f)",
       message->root_delay, pkt_root_delay, message->root_dispersion, pkt_root_dispersion);
-  LOG(LOGS_INFO, LOGF_NtpCore, "Ref id=[%s], ref_time=%08lx.%08lx [%s]\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "Ref id=[%s], ref_time=%08lx.%08lx [%s]",
       UTI_IPToDottedQuad(ntohl(message->reference_id)),
       message->reference_ts.hi, message->reference_ts.lo,
       UTI_TimestampToString(&message->reference_ts));
-  LOG(LOGS_INFO, LOGF_NtpCore, "Originate=%08lx.%08lx [%s]\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "Originate=%08lx.%08lx [%s]",
       message->originate_ts.hi, message->originate_ts.lo,
       UTI_TimestampToString(&message->originate_ts));
-  LOG(LOGS_INFO, LOGF_NtpCore, "Message receive=%08lx.%08lx [%s]\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "Message receive=%08lx.%08lx [%s]",
       message->receive_ts.hi, message->receive_ts.lo,
       UTI_TimestampToString(&message->receive_ts));
 
-  LOG(LOGS_INFO, LOGF_NtpCore, "Transmit=%08lx.%08lx [%s]\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "Transmit=%08lx.%08lx [%s]",
       message->transmit_ts.hi, message->transmit_ts.lo,
       UTI_TimestampToString(&message->transmit_ts));
 
-  LOG(LOGS_INFO, LOGF_NtpCore, "theta=%f delta=%f epsilon=%f root_delay=%f root_dispersion=%f\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "theta=%f delta=%f epsilon=%f root_delay=%f root_dispersion=%f",
       theta, delta, epsilon, root_delay, root_dispersion);
 
-  LOG(LOGS_INFO, LOGF_NtpCore, "test1=%d test2=%d test3=%d test4=%d valid_data=%d\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "test1=%d test2=%d test3=%d test4=%d valid_data=%d",
       test1, test2, test3, test4, valid_data);
 
-  LOG(LOGS_INFO, LOGF_NtpCore, "test5=%d test6=%d test7=%d test8=%d valid_header=%d\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "test5=%d test6=%d test7=%d test8=%d valid_header=%d",
       test5, test6, test7, test8, valid_header);
 #endif
 
@@ -1245,9 +1214,9 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
   if (logfile) {
     if (((logwrites++) % 32) == 0) {
       fprintf(logfile,
-              "==================================================================================================================\n"
-              " Date (UTC) Time    IP Address   L St 1234 ab 5678 LP RP SC  Offset     Peer del. Peer disp. Root del.  Root disp.\n"
-              "==================================================================================================================\n");
+              "=====================================================================================================================\n"
+              "   Date (UTC) Time     IP Address   L St 1234 ab 5678 LP RP SC  Offset     Peer del. Peer disp. Root del.  Root disp.\n"
+              "=====================================================================================================================\n");
     }
 
     fprintf(logfile, "%s %-15s %1c %2d %1d%1d%1d%1d %1d%1d %1d%1d%1d%1d %2d %2d %2d %10.3e %10.3e %10.3e %10.3e %10.3e\n",
@@ -1375,7 +1344,7 @@ process_known
                         &inst->remote_addr);
 
       } else {
-        LOG(LOGS_WARN, LOGF_NtpCore, "NTP packet received from unauthorised host %s port %d\n",
+        LOG(LOGS_WARN, LOGF_NtpCore, "NTP packet received from unauthorised host %s port %d",
             UTI_IPToDottedQuad(inst->remote_addr.ip_addr),
             inst->remote_addr.port);
       }
@@ -1543,7 +1512,7 @@ NCR_ProcessNoauthUnknown(NTP_Packet *message, struct timeval *now, NTP_Remote_Ad
       
     }
   } else {
-    LOG(LOGS_WARN, LOGF_NtpCore, "NTP packet received from unauthorised host %s port %d\n",
+    LOG(LOGS_WARN, LOGF_NtpCore, "NTP packet received from unauthorised host %s port %d",
         UTI_IPToDottedQuad(remote_addr->ip_addr),
         remote_addr->port);
   }
@@ -1638,14 +1607,14 @@ NCR_SlewTimes(NCR_Instance inst, struct timeval *when, double dfreq, double doff
   struct timeval prev;
   prev = inst->local_rx;
   UTI_AdjustTimeval(&inst->local_rx, when, &inst->local_rx, dfreq, doffset);
-#if 0
-  LOG(LOGS_INFO, LOGF_NtpCore, "rx prev=[%s] new=[%s]\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_NtpCore, "rx prev=[%s] new=[%s]",
       UTI_TimevalToString(&prev), UTI_TimevalToString(&inst->local_rx));
 #endif
   prev = inst->local_tx;
   UTI_AdjustTimeval(&inst->local_tx, when, &inst->local_tx, dfreq, doffset);
-#if 0
-  LOG(LOGS_INFO, LOGF_NtpCore, "tx prev=[%s] new=[%s]\n",
+#ifdef TRACEON
+  LOG(LOGS_INFO, LOGF_NtpCore, "tx prev=[%s] new=[%s]",
       UTI_TimevalToString(&prev), UTI_TimevalToString(&inst->local_tx));
 #endif
 }
@@ -1662,7 +1631,7 @@ NCR_TakeSourceOnline(NCR_Instance inst)
     case MD_OFFLINE:
       if (!inst->timer_running) {
         /* We are not already actively polling it */
-        LOG(LOGS_INFO, LOGF_NtpCore, "Source %s online\n", UTI_IPToDottedQuad(inst->remote_addr.ip_addr));
+        LOG(LOGS_INFO, LOGF_NtpCore, "Source %s online", UTI_IPToDottedQuad(inst->remote_addr.ip_addr));
         inst->local_poll = inst->minpoll;
         inst->score = (ZONE_WIDTH >> 1);
         inst->opmode = MD_ONLINE;
@@ -1686,7 +1655,7 @@ NCR_TakeSourceOffline(NCR_Instance inst)
   switch (inst->opmode) {
     case MD_ONLINE:
       if (inst->timer_running) {
-        LOG(LOGS_INFO, LOGF_NtpCore, "Source %s offline\n", UTI_IPToDottedQuad(inst->remote_addr.ip_addr));
+        LOG(LOGS_INFO, LOGF_NtpCore, "Source %s offline", UTI_IPToDottedQuad(inst->remote_addr.ip_addr));
         SCH_RemoveTimeout(inst->timeout_id);
         inst->timer_running = 0;
         inst->opmode = MD_OFFLINE;
@@ -1709,7 +1678,7 @@ void
 NCR_ModifyMinpoll(NCR_Instance inst, int new_minpoll)
 {
   inst->minpoll = new_minpoll;
-  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new minpoll %d\n", UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_minpoll);
+  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new minpoll %d", UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_minpoll);
 }
 
 /* ================================================== */
@@ -1718,7 +1687,7 @@ void
 NCR_ModifyMaxpoll(NCR_Instance inst, int new_maxpoll)
 {
   inst->maxpoll = new_maxpoll;
-  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new maxpoll %d\n", UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_maxpoll);
+  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new maxpoll %d", UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_maxpoll);
 }
 
 /* ================================================== */
@@ -1727,7 +1696,7 @@ void
 NCR_ModifyMaxdelay(NCR_Instance inst, double new_max_delay)
 {
   inst->max_delay = new_max_delay;
-  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new max delay %f\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new max delay %f",
       UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_max_delay);
 }
 
@@ -1737,7 +1706,7 @@ void
 NCR_ModifyMaxdelayratio(NCR_Instance inst, double new_max_delay_ratio)
 {
   inst->max_delay_ratio = new_max_delay_ratio;
-  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new max delay ratio %f\n",
+  LOG(LOGS_INFO, LOGF_NtpCore, "Source %s new max delay ratio %f",
       UTI_IPToDottedQuad(inst->remote_addr.ip_addr), new_max_delay_ratio);
 }
 
@@ -1864,9 +1833,34 @@ NCR_CycleLogFile(void)
     fclose(logfile);
     logfile = fopen(logfilename, "a");
     if (!logfile) {
-      LOG(LOGS_WARN, LOGF_NtpCore, "Could not reopen logfile %s\n", logfilename);
+      LOG(LOGS_WARN, LOGF_NtpCore, "Could not reopen logfile %s", logfilename);
     }
     logwrites = 0;
+  }
+}
+
+/* ================================================== */
+
+void
+NCR_IncrementActivityCounters(NCR_Instance inst, int *online, int *offline,
+                              int *burst_online, int *burst_offline)
+{
+  switch (inst->opmode) {
+    case MD_BURST_WAS_OFFLINE:
+      ++*burst_offline;
+      break;
+    case MD_BURST_WAS_ONLINE:
+      ++*burst_online;
+      break;
+    case MD_ONLINE:
+      ++*online;
+      break;
+    case MD_OFFLINE:
+      ++*offline;
+      break;
+    default:
+      CROAK("Impossible");
+      break;
   }
 }
 

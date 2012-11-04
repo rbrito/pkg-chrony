@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/ntp_io.c,v 1.16 2000/06/12 21:22:49 richard Exp $
+  $Header: /cvs/src/chrony/ntp_io.c,v 1.24 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -24,6 +37,7 @@
 #include "local.h"
 #include "logging.h"
 #include "conf.h"
+#include "util.h"
 
 #include <fcntl.h>
 
@@ -49,7 +63,6 @@ do_size_checks(void)
   /* Check that certain invariants are true */
   assert(sizeof(NTP_int32) == 4);
   assert(sizeof(NTP_int64) == 8);
-  assert(sizeof(unsigned long) == 4);
 
   /* Check offsets of all fields in the NTP packet format */
   assert(offsetof(NTP_Packet, lvm)             ==  0);
@@ -91,12 +104,18 @@ NIO_Initialise(void)
   sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
 #endif 
   if (sock_fd < 0) {
-    LOG_FATAL(LOGF_NtpIO, "Could not open socket : %s\n", strerror(errno));
+    LOG_FATAL(LOGF_NtpIO, "Could not open socket : %s", strerror(errno));
   }
 
   /* Make the socket capable of re-using an old address */
-  if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &on_off, sizeof(on_off)) < 0) {
-    LOG(LOGS_ERR, LOGF_NtpIO, "Could not set socket options");
+  if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&on_off, sizeof(on_off)) < 0) {
+    LOG(LOGS_ERR, LOGF_NtpIO, "Could not set reuseaddr socket options");
+    /* Don't quit - we might survive anyway */
+  }
+  
+  /* Make the socket capable of sending broadcast pkts - needed for NTP broadcast mode */
+  if (setsockopt(sock_fd, SOL_SOCKET, SO_BROADCAST, (char *)&on_off, sizeof(on_off)) < 0) {
+    LOG(LOGS_ERR, LOGF_NtpIO, "Could not set broadcast socket options");
     /* Don't quit - we might survive anyway */
   }
 
@@ -113,11 +132,11 @@ NIO_Initialise(void)
   }
 
 #if 0
-  LOG(LOGS_INFO, LOGF_NtpIO, "Initialising, socket fd=%d\n", sock_fd);
+  LOG(LOGS_INFO, LOGF_NtpIO, "Initialising, socket fd=%d", sock_fd);
 #endif
 
   if (bind(sock_fd, (struct sockaddr *) &my_addr, sizeof(my_addr)) < 0) {
-    LOG_FATAL(LOGF_NtpIO, "Could not bind socket : %s\n", strerror(errno));
+    LOG_FATAL(LOGF_NtpIO, "Could not bind socket : %s", strerror(errno));
   }
 
   /* Register handler for read events on the socket */
@@ -177,7 +196,7 @@ read_from_socket(void *anything)
   message_length = sizeof(message);
 
   LCL_ReadCookedTime(&now, &local_clock_err);
-  status = recvfrom(sock_fd, &message, message_length, flags,
+  status = recvfrom(sock_fd, (char *)&message, message_length, flags,
                     (struct sockaddr *)&where_from, &from_length);
 
   /* Don't bother checking if read failed or why if it did.  More
@@ -225,7 +244,8 @@ NIO_SendNormalPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr)
 
   if (sendto(sock_fd, (void *) packet, NTP_NORMAL_PACKET_SIZE, 0,
              (struct sockaddr *) &remote, sizeof(remote)) < 0) {
-    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send : %s\n", strerror(errno));
+    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to :%s%d : %s",
+        UTI_IPToDottedQuad(remote_addr->ip_addr), remote_addr->port, strerror(errno));
   }
 
   return;
@@ -247,7 +267,8 @@ NIO_SendAuthenticatedPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr)
 
   if (sendto(sock_fd, (void *) packet, sizeof(NTP_Packet), 0,
              (struct sockaddr *) &remote, sizeof(remote)) < 0) {
-    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send : %s\n", strerror(errno));
+    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to :%s%d : %s",
+        UTI_IPToDottedQuad(remote_addr->ip_addr), remote_addr->port, strerror(errno));
   }
 
   return;

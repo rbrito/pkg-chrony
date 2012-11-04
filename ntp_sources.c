@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/ntp_sources.c,v 1.13 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/ntp_sources.c,v 1.18 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -149,7 +162,7 @@ NSR_AddServer(NTP_Remote_Address *remote_addr, SourceParameters *params)
   assert(initialised);
 
 #if 0
-  LOG(LOGS_INFO, LOGF_NtpSources, "IP=%08lx port=%d\n", (unsigned long)remote_addr->ip_addr, remote_addr->port);
+  LOG(LOGS_INFO, LOGF_NtpSources, "IP=%08lx port=%d", (unsigned long)remote_addr->ip_addr, remote_addr->port);
 #endif
 
   /* Find empty bin & check that we don't have the address already */
@@ -180,7 +193,7 @@ NSR_AddPeer(NTP_Remote_Address *remote_addr, SourceParameters *params)
   assert(initialised);
 
 #if 0
-  LOG(LOGS_INFO, LOGF_NtpSources, "IP=%08lx port=%d\n", (unsigned long) remote_addr->ip_addr, remote_addr->port);
+  LOG(LOGS_INFO, LOGF_NtpSources, "IP=%08lx port=%d", (unsigned long) remote_addr->ip_addr, remote_addr->port);
 #endif
 
   /* Find empty bin & check that we don't have the address already */
@@ -235,7 +248,7 @@ NSR_ProcessReceive(NTP_Packet *message, struct timeval *now, NTP_Remote_Address 
   assert(initialised);
 
 #if 0
-  LOG(LOGS_INFO, LOGF_NtpSources, "from (%s,%d) at %s\n",
+  LOG(LOGS_INFO, LOGF_NtpSources, "from (%s,%d) at %s",
       UTI_IPToDottedQuad(remote_addr->ip_addr),
       remote_addr->port, UTI_TimevalToString(now));
 #endif
@@ -282,7 +295,7 @@ slew_sources(struct timeval *raw,
   for (i=0; i<N_RECORDS; i++) {
     if (records[i].in_use) {
 #if 0
-      LOG(LOGS_INFO, LOGF_Sources, "IP=%s dfreq=%f doff=%f\n",
+      LOG(LOGS_INFO, LOGF_Sources, "IP=%s dfreq=%f doff=%f",
           UTI_IPToDottedQuad(records[i].remote_addr.ip_addr), dfreq, doffset);
 #endif
 
@@ -459,6 +472,28 @@ NSR_ReportSource(RPT_SourceReport *report, struct timeval *now)
     report->latest_meas_ago = 0;
   }
 }
+
+/* ================================================== */
+
+void
+NSR_GetActivityReport(RPT_ActivityReport *report)
+{
+  int i;
+
+  report->online = 0;
+  report->offline = 0;
+  report->burst_online = 0;
+  report->burst_offline = 0;
+
+  for (i=0; i<N_RECORDS; i++) {
+    if (records[i].in_use) {
+      NCR_IncrementActivityCounters(records[i].data, &report->online, &report->offline,
+                                    &report->burst_online, &report->burst_offline);
+    }
+  }
+  return;
+}
+
 
 /* ================================================== */
 

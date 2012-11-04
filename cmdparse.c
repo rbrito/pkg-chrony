@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/cmdparse.c,v 1.7 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/cmdparse.c,v 1.12 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
   
@@ -22,13 +35,16 @@
 #include "cmdparse.h"
 #include "nameserv.h"
 
+#define MAXLEN 2047
+#define SMAXLEN "2047"
+
 /* ================================================== */
 
 CPS_Status
 CPS_ParseNTPSourceAdd(const char *line, CPS_NTP_Source *src)
 {
   int ok, n, done;
-  char cmd[2048], hostname[2048];
+  char cmd[MAXLEN+1], hostname[MAXLEN+1];
   CPS_Status result;
   
   src->port = 123;
@@ -39,11 +55,12 @@ CPS_ParseNTPSourceAdd(const char *line, CPS_NTP_Source *src)
   src->params.max_delay = 16.0;
   src->params.max_delay_ratio = 16384.0;
   src->params.online = 1;
+  src->params.auto_offline = 0;
 
   result = CPS_Success;
   
   ok = 0;
-  if (sscanf(line, "%s%n", hostname, &n) == 1) {
+  if (sscanf(line, "%" SMAXLEN "s%n", hostname, &n) == 1) {
     src->ip_addr = DNS_Name2IPAddress(hostname);
     if (src->ip_addr != DNS_Failed_Address) {
       ok = 1;
@@ -60,7 +77,7 @@ CPS_ParseNTPSourceAdd(const char *line, CPS_NTP_Source *src)
     ok = 1;
     done = 0;
     do {
-      if (sscanf(line, "%s%n", cmd, &n) == 1) {
+      if (sscanf(line, "%" SMAXLEN "s%n", cmd, &n) == 1) {
         
         line += n;
         
@@ -123,6 +140,10 @@ CPS_ParseNTPSourceAdd(const char *line, CPS_NTP_Source *src)
           }
         } else if (!strncasecmp(cmd, "offline", 7)) {
           src->params.online = 0;
+
+        } else if (!strncasecmp(cmd, "auto_offline", 12)) {
+          src->params.auto_offline = 1;
+        
         } else {
           result = CPS_BadOption;
           ok = 0;

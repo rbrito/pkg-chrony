@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/sys_sunos.c,v 1.15 2000/06/12 21:22:49 richard Exp $
+  $Header: /cvs/src/chrony/sys_sunos.c,v 1.19 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -332,24 +345,24 @@ setup_kernel(unsigned long on_off)
 
   kt = kvm_open(NULL, NULL, NULL, O_RDWR, NULL);
   if (!kt) {
-    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot open kvm\n");
+    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot open kvm");
     return;
   }
 
   if (kvm_nlist(kt, nl) < 0) {
-    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot read kernel symbols\n");
+    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot read kernel symbols");
     kvm_close(kt);
     return;
   }
 
   if (kvm_write(kt, nl[0].n_value, (char *)(&on_off), sizeof(unsigned long)) < 0) {
-    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot write to _dosynctodr\n");
+    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot write to _dosynctodr");
     kvm_close(kt);
     return;
   }
 
   if (kvm_write(kt, nl[1].n_value, (char *)(&our_tick), sizeof(unsigned long)) < 0) {
-    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot write to _tick\n");
+    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot write to _tick");
     kvm_close(kt);
     return;
   }
@@ -357,7 +370,7 @@ setup_kernel(unsigned long on_off)
   if (kvm_write(kt, nl[2].n_value,
                 (char *)(&(on_off ? default_tickadj : our_tickadj)),
                 sizeof(unsigned long)) < 0) {
-    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot write to _tickadj\n");
+    LOG(LOGS_ERR, LOGF_SysSunOS, "Cannot write to _tickadj");
     kvm_close(kt);
     return;
   }
@@ -365,7 +378,7 @@ setup_kernel(unsigned long on_off)
   kvm_close(kt);
 
 #if 0
-  LOG(LOGS_INFO, LOGF_SysSunOS, "Set value of _dosynctodr to %d\n", on_off);
+  LOG(LOGS_INFO, LOGF_SysSunOS, "Set value of _dosynctodr to %d", on_off);
 #endif
 
 }

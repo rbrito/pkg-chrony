@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/sys_solaris.c,v 1.14 2000/06/12 21:22:49 richard Exp $
+  $Header: /cvs/src/chrony/sys_solaris.c,v 1.19 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -22,6 +35,7 @@
 #include <nlist.h>
 #include <assert.h>
 #include <sys/time.h>
+#include <sys/utsname.h>
 
 #include <stdio.h>
 
@@ -67,6 +81,10 @@ static struct timeval zeroes[2] = {
 };
 
 static int index=0;
+
+/* If 1, need to run dosynctodr().  If 0, don't */
+static int need_dosynctodr = -1;
+
 
 #define GET_ZERO (zeroes[index^=1])
 
@@ -317,6 +335,47 @@ drift_removal_timeout(SCH_ArbitraryArgument not_used)
   drift_removal_id = SCH_AddTimeoutByDelay(DRIFT_REMOVAL_INTERVAL, drift_removal_timeout, NULL);
 }
 
+/* ================================================== */
+
+static void
+check_need_dosynctodr(void)
+{
+  struct utsname name;
+  int result;
+  int major, minor, veryminor, n_fields;
+
+  result = uname(&name);
+  if (result < 0) {
+    LOG(LOGS_ERR, LOGF_SysSolaris, "Cannot use uname to detect Solaris version");
+    need_dosynctodr = 0; /* Assume recent Solaris where it isn't needed */
+    return;
+  }
+
+  n_fields = sscanf(name.release, "%d.%d.%d\n", &major, &minor, &veryminor);
+
+  if (n_fields < 2) {
+    LOG(LOGS_ERR, LOGF_SysSolaris, "Solaris version doesn't appear to be of the form X.Y[.Z]");
+    need_dosynctodr = 0; /* Assume recent Solaris where it isn't needed */
+    return;
+  }
+
+  if (major != 5) {
+    LOG(LOGS_ERR, LOGF_SysSolaris, "Solaris major version doesn't appear to be 5");
+    need_dosynctodr = 0; /* Assume recent Solaris where it isn't needed */
+    return;
+  }
+
+  /* The 'rule of thumb' is that from Solaris 2.6 onwards, dosynctodr() doesn't
+   * need to be called, and in fact it is counter-productive to do so.  For
+   * earlier versions, it is required. */ 
+
+  if (minor < 6) {
+    need_dosynctodr = 1;
+  } else {
+    need_dosynctodr = 0;
+  }
+  
+}
 
 /* ================================================== */
 
@@ -337,24 +396,24 @@ set_dosynctodr(unsigned long on_off)
 
   kt = kvm_open(NULL, NULL, NULL, O_RDWR, NULL);
   if (!kt) {
-    LOG(LOGS_ERR, LOGF_SysSolaris, "Cannot open kvm to change dosynctodr\n");
+    LOG(LOGS_ERR, LOGF_SysSolaris, "Cannot open kvm to change dosynctodr");
     return;
   }
 
   if (kvm_nlist(kt, nl) < 0) {
-    LOG(LOGS_ERR, LOGF_SysSolaris, "Cannot read dosynctodr in nlist\n");
+    LOG(LOGS_ERR, LOGF_SysSolaris, "Cannot read dosynctodr in nlist");
     kvm_close(kt);
     return;
   }
 
   if (kvm_write(kt, nl[0].n_value, (char *)(&on_off), sizeof(unsigned long)) < 0) {
-    LOG(LOGS_ERR, LOGF_SysSolaris, "Cannot write to dosynctodr\n");
+    LOG(LOGS_ERR, LOGF_SysSolaris, "Cannot write to dosynctodr");
     kvm_close(kt);
     return;
   }
 
   if (kvm_read(kt, nl[0].n_value, (char *)(&read_back), sizeof(unsigned long)) < 0) {
-    LOG(LOGS_ERR, LOGF_SysSolaris, "Cannot read from dosynctodr\n");
+    LOG(LOGS_ERR, LOGF_SysSolaris, "Cannot read from dosynctodr");
     kvm_close(kt);
     return;
   }
@@ -366,7 +425,7 @@ set_dosynctodr(unsigned long on_off)
   }
 
 #if 0
-  LOG(LOGS_INFO, LOGF_SysSolaris, "Set value of dosynctodr to %d\n", on_off);
+  LOG(LOGS_INFO, LOGF_SysSolaris, "Set value of dosynctodr to %d", on_off);
 #endif
 
 }
@@ -376,6 +435,8 @@ set_dosynctodr(unsigned long on_off)
 void
 SYS_Solaris_Initialise(void)
 {
+
+  check_need_dosynctodr();
 
   /* Need to do KVM stuff to turn off dosynctodr. */
 
@@ -387,7 +448,9 @@ SYS_Solaris_Initialise(void)
 
   /* Turn off the kernel switch that keeps the system clock in step
      with the non-volatile clock */
-  set_dosynctodr(0);
+  if (need_dosynctodr) {
+    set_dosynctodr(0);
+  }
 
   drift_removal_id = SCH_AddTimeoutByDelay(DRIFT_REMOVAL_INTERVAL, drift_removal_timeout, NULL);
   drift_removal_running = 1;
@@ -407,7 +470,9 @@ SYS_Solaris_Finalise(void)
 
   /* When exiting, we want to return the machine to its 'autonomous'
      tracking mode */
-  set_dosynctodr(1);
+  if (need_dosynctodr) {
+    set_dosynctodr(1);
+  }
 
   return;
 }

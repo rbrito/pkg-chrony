@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/sched.c,v 1.13 2000/06/12 21:22:49 richard Exp $
+  $Header: /cvs/src/chrony/sched.c,v 1.17 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -539,7 +552,7 @@ SCH_MainLoop(void)
        timeout set, this is clearly ridiculous, so stop the run */
 
     if (!ptv && (n_read_fds == 0)) {
-      LOG_FATAL(LOGF_Scheduler, "No descriptors or timeout to wait for\n");
+      LOG_FATAL(LOGF_Scheduler, "No descriptors or timeout to wait for");
     }
 
     status = select(one_highest_fd, &rd, &wr, &ex, ptv);

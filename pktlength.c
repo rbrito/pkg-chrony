@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/pktlength.c,v 1.8 1999/09/21 21:03:38 richard Exp $
+  $Header: /cvs/src/chrony/pktlength.c,v 1.12 2002/02/28 23:27:12 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2002
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -17,7 +30,6 @@
   integer endianness within the structures.
 
   */
-
 #include "sysincl.h"
 
 #include "util.h"
@@ -133,9 +145,11 @@ PKL_CommandLength(CMD_Request *r)
         return offsetof(CMD_Request, data.manual_delete.EOR);
       case REQ_MAKESTEP:
         return offsetof(CMD_Request, data.make_step.EOR);
+      case REQ_ACTIVITY:
+        return offsetof(CMD_Request, data.activity.EOR);
       default:
         /* If we fall through the switch, it most likely means we've forgotten to implement a new case */
-        CROAK("Impossible");
+        assert(0);
     }
   }
 
@@ -211,8 +225,11 @@ PKL_ReplyLength(CMD_Reply *r)
             return offsetof(CMD_Reply, data);
           }
         }
+      case RPY_ACTIVITY:
+        return offsetof(CMD_Reply, data.activity.EOR);
+        
       default:
-        CROAK("Impossible");
+        assert(0);
     }
   }
 

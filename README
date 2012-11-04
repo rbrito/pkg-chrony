@@ -46,24 +46,22 @@ What will chrony run on?
 
 Chrony can be successfully built and run on
 
-1. Linux v2.0.x, 2.1.x (partially), 2.2.x, 2.3.x (i386)
+1. Linux v1.2.13, v2.0.x, 2.1.x (partially), 2.2.x, 2.3.x, 2.4.x (i386).
+Real time clock support is limited to 2.0.32 onwards and to 2.2, 2.3 and
+2.4 series only.  PowerPC is also known to be supported.
 
-Linux 1.2.13 may work - the code has support but I haven't access to
-anything to test it on. There is support for some patchlevels of Linux
-2.1, but not the more recent ones - I haven't got access to a source
-tree to check certain details.
-
-2. Solaris 2.5/2.5.1 (Sparc 20 and Ultrasparc).
+2. Solaris 2.5/2.5.1/2.6/2.7/2.8 (various platforms) 
 
 3. SunOS 4.1.4 (Sparc 2 and Sparc 20)
 
 4. BSD/386 v1.1 has been reported to work using the SunOS 4.1 driver.
 
+5. NetBSD.
+
 Any other system will require a porting exercise.  You would need to
 start from one of the existing system-specific drivers and look into
 the quirks of certain system calls and the kernel on your target
 system.  (This is described in the manual).
-
 
 How do I set it up?
 ===================
@@ -86,7 +84,7 @@ ready-formatted plain text (chrony.txt) in the distribution.
 There is also information available on the chrony web pages, accessible
 through the URL 
 
-    http://go.to/chrony
+    http://chrony.sunsite.dk/
 
 What can chrony not do?
 =======================
@@ -98,11 +96,11 @@ modes.
 Where are new versions announced?
 =================================
 
-There is a low volume mailing list hosted on egroups where new versions
-and other important news relating to chrony is announced.  You can join
-this list by sending mail to
+There is a low volume mailing list where new versions and other
+important news relating to chrony is announced.  You can join this list
+by sending mail to
 
-chrony-announce-subscribe@egroups.com
+chrony-announce-subscribe@sunsite.dk
 
 These messages will be copied to chrony-users (see below).  I also try
 to announce new versions on Freshmeat (http://freshmeat.net/).
@@ -114,33 +112,33 @@ How can I get support for chrony?
 and where can I discuss new features, possible bugs etc?
 ========================================================
 
-There is a mailing list for chrony discussion (including questions and answers
-of a support nature) hosted on Egroups.  To subscribe to this list, send mail
-to
+There are 3 mailing lists relating to chrony.  chrony-announce was
+mentioned above.  chrony-users is a users' discussion list, e.g. for
+general questions and answers about using chrony.  chrony-dev is a more
+technical list, e.g. for discussing how new features should be
+implemented, exchange of information between developers etc.  To
+subscribe to either of these lists, send an empty message to
 
-chrony-users-subscribe@egroups.com
+chrony-users-subscribe@sunsite.dk
+or
+chrony-dev-subscribe@sunsite.dk
 
-The remit of this groups is
-o Support question / answer forum
-o Discussion about possible bugs, extensions, ports to other O/Ses etc
-o Announcements of new releases (copies of messages to chrony-announce)
-o Developer discussions for the time being - if sufficient traffic
-  builds up, I'll start a separate list for this.
+as applicable.
 
-Note that due to family commitments (a 2 year-old and a 0 year-old), I
+Note that due to family commitments (a 3 year-old and a 1 year-old), I
 no longer have the time to give to supporting chrony that I once had.
-Therefore, the mailing list should be your main route for support,
+Therefore, the chrony-users list should be your main route for support,
 rather than mailing me directly.  Even if it's me that responds to your
 question on the list, at least *ALL* subscribers then benefit from
 seeing the discussion, rather than me taking up lots of time on
-supporting people on a one-to-one basis.
+supporting people on a one-to-one basis.  If you do mail me directly,
+don't be surprised if I cc: the response to the mailing list.
 
 But how can I contact the author if I need to?
 ==============================================
 
-You can email me at <rpc@myself.com> (or equivalently through
-chrony@go.to, or even through <chrony-users-owner@egroups.com>).  It
-would be nice if:
+You can email me at <rc@rc0.org.uk>.  If that fails, you could try to
+find me through one of the mailing lists.  It would be nice if:
 
 - you include the word 'chrony' in the subject line (so my mail reader
 can sort my mail by topic)
@@ -153,8 +151,8 @@ slowly ...).
 Acknowledgements
 ================
 
-The following people have provided patches and other contributions to
-the program :
+The following people have provided patches and other major contributions
+to the program :
 
 Andrew Bishop <amb@gedanken.demon.co.uk>
     Fixes for bugs in logging when in daemon mode
@@ -162,9 +160,10 @@ Andrew Bishop <amb@gedanken.demon.co.uk>
     Robustness improvements for drift file
     Improve installation (directory checking etc)
     Entries in contrib directory
-
-Jim Knoble <jmknoble@pobox.com>
-    Fixes for compiler warnings
+    Improvements to 'sources' and 'sourcestats' output from chronyc
+    Improvements to documentation
+    Investigation of required dosynctodr behaviour for various Solaris
+      versions.
 
 Stephan I. Boettcher <stephan@nevis1.columbia.edu>
     Entries in contrib directory
@@ -172,23 +171,78 @@ Stephan I. Boettcher <stephan@nevis1.columbia.edu>
 Erik Bryer <ebryer@spots.ab.ca>
     Entries in contrib directory
 
+Juliusz Chroboczek <jch@pps.jussieu.fr>
+    Fix install rule in Makefile if chronyd file is in use.
+
+Paul Elliott <pelliott@io.com>
+    DNSchrony (in contrib directory), a tool for handling NTP servers
+    with variable IP addresses.
+
+Mike Fleetwood <mike@rockover.demon.co.uk>
+    Fixes for compiler warnings
+
+Alexander Gretencord <arutha@gmx.de>
+    Changes to installation directory system to make it easier for
+    package builders.
+
+Walter Haidinger <walter.haidinger@gmx.at>
+    Providing me with login access to a Linux installation where v1.12
+    wouldn't compile, so I could develop the fixes for v1.13.  Also, for
+    providing the disc space so I can keep an independent backup of the
+    sources.
+
+Juergen Hannken-Illjes <hannken@eis.cs.tu-bs.de>
+    Port to NetBSD
+
+John Hasler <john@dhh.gt.org>
+    Changes to support 64 bit machines (i.e. those where
+      sizeof(unsigned long) > 4)
+    Bug fix to initstepslew directive
+    Fix to remove potential buffer overrun errors.
+
+Liam Hatton <me@liamhatton.com>
+    Advice on configuring for Linux on PPC
+
+Jachym Holecek <jakym@volny.cz>
+    Patch to make Linux real time clock work with devfs
+
+Jim Knoble <jmknoble@pobox.com>
+    Fixes for compiler warnings
+
 Antti Jrvinen <costello@iki.fi>
     Advice on configuring for BSD/386
 
+Victor Moroz <vim@prv.adlum.ru>
+    Patch to support Linux with HZ!=100
+
+Kalle Olavi Niemitalo  <tosi@stekt.oulu.fi>
+    acquisitionport support
+
+Frank Otto <sandwichmacher@web.de>
+    Handling arbitrary HZ values
+
+Andreas Piesk <apiesk@virbus.de>
+    Patch to make chronyc use the readline library if available
+
+Wolfgang Weisselberg <weissel@netcologne.de>
+    Entries in contrib directory
+
+Ralf Wildenhues <Ralf.Wildenhues@gmx.de>
+    Many robustness and security improvements
+    
 Ulrich Windl <ulrich.windl@rz.uni-regensburg.de> for the
     Providing me with information about the Linux 2.2 kernel
     functionality compared to 2.0.
 
-Walter Haidinger <walter.haidinger@gmx.at>
-    Providing me with login access to a Linux installation where v1.12
-    wouldn't compile, so I could develop the fixes for v1.13.
+Doug Woodward <dougw@whistler.com>
+    Advice on configuring for Solaris 2.8 on x86
 
-Many other people have contributed bug reports and suggestions, sorry I
-can't identify all of you by name.
+Many other people have contributed bug reports and suggestions.  I'm
+sorry I can't identify all of you individually.
 
 Version control information
 ===========================
 
-$Header: /cvs/src/chrony/README,v 1.14 2000/07/15 21:29:37 richard Exp $
+$Header: /cvs/src/chrony/README,v 1.30 2003/09/21 23:11:06 richard Exp $
 
 vim:tw=72

@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/mkdirpp.c,v 1.7 1999/08/17 21:24:52 richard Exp $
+  $Header: /cvs/src/chrony/mkdirpp.c,v 1.10 2002/11/03 22:49:17 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2002
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -26,6 +39,10 @@ do_dir(char *p)
 {
   int status;
   struct stat buf;
+
+#if defined(TEST)
+  fprintf(stderr, "do_dir(%s)\n", p);
+#endif
 
   /* See if directory exists */
   status = stat(p, &buf);
@@ -56,37 +73,37 @@ mkdir_and_parents(const char *path)
 {
   char *p;
   int len;
-  int i, j, last;
+  int i, j, k, last;
   len = strlen(path);
 
   p = (char *) malloc(1 + len);
 
-  i = 1;
-  p[0] = path[0]; /* So leading / doesn't trip the next test */
+  i = k = 0;
   while (1) {
-    p[i] = path[i];
-    i++;
+    p[i++] = path[k++];
     
-    if (path[i] == '/' || !path[i]) {
+    if (path[k] == '/' || !path[k]) {
       p[i] = 0;
 
       if (do_dir(p) < 0) {
         return 0;
       }
 
-      if (!path[i]) {
+      if (!path[k]) {
         /* End of the string */
         break;
       }
 
       /* check whether its a trailing / or group of / */
       last = 1;
-      j = i+1;
+      j = k+1;
       while (path[j]) {
         if (path[j] != '/') {
+          k = j - 1; /* Pick up a / into p[] thru the assignment at the top of the loop */
           last = 0;
           break;
         }
+        j++;
       }
 
       if (last) {
@@ -94,7 +111,7 @@ mkdir_and_parents(const char *path)
       }
     }
 
-    if (!path[i]) break;
+    if (!path[k]) break;
 
   }  
 
@@ -105,11 +122,11 @@ mkdir_and_parents(const char *path)
 
 /* ================================================== */
 
-#if 0
+#if defined(TEST)
 int main(int argc, char **argv) {
   if (argc > 1) {
-    mkdir_and_parents(argv[1]);
-    return 0;
+    /* Invert sense of result */
+    return mkdir_and_parents(argv[1]) ? 0 : 1;
   } else {
     return 1;
   }

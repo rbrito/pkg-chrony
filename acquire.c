@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/acquire.c,v 1.16 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/acquire.c,v 1.24 2003/09/22 21:22:30 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -38,6 +51,7 @@
 #include "ntp.h"
 #include "util.h"
 #include "main.h"
+#include "conf.h"
 
 /* ================================================== */
 
@@ -132,15 +146,27 @@ ACQ_Finalise(void)
 static void
 initialise_io(void)
 {
+  unsigned short port_number = CNF_GetAcquisitionPort();
 
   sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
 
   if (sock_fd < 0) {
-    LOG_FATAL(LOGF_Acquire, "Could not open socket : %s\n", strerror(errno));
+    LOG_FATAL(LOGF_Acquire, "Could not open socket : %s", strerror(errno));
   }
 
-  /* Don't bother binding this socket - we're not fussed what port
-     number it gets */
+  if (port_number == 0) {
+    /* Don't bother binding this socket - we're not fussed what port
+       number it gets */
+  } else {
+    struct sockaddr_in my_addr;
+    my_addr.sin_family = AF_INET;
+    my_addr.sin_port = htons(port_number);
+    my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    if (bind(sock_fd, (struct sockaddr *) &my_addr, sizeof(my_addr)) < 0) {
+      LOG(LOGS_ERR, LOGF_Acquire, "Could not bind socket : %s\n", strerror(errno));
+      /* but keep running */
+    }
+  }
 
   SCH_AddInputFileHandler(sock_fd, read_from_socket, NULL);
 
@@ -157,63 +183,6 @@ finalise_io(void)
   }
 
   return;
-}
-
-/* ================================================== */
-
-inline static double
-int32_to_double(NTP_int32 x)
-{
-  return (double) ntohl(x) / 65536.0;
-}
-
-/* ================================================== */
-
-inline static NTP_int32
-double_to_int32(double x)
-{
-  return htonl((NTP_int32)(0.5 + 65536.0 * x));
-}
-
-/* ================================================== */
-
-/* Seconds part of RFC1305 timestamp correponding to the origin of the
-   struct timeval format. */
-#define JAN_1970 0x83aa7e80UL
-
-inline static void
-timeval_to_int64(struct timeval *src,
-                 NTP_int64 *dest)
-{
-  unsigned long usec = src->tv_usec;
-  unsigned long sec = src->tv_sec;
-
-  /* Recognize zero as a special case - it always signifies
-     an 'unknown' value */
-  if (!usec && !sec) {
-    dest->hi = dest->lo = 0;
-  } else {
-    dest->hi = htonl(src->tv_sec + JAN_1970);
-
-    /* This formula gives an error of about 0.1us worst case */
-    dest->lo = htonl(4295 * usec - (usec>>5) - (usec>>9));
-  }
-
-}
-
-/* ================================================== */
-
-inline static void
-int64_to_timeval(NTP_int64 *src,
-                 struct timeval *dest)
-{
-  /* As yet, there is no need to check for zero - all processing that
-     has to detect that case is in the NTP layer */
-
-  dest->tv_sec = ntohl(src->hi) - JAN_1970;
-  
-  /* Until I invent a slick way to do this, just do it the obvious way */
-  dest->tv_usec = (int)(0.5 + (double)(ntohl(src->lo)) / 4294.967296);
 }
 
 /* ================================================== */
@@ -255,12 +224,12 @@ probe_source(SourceRecord *src)
   his_addr.sin_family = AF_INET;
 
   LCL_ReadCookedTime(&cooked, &local_time_err);
-  timeval_to_int64(&cooked, &pkt.transmit_ts);
+  UTI_TimevalToInt64(&cooked, &pkt.transmit_ts);
 
   if (sendto(sock_fd, (void *) &pkt, NTP_NORMAL_PACKET_SIZE,
              0,
              (struct sockaddr *) &his_addr, sizeof(his_addr)) < 0) {
-    LOG(LOGS_WARN, LOGF_Acquire, "Could not send to %s : %s\n",
+    LOG(LOGS_WARN, LOGF_Acquire, "Could not send to %s : %s",
         UTI_IPToDottedQuad(src->ip_addr),
         strerror(errno));
   }
@@ -350,9 +319,9 @@ process_receive(NTP_Packet *msg, SourceRecord *src, struct timeval *now)
   root_delay = int32_to_double(msg->root_delay);
   root_dispersion = int32_to_double(msg->root_dispersion);
 
-  int64_to_timeval(&src->last_tx, &local_orig);
-  int64_to_timeval(&msg->receive_ts, &remote_rx);
-  int64_to_timeval(&msg->transmit_ts, &remote_tx);
+  UTI_Int64ToTimeval(&src->last_tx, &local_orig);
+  UTI_Int64ToTimeval(&msg->receive_ts, &remote_rx);
+  UTI_Int64ToTimeval(&msg->transmit_ts, &remote_tx);
   UTI_AverageDiffTimevals(&remote_rx, &remote_tx, &remote_average, &remote_interval);
   UTI_AverageDiffTimevals(&local_orig, now, &local_average, &local_interval);
 
@@ -405,11 +374,11 @@ read_from_socket(void *anything)
   /* Get timestamp */
   LCL_ReadCookedTime(&now, &local_time_err);
 
-  status = recvfrom (sock_fd, &msg, message_length, flags,
+  status = recvfrom (sock_fd, (char *)&msg, message_length, flags,
                      (struct sockaddr *) &his_addr, &his_addr_len);
 
   if (status < 0) {
-    LOG(LOGS_WARN, LOGF_Acquire, "Error reading from socket, %s\n", strerror(errno));
+    LOG(LOGS_WARN, LOGF_Acquire, "Error reading from socket, %s", strerror(errno));
     return;
   }
   
@@ -485,8 +454,8 @@ start_next_source(void)
 static int
 endpoint_compare(const void *a, const void *b)
 {
-  Endpoint *aa = (Endpoint *) a;
-  Endpoint *bb = (Endpoint *) b;
+  const Endpoint *aa = (const Endpoint *) a;
+  const Endpoint *bb = (const Endpoint *) b;
 
   if (aa->offset < bb->offset) {
     return -1;
@@ -635,19 +604,19 @@ process_measurements(void)
        stepped backwards. */
 
     if (fabs(estimated_offset) > (double) init_slew_threshold) {
-      LOG(LOGS_INFO, LOGF_Acquire, "System's initial offset : %.6f seconds %s of true (step)\n",
+      LOG(LOGS_INFO, LOGF_Acquire, "System's initial offset : %.6f seconds %s of true (step)",
           fabs(estimated_offset),
           (estimated_offset >= 0) ? "fast" : "slow");
       LCL_ApplyStepOffset(estimated_offset);
     } else {
-      LOG(LOGS_INFO, LOGF_Acquire, "System's initial offset : %.6f seconds %s of true (slew)\n",
+      LOG(LOGS_INFO, LOGF_Acquire, "System's initial offset : %.6f seconds %s of true (slew)",
           fabs(estimated_offset),
           (estimated_offset >= 0) ? "fast" : "slow");
       LCL_AccumulateOffset(estimated_offset);
     }
 
   } else {
-    LOG(LOGS_WARN, LOGF_Acquire, "No intersecting endpoints found\n");
+    LOG(LOGS_WARN, LOGF_Acquire, "No intersecting endpoints found");
   }  
 
   Free(intervals);

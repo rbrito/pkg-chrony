@@ -32,8 +32,14 @@
  ***********************************************************************
  */
 
+#ifdef HAS_STDINT_H
+#include <stdint.h>
+#elif defined(HAS_INTTYPES_H)
+#include <inttypes.h>
+#endif
+
 /* typedef a 32-bit type */
-typedef unsigned long UINT4;
+typedef uint32_t UINT4;
 
 /* Data structure for MD5 (Message-Digest) computation */
 typedef struct {

@@ -1,14 +1,27 @@
 /*
-  $Header: /cvs/src/chrony/sys_linux.c,v 1.24 2000/07/18 06:40:14 richard Exp $
+  $Header: /cvs/src/chrony/sys_linux.c,v 1.45 2003/10/04 19:56:40 richard Exp $
 
   =======================================================================
 
   chronyd/chronyc - Programs for keeping computer clocks accurate.
 
-  Copyright (C) 1997-1999 Richard P. Curnow
-  All rights reserved.
-
-  For conditions of use, refer to the file LICENCE.
+ **********************************************************************
+ * Copyright (C) Richard P. Curnow  1997-2003
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 
+ **********************************************************************
 
   =======================================================================
 
@@ -24,11 +37,13 @@
 #include <math.h>
 #include <ctype.h>
 #include <assert.h>
+#include <sys/utsname.h>
 
 #include "localp.h"
 #include "sys_linux.h"
 #include "sched.h"
 #include "util.h"
+#include "conf.h"
 #include "logging.h"
 #include "wrap_adjtimex.h"
 
@@ -39,17 +54,28 @@ static long current_tick;
 static double current_total_tick;
 
 /* This is the uncompensated system tick value */
-#define NOMINAL_TICK (10000L)
+static int nominal_tick;
 
 /* This is the scaling required to go between absolute ppm and the
-   scaled ppm used as an argument to adjtimex.  Because chronyd is to
-   an extent 'closed loop' it doesn't matter if this is wrongly
-   determined, UNLESS the system's ppm error is close to a multiple of
-   100, in which case the relationship between changing the frequency
-   and changing the value of 'tick' will be wrong.  This would (I
-   imagine) cause the system to thrash between two states. */
-
+   scaled ppm used as an argument to adjtimex.  Because chronyd is to an extent
+   'closed loop' maybe it doesn't matter if this is wrongly determined, UNLESS
+   the system's ppm error is close to a multiple of HZ, in which case the
+   relationship between changing the frequency and changing the value of 'tick'
+   will be wrong.  This would (I imagine) cause the system to thrash between
+   two states.
+   
+   However..., if this effect was not corrected, and the system is left offline
+   for a long period, a substantial error would build up.  e.g. with HZ==100,
+   the correction required is 128/128.125, giving a drift of about 84 seconds
+   per day). */
 static double freq_scale;
+
+/* The HZ value from the kernel header file (may be over-ridden from config
+   file, e.g. if chronyd binary is moved to a box whose kernel was built with a
+   different HZ value). */
+static int hz;
+static double dhz; /* And dbl prec version of same for arithmetic */
+
 
 /* ================================================== */
 
@@ -121,7 +147,11 @@ static double delta_total_tick;
 #define MAX_ADJUST_WITH_ADJTIME (0.2)
 
 /* The amount by which we alter 'tick' when doing a large slew */
-#define SLEW_DELTA_TICK 800
+static int slew_delta_tick;
+
+/* The maximum amount by which 'tick' can be biased away from 'nominal_tick'
+   (sys_adjtimex() in the kernel bounds this to 10%) */
+static int max_tick_bias;
 
 /* ================================================== */
 /* This routine stops a fast slew, determines how long the slew has
@@ -214,14 +244,31 @@ initiate_slew(void)
     offset_register = 0.0;
 
   } else {
-    /* Use alteration to tick to do the shift */
-    if (offset_register > 0) { /* Need to reduce the increment per tick period */
-      tick_adjust = -SLEW_DELTA_TICK;
+
+    /* If the system clock has a high drift rate, the combination of
+       current_tick + slew_delta_tick could be outside the range that adjtimex
+       will accept.  To prevent this, the tick adjustment that is used to slew
+       an error off the clock is clamped according to what tick_adjust is.
+    */
+
+    long min_allowed_tick, max_allowed_tick;
+
+    min_allowed_tick = nominal_tick - max_tick_bias;
+    max_allowed_tick = nominal_tick + max_tick_bias;
+
+    if (offset_register > 0) {
+      slewing_tick = current_tick - slew_delta_tick;
+      if (slewing_tick <= min_allowed_tick) {
+        slewing_tick = min_allowed_tick + 1;
+      }
     } else {
-      tick_adjust = +SLEW_DELTA_TICK;
+      slewing_tick = current_tick + slew_delta_tick;
+      if (slewing_tick >= max_allowed_tick) {
+        slewing_tick = max_allowed_tick - 1;
+      }
     }
 
-    slewing_tick = current_tick + tick_adjust;
+    tick_adjust = slewing_tick - current_tick;
 
     delta_total_tick = (double) tick_adjust / 1.0e6;
     dseconds = - offset_register * (current_total_tick + delta_total_tick) / delta_total_tick;
@@ -232,6 +279,8 @@ initiate_slew(void)
     }
 
     if (TMX_SetTick(slewing_tick) < 0) {
+      LOG(LOGS_INFO, LOGF_SysLinux, "c_t=%ld ta=%ld sl_t=%ld dtt=%e",
+          current_tick, tick_adjust, slewing_tick, delta_total_tick);
       CROAK("adjtimex() failed to start big slew");
     }
 
@@ -353,10 +402,10 @@ apply_step_offset(double offset)
 
 /* ================================================== */
 /* This call sets the Linux kernel frequency to a given value in parts
-   per million relative to the nominal running frequency.  Nominal is
-   taken to be tick=10000, freq=0.  The convention is that this is
-   called with a positive argument if the local clock runs fast when
-   uncompensated.  */
+   per million relative to the nominal running frequency.  Nominal is taken to
+   be tick=10000, freq=0 (for a HZ==100 system, other values otherwise).  The
+   convention is that this is called with a positive argument if the local
+   clock runs fast when uncompensated.  */
 
 static void
 set_frequency(double freq_ppm) {
@@ -384,25 +433,28 @@ set_frequency(double freq_ppm) {
     neg = 0;
   }
 
-  required_delta_tick = round(freq_ppm / 100.0);
-  required_freq = freq_ppm - 100.0 * (double) required_delta_tick;
+  required_delta_tick = round(freq_ppm / dhz);
+  required_freq = freq_ppm - dhz * (double) required_delta_tick;
 
   if (neg) {
     /* Uncompensated local clock runs slow */
-    required_tick = NOMINAL_TICK + required_delta_tick;
+    required_tick = nominal_tick + required_delta_tick;
     scaled_freq = freq_scale * required_freq;
   } else {
     /* Uncompensated local clock runs fast */
-    required_tick = NOMINAL_TICK - required_delta_tick;
+    required_tick = nominal_tick - required_delta_tick;
     scaled_freq = -freq_scale * required_freq;
   }
 
   if (TMX_SetFrequency(scaled_freq, required_tick) < 0) {
-    CROAK("adjtimex failed for set_frequency");
+    char buffer[1024];
+    sprintf(buffer, "adjtimex failed for set_frequency, freq_ppm=%10.4e scaled_freq=%10.4e required_tick=%ld",
+            freq_ppm, scaled_freq, required_tick);
+    CROAK(buffer);
   }
 
   current_tick = required_tick;
-  current_total_tick = ((double)current_tick + required_freq/100.0) / 1.0e6 ;
+  current_total_tick = ((double)current_tick + required_freq/dhz) / 1.0e6 ;
 
   initiate_slew(); /* Restart any slews that need to be restarted */
 
@@ -427,11 +479,11 @@ read_frequency(void)
   /* Use current_tick here rather than txc.tick, otherwise we're
      thrown off course when doing a fast slew (in which case, txc.tick
      is nowhere near the nominal value) */
-  tick_term = 100.0 * (double)(NOMINAL_TICK - current_tick);
+  tick_term = dhz * (double)(nominal_tick - current_tick);
   freq_term = unscaled_freq / freq_scale;
   
 #if 0
-  LOG(LOGS_INFO, LOGF_SysLinux, "txc.tick=%ld txc.freq=%ld tick_term=%f freq_term=%f\n",
+  LOG(LOGS_INFO, LOGF_SysLinux, "txc.tick=%ld txc.freq=%ld tick_term=%f freq_term=%f",
       txc.tick, txc.freq, tick_term, freq_term);
 #endif
 
@@ -531,33 +583,124 @@ immediate_step(void)
 }
 
 /* ================================================== */
+
+/* Estimate the value of HZ given the value of txc.tick that chronyd finds when
+ * it starts.  The only credible values are 100 (Linux/x86) or powers of 2.
+ * Also, the bounds checking inside the kernel's adjtimex system call enforces
+ * a +/- 10% movement of tick away from the nominal value 1e6/HZ. */
+
+static void
+guess_hz_and_shift_hz(int tick, int *hz, int *shift_hz)
+{
+  int i, tick_lo, tick_hi, ihz;
+  double tick_nominal;
+  /* Pick off the hz=100 case first */
+  if (tick >= 9000 && tick <= 11000) {
+    *hz = 100;
+    *shift_hz = 7;
+    return;
+  }
+
+  for (i=4; i<16; i++) { /* surely 16 .. 32768 is a wide enough range? */
+    ihz = 1 << i;
+    tick_nominal = 1.0e6 / (double) ihz;
+    tick_lo = (int)(0.5 + tick_nominal*2.0/3.0);
+    tick_hi = (int)(0.5 + tick_nominal*4.0/3.0);
+    
+    if (tick_lo < tick && tick <= tick_hi) {
+      *hz = ihz;
+      *shift_hz = i;
+      return;
+    }
+  }
+
+  /* oh dear.  doomed. */
+  *hz = 0;
+  *shift_hz = 0;
+  return;
+}
+
+/* ================================================== */
 /* Compute the scaling to use on any frequency we set, according to
    the vintage of the Linux kernel being used. */
 
 static void
 get_version_specific_details(void)
 {
-  FILE *in;
-  char line[1024], *p;
   int major, minor, patch;
+  int shift_hz;
+  double dshift_hz;
+  double basic_freq_scale; /* what to use if HZ!=100 */
+  int config_hz, set_config_hz; /* values of HZ from conf file */
+  int set_config_freq_scale;
+  double config_freq_scale;
+  double calculated_freq_scale;
+  struct tmx_params tmx_params;
+  struct utsname uts;
+  
+  TMX_ReadCurrentParams(&tmx_params);
+  
+  guess_hz_and_shift_hz(tmx_params.tick, &hz, &shift_hz);
 
-  in = fopen("/proc/version", "r");
-  if (!in) {
-    LOG_FATAL(LOGF_SysLinux, "Cannot open /proc/version to check the kernel version, sorry.\n");
+  if (!shift_hz) {
+    LOG_FATAL(LOGF_SysLinux, "Can't determine hz (txc.tick=%ld txc.freq=%ld (%.8f) txc.offset=%ld)",
+              tmx_params.tick, tmx_params.freq, tmx_params.dfreq, tmx_params.offset);
+  } else {
+    LOG(LOGS_INFO, LOGF_SysLinux, "Initial txc.tick=%ld txc.freq=%ld (%.8f) txc.offset=%ld => hz=%d shift_hz=%d",
+        tmx_params.tick, tmx_params.freq, tmx_params.dfreq, tmx_params.offset, hz, shift_hz);
   }
 
-  if (!fgets(line, sizeof(line), in)) {
-    LOG_FATAL(LOGF_SysLinux, "Cannot read information from /proc/version, sorry\n");
+  CNF_GetLinuxHz(&set_config_hz, &config_hz);
+  if (set_config_hz) hz = config_hz;
+  /* (If true, presumably freq_scale will be overridden anyway, making shift_hz
+     redundant too.) */
+
+  dhz = (double) hz;
+  dshift_hz = (double)(1UL << shift_hz);
+  basic_freq_scale = dshift_hz / dhz;
+  nominal_tick = (1000000L + (hz/2))/hz; /* Mirror declaration in kernel */
+  slew_delta_tick = nominal_tick / 12;
+  max_tick_bias = nominal_tick / 10;
+
+  LOG(LOGS_INFO, LOGF_SysLinux, "set_config_hz=%d hz=%d shift_hz=%d basic_freq_scale=%.8f nominal_tick=%d slew_delta_tick=%d max_tick_bias=%d",
+      set_config_hz, hz, shift_hz, basic_freq_scale, nominal_tick, slew_delta_tick, max_tick_bias);
+
+
+  /* The basic_freq_scale comes from:
+     * the kernel increments the usec counter HZ times per second (if the timer
+       interrupt period were perfect)
+     * the following code in the kernel
+
+       time_adj (+/-)= ltemp >>
+         (SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE);
+
+       causes the adjtimex 'freq' value to be divided down by 1<<SHIFT_HZ.
+
+      The net effect is that we have to scale up the value we want by the
+      reciprocal of all this, i.e. multiply by (1<<SHIFT_HZ)/HZ.
+
+     If HZ==100, this code in the kernel comes into play too:
+#if HZ == 100
+    * Compensate for (HZ==100) != (1 << SHIFT_HZ).
+     * Add 25% and 3.125% to get 128.125; => only 0.125% error (p. 14)
+     *
+    if (time_adj < 0)
+        time_adj -= (-time_adj >> 2) + (-time_adj >> 5);
+    else
+        time_adj += (time_adj >> 2) + (time_adj >> 5);
+#endif
+
+    Special case that later.
+   */
+
+  if (uname(&uts) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "Cannot uname(2) to get kernel version, sorry.");
+  }
+  if (sscanf(uts.release, "%d.%d.%d", &major, &minor, &patch) != 3) {
+    LOG_FATAL(LOGF_SysLinux, "Cannot read information from uname, sorry");
   }
 
-  p = line;
-  while (*p && !isdigit(*p)) p++;
-
-  if (sscanf(p, "%d.%d.%d", &major, &minor, &patch) != 3) {
-    LOG_FATAL(LOGF_SysLinux, "Cannot read information from /proc/version, sorry\n");
-  }
-
-  LOG(LOGS_INFO, LOGF_SysLinux, "Linux kernel major=%d minor=%d patch=%d\n", major, minor, patch);
+  LOG(LOGS_INFO, LOGF_SysLinux, "Linux kernel major=%d minor=%d patch=%d", major, minor, patch);
 
   version_major = major;
   version_minor = minor;
@@ -565,13 +708,14 @@ get_version_specific_details(void)
   
   switch (major) {
     case 1:
+      /* Does Linux v1.x even support HZ!=100? */
       switch (minor) {
         case 2:
           if (patch == 13) {
-            freq_scale = 128.0 / 100.0; /* I _think_! */
+            freq_scale = (hz==100) ? (128.0 / 100.0) : basic_freq_scale ; /* I _think_! */
 	    have_readonly_adjtime = 1;
           } else {
-            LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.\n");
+            LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
           }
           break;
         case 3:
@@ -579,10 +723,10 @@ get_version_specific_details(void)
              scaling must have happened during 1.3 development.  I
              haven't a clue where though, until someone looks it
              up. */
-          LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.\n");
+          LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
           break;
         default:
-          LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.\n");
+          LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
           break;
       }
       break;
@@ -590,10 +734,10 @@ get_version_specific_details(void)
       switch (minor) {
         case 0:
           if (patch < 32) {
-            freq_scale = 128.0 / 125.0;
+            freq_scale = (hz==100) ? (128.0 / 125.0) : basic_freq_scale;
 	    have_readonly_adjtime = 1;
           } else if (patch >= 32) {
-            freq_scale = 128.0 / 128.125;
+            freq_scale = (hz==100) ? (128.0 / 128.125) : basic_freq_scale;
 	    
 	    /* The functionality in kernel/time.c in the kernel source
                was modified with regard to what comes back in the
@@ -610,27 +754,38 @@ get_version_specific_details(void)
              have been added late in the 2.1 series, however I have no
              idea at which patch level.  Leave it like this until
              someone supplies some info. */
-          freq_scale = 128.0 / 125.0;
+          freq_scale = (hz==100) ? (128.0 / 125.0) : basic_freq_scale;
           have_readonly_adjtime = 0; /* For safety ! */
           break;
         case 2:
         case 3:
         case 4:
+        case 5:
+        case 6:
+          /* Let's be optimistic that these will be the same until proven
+             otherwise :-) */
+        case 7:
+        case 8:
           /* These seem to be like 2.0.32 */
-          freq_scale = 128.0 / 128.125;
+          freq_scale = (hz==100) ? (128.0 / 128.125) : basic_freq_scale;
           have_readonly_adjtime = 0;
           break;
         default:
-          LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.\n");
+          LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
       }
       break;
     default:
-      LOG_FATAL(LOGF_SysLinux, "Kernel's major version not supported yet, sorry\n");
+      LOG_FATAL(LOGF_SysLinux, "Kernel's major version not supported yet, sorry");
       break;
   }
 
-
-  fclose(in);
+  /* Override freq_scale if it appears in conf file */
+  CNF_GetLinuxFreqScale(&set_config_freq_scale, &config_freq_scale);
+  calculated_freq_scale = freq_scale;
+  if (set_config_freq_scale) freq_scale = config_freq_scale;
+  
+  LOG(LOGS_INFO, LOGF_SysLinux, "calculated_freq_scale=%.8f freq_scale=%.8f",
+      calculated_freq_scale, freq_scale);
 
 }
 
@@ -640,12 +795,13 @@ get_version_specific_details(void)
 void
 SYS_Linux_Initialise(void)
 {
-  current_tick = 10000;
-  current_total_tick = 0.01;
   offset_register = 0.0;
   fast_slewing = 0;
 
   get_version_specific_details();
+
+  current_tick = nominal_tick;
+  current_total_tick = 1.0 / dhz;
 
   lcl_RegisterSystemDrivers(read_frequency, set_frequency,
                             accrue_offset, apply_step_offset,
@@ -676,3 +832,7 @@ SYS_Linux_GetKernelVersion(int *major, int *minor, int *patchlevel)
 /* ================================================== */
 
 #endif /* LINUX */
+
+/* vim:ts=8
+ * */
+
