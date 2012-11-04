@@ -1,0 +1,18 @@
+Author: Rogério Theodoro de Brito <rbrito@ime.usp.br>
+Description: Fix GCC's hardeneding error messages
+ The message is "format not a string literal and no format arguments" and
+ is a security risk when using a printf without a format string.
+Last-Update: 2012-11-04
+Forwarded: no
+
+--- a/client.c
++++ b/client.c
+@@ -127,7 +127,7 @@
+     }
+     return( line );
+ #else
+-    printf(prompt);
++    printf("%s", prompt);
+ #endif
+   }
+   if (fgets(line, sizeof(line), stdin)) {

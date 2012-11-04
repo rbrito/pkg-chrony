@@ -1,2 +1,3 @@
 changes-from-hasler.patch
 don-t-look-for-ncurses.patch
+format-not-a-string-literal-and-no-format-arguments.patch
