@@ -1,0 +1,105 @@
+##################################################
+#
+# $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/Makefile.in,v 1.23 1999/04/19 20:27:29 richard Exp $
+#
+# =======================================================================
+#
+# chronyd/chronyc - Programs for keeping computer clocks accurate.
+#
+# Copyright (C) 1997-1999 Richard P. Curnow
+# All rights reserved.
+#
+# For conditions of use, refer to the file LICENCE.
+#
+# =======================================================================
+#
+# Makefile template
+
+INSTALL_PREFIX=@INSTALL_PREFIX@
+
+CC = gcc
+CCWARNFLAGS =
+#CCWARNFLAGS = -Wmissing-prototypes -Wall
+OPTFLAGS = -O2
+
+OBJS = util.o sched.o regress.o local.o \
+	sys.o main.o ntp_io.o ntp_core.o ntp_sources.o \
+	sources.o sourcestats.o reference.o \
+	logging.o conf.o cmdmon.o md5.o keys.o \
+	nameserv.o acquire.o manual.o addrfilt.o \
+	cmdparse.o mkdirpp.o rtc.o pktlength.o clientlog.o
+
+EXTRA_OBJS=@EXTRA_OBJECTS@
+
+CLI_OBJS = client.o md5.o nameserv.o getdate.o cmdparse.o \
+           pktlength.o
+
+SRCS = $(patsubst %.o,%.c,$(OBJS))
+EXTRA_SRCS = $(patsubst %.o,%.c,$(EXTRA_OBJS))
+
+CLI_SRCS = $(patsubst %.o,%.c,$(CLI_OBJS))
+
+LIBS = -lm
+
+EXTRA_LIBS=@EXTRA_LIBS@
+EXTRA_CLI_LIBS=@EXTRA_CLI_LIBS@
+
+DEFS=@SYSDEFS@
+
+CFLAGS = $(CCWARNFLAGS) $(DEFS) $(OPTFLAGS)
+
+# Until we have a main procedure we can link, just build object files
+# to test compilation
+
+all : chronyd chronyc
+
+chronyd : $(OBJS) $(EXTRA_OBJS)
+	$(CC) $(OPTFLAGS) -o chronyd $(OBJS) $(EXTRA_OBJS) $(LIBS) $(EXTRA_LIBS)
+
+chronyc : $(CLI_OBJS)
+	$(CC) $(OPTFLAGS) -o chronyc $(CLI_OBJS) $(LIBS) $(EXTRA_CLI_LIBS)
+
+.depend : 
+	gcc -MM $(SRCS) $(EXTRA_SRCS) > .depend
+
+distclean :
+	-rm *.o *.s chronyc chronyd core options.h Makefile *~
+
+clean :
+	-rm *.o *.s chronyc chronyd core *~
+
+
+# For install, don't use the install command, because its switches
+# seem to vary between systems.
+
+install:
+	cp chronyd $(INSTALL_PREFIX)/sbin/chronyd
+	chown root $(INSTALL_PREFIX)/sbin/chronyd
+	chmod 555 $(INSTALL_PREFIX)/sbin/chronyd
+	cp chronyc $(INSTALL_PREFIX)/bin/chronyc
+	chown root $(INSTALL_PREFIX)/bin/chronyc
+	chmod 555 $(INSTALL_PREFIX)/bin/chronyc
+
+kit :
+	tar czvf - *.[ch] Makefile todo.tex configure VERSIONS > kit.tar.gz
+
+patch :
+	rcsdiff -u *.c *.h Makefile configure > patchfile 2>/dev/null
+
+test_regress : test_regress.o
+	$(CC) $(CFLAGS) -o test_regress test_regress.o -lm
+
+timemd5 : timemd5.o md5.o
+	$(CC) $(CFLAGS) -o timemd5 timemd5.o md5.o
+
+freqcomb : freqcomb.o
+	$(CC) $(CFLAGS) -o freqcomb freqcomb.o -lm
+
+%.o : %.c
+	$(CC) $(CFLAGS) -c $<
+
+%.s : %.c
+	$(CC) $(CFLAGS) -S $<
+
+
+

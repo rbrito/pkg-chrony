@@ -1,0 +1,92 @@
+#!/bin/sh
+#
+# $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/configure,v 1.14 1999/04/19 20:27:29 richard Exp $
+#
+# =======================================================================
+#
+# chronyd/chronyc - Programs for keeping computer clocks accurate.
+#
+# Copyright (C) 1997-1999 Richard P. Curnow
+# All rights reserved.
+#
+# For conditions of use, refer to the file LICENCE.
+#
+# =======================================================================
+
+
+
+# This configure script determines the operating system type and version
+
+OPERATINGSYSTEM=`uname -s`
+VERSION=`uname -r`
+MACHINE=`uname -m`
+
+SYSTEM=${OPERATINGSYSTEM}-${MACHINE}
+
+EXTRA_LIBS=""
+EXTRA_CLI_LIBS=""
+EXTRA_OBJECTS=""
+EXTRA_DEFS=""
+INSTALL_PREFIX=/usr/local
+SYSDEFS=""
+
+for option
+do
+    case "$option" in
+    --prefix=* | --install_prefix=* )
+	INSTALL_PREFIX=`echo $option | sed -e 's/[^=]*=//;'`
+	;;
+    * )
+    echo "Unrecognized option : " $option
+    esac
+done
+
+case $SYSTEM in
+    SunOS-sun4* )
+	case $VERSION in
+	    4.* )
+		EXTRA_OBJECTS="sys_sunos.o strerror.o"
+		EXTRA_LIBS="-lkvm"
+		SYSDEFS="-DSUNOS"
+		echo "Configuring for SunOS (" $SYSTEM "version" $VERSION ")"
+		;;
+	    5.* )
+		EXTRA_OBJECTS="sys_solaris.o"
+		EXTRA_LIBS="-lsocket -lnsl -lkvm -lelf"
+		EXTRA_CLI_LIBS="-lsocket -lnsl"
+		SYSDEFS="-DSOLARIS"
+		echo "Configuring for Solaris (" $SYSTEM "SunOS version" $VERSION ")"
+		;;
+	esac
+    ;;
+    Linux-i[3456]86 )
+	EXTRA_OBJECTS="sys_linux.o rtc_linux.o"
+        SYSDEFS="-DLINUX"
+	echo "Configuring for " $SYSTEM
+    ;;
+    BSD/386-i[3456]86 )
+	# Antti Jrvinen <costello@iki.fi> reported that this system can
+	# be supported with the SunOS 4.x driver files.
+	EXTRA_OBJECTS="sys_sunos.o strerror.o"
+	EXTRA_LIBS="-lkvm"
+	SYSDEFS="-DSUNOS"
+	echo "Configuring for BSD/386 (using SunOS driver)"
+	;;
+    CYGWIN32_NT-i[3456]86 )
+	EXTRA_OBJECTS="sys_winnt.o"
+	EXTRA_LIBS=""
+	SYSDEFS="-DWINNT"
+	echo "Configuring for Windows NT (Cygwin32)"
+	;;
+    * )
+	echo "Sorry, I don't know how to build this software on your system."
+	exit 1
+    ;;
+esac
+
+sed -e "s%@EXTRA_OBJECTS@%${EXTRA_OBJECTS}%;\
+	s%@EXTRA_LIBS@%${EXTRA_LIBS}%;\
+	s%@SYSDEFS@%${SYSDEFS}%;\
+	s%@EXTRA_CLI_LIBS@%${EXTRA_CLI_LIBS}%;\
+	s%@INSTALL_PREFIX@%${INSTALL_PREFIX}%;"\
+	< Makefile.in > Makefile

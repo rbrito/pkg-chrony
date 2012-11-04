@@ -1,0 +1,109 @@
+This is the README for chrony.
+
+What is chrony?
+===============
+Chrony is a pair of programs for maintaining the accuracy of computer
+clocks.
+
+chronyd is a (background) daemon program that can be started at boot
+time.  This does most of the work.
+
+chronyc is a command-line interface program which can be used to
+monitor chronyd's performance and to change various operating
+parateters whilst it is running.
+
+chronyd's main function is to obtain measurements of the true (UTC)
+time from one of several sources, and correct the system clock
+accordingly.  It also works out the rate at which the system clock
+gains or loses time and uses this information to keep it accurate
+between measurements from the reference.
+
+The reference time can be derived from either NTP servers (preferred),
+or wristwatch-and-keyboard (via chronyc).
+
+It is designed so that it can work on computers which only have
+intermittent access to reference sources, for example computers which
+use a dial-up account to access the Internet.  Of course, it will work
+on computers with permanent connections too.
+
+In addition, the Linux 2.0.x version (for x >= 32) can monitor the
+system's real time clock performance, so the system can maintain
+accurate time even across reboots.
+
+Typical accuracies available between 2 machines are
+
+On an ethernet LAN : 100-200 microseconds, often much better
+On a V32bis dial-up modem connection : 10's of milliseconds (from one
+session to the next)
+
+chronyd can also operate as an RFC1305-compatible NTP server and peer.
+
+
+What will chrony run on?
+========================
+
+Chrony can be successfully built and run on
+
+1. Linux v2.0.x (i386)
+
+Linux 1.2.13 may work - the code has support but I haven't access to
+anything to test it on. There is support for some patchlevels of Linux
+2.1, but not the more recent ones - I haven't got access to a source
+tree to check certain details.
+
+2. Solaris 2.5/2.5.1 (Sparc 20 and Ultrasparc).
+
+3. SunOS 4.1.4 (Sparc 2 and Sparc 20)
+
+4. BSD/386 v1.1 has been reported to work using the SunOS 4.1 driver.
+
+Any other system will require a porting exercise.  You would need to
+start from one of the existing system-specific drivers and look into
+the quirks of certain system calls and the kernel on your target
+system.  (This is described in the manual).
+
+
+How do I set it up?
+===================
+
+The file INSTALL gives instructions.  On supported systems the
+compilation process should be automatic.
+
+You will need an ANSI C compiler -- gcc is recommended.  Versions
+2.7.2/2.7.2.2 are known to work.
+
+The manual (in texinfo and Postscript formats) describes how to set
+the software up for the less straightforward cases.
+
+What documentation is there?
+============================
+
+A manual is supplied in Texinfo format (chrony.texi) and
+ready-formatted Postscript for A4 paper (chrony-a4.ps) in the
+distribution.
+
+There is also information available on my web page,
+
+http://www.curnow.demon.co.uk/chrony/index.html
+
+What can chrony not do?
+=======================
+
+Compared to the `reference' RFC1305 implementation xntpd, chronyd does
+not support hardware reference clocks, leap seconds or broadcast
+modes.
+
+
+How can I contact the author?
+=============================
+
+You can email me at <richard@curnow.demon.co.uk>.  It would be nice
+if:
+
+- you include the word 'chrony' in the subject line (so my mail reader
+can sort my mail by topic)
+
+- you don't send complete log files, encoded binaries etc, without
+editing such material down to just the relevant bits - a few tens of
+lines at most.  (My dial-up connection handles large messages rather
+slowly ...).

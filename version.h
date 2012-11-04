@@ -1,0 +1,3 @@
+#ifndef PROGRAM_VERSION_STRING
+#define PROGRAM_VERSION_STRING "1.1"
+#endif

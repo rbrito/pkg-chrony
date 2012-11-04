@@ -1,0 +1,116 @@
+New in version 1.1
+==================
+
+Bug fixes
+---------
+
+* Made linear regression more resistant to rounding errors (old one
+  occasionally generated negative variances which made everything go
+  haywire).  Trap infinite or 'not-a-number' values being used to
+  alter system clock to increase robustness further.
+
+Other changes/Enhancements
+--------------------------
+
+* Support for Linux 2.1 and 2.2 kernels
+
+* New command 'makestep' in chronyc to immediately jump the system
+  time to match the NTP estimated time (Linux only) - a response to
+  systems booting an hour wrong after summertime/wintertime changes,
+  due to RTCs running on local time.  Needs extending to Sun driver
+  files too.
+
+* New directives 'logchange' and 'mailonchange' to log to syslog or
+  email to a specific address respectively if chronyd detects a clock
+  offset exceeding a defined threshold.
+
+* Added capability to log all client/peer NTP accesses and command
+  accesses (can be turned off with conf file directive 'noclientlog').
+  Added 'clients' command to chronyc to display this data.
+
+* Improved manual mode to use robust regression rather than 2 point
+  fit.
+
+* Added 'manual list' and 'manual delete' commands to chronyc to
+  allow display of entered timestamps and discretionary deletion of
+  outliers.
+
+* If host goes unsynchronised the dummy IP address 0.0.0.0 is detected
+  to avoid attempting a reverse name lookup (to stop dial on demand IP
+  links from being started)
+
+* Changed chronyc/chronyd protocol so messages are now all variable
+  length.  Saves on network bandwidth particularly for large replies
+  from chronyd to chronyc (to support the clients command).
+
+* Added bindaddress directive to configuration file, to give
+  additional control over limiting which hosts can access the local
+  server.
+
+* Groundwork done for a port to Windows NT to compile with Cygwin
+  toolkit.  chronyc works (to monitor another host).  sys_winnt.c
+  needs finishing to use NT clock control API.  Program structure
+  needs adapting to use Windows NT service functions, so it can be
+  started at boot time.  Hopefully a Windows NT / Cygwin guru with
+  some spare time can take this port over :-)
+
+New in version 1.02
+===================
+
+Bug fixes
+---------
+
+* Fix error messages in chronyc if daemon is not reachable.
+
+* Fix config file problem for 'allow all' and 'deny all' without a
+  trailing machine address.
+
+* Remove fatal failed assertion if command socket cannot be read from
+  in daemon.
+
+* Rewrote timezone handling for Linux real time clock, following
+  various reported problems related to daylight saving.
+
+Other changes/Enhancements
+--------------------------
+
+* Configure script recognizes BSD/386 and uses SunOS 4.1 driver for
+  it.
+
+* Log files now print date as day-month-year rather than as a day
+  number.  Milliseconds removed from timestamps of logged data.
+  Banners included in file to give meanings of columns.
+
+* Only do 1 initial step (followed by a trimming slew) when
+  initialising from RTC on Linux (previously did 2 steps).
+
+New in version 1.01
+===================
+
+Bug fixes
+---------
+
+* Handle timezone of RTC correctly with respect to daylight saving
+  time
+
+* Syntax check the chronyc 'local' command properly
+
+* Fixed assertion failed fault in median finder (used by RTC
+  regression fitting)
+
+Other changes/Enhancements
+--------------------------
+
+* Log selection of new NTP reference source to syslog.
+
+* Don't zero-pad IP address fields
+
+* Add new command to chronyc to allow logfiles to be cycled.
+
+* Extend allow/deny directive syntax in configuration file to so
+  directive can apply to all hosts on the Internet.
+
+* Tidy up printout of timestamps to make it clear they are in UTC
+
+* Make 'configure' check the processor type as well as the operating
+  system.
