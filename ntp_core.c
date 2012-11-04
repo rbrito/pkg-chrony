@@ -196,6 +196,9 @@ struct NCR_Instance_Record {
 /* Maximum allowed stratum */
 #define NTP_MAX_STRATUM 15
 
+/* INVALID or Unkown  stratum from external server  as per the NTP 4 docs */
+#define NTP_INVALID_STRATUM 0
+
 /* ================================================== */
 
 static ADF_AuthTable access_auth_table;
@@ -378,7 +381,7 @@ generate_packet_auth(NTP_Packet *pkt, unsigned long keyid)
   if (keyok) {
     pkt->auth_keyid = htonl(keyid);
     MD5Init(&ctx);
-    MD5Update(&ctx, keytext, keylen);
+    MD5Update(&ctx, (unsigned char *) keytext, keylen);
     MD5Update(&ctx, (unsigned char *) pkt, offsetof(NTP_Packet, auth_keyid));
     MD5Final(&ctx);
     memcpy(&(pkt->auth_data), &ctx.digest, 16);
@@ -447,7 +450,7 @@ check_packet_auth(NTP_Packet *pkt, unsigned long keyid)
   if (keyok) {
     pkt->auth_keyid = htonl(keyid);
     MD5Init(&ctx);
-    MD5Update(&ctx, keytext, keylen);
+    MD5Update(&ctx, (unsigned char *) keytext, keylen);
     MD5Update(&ctx, (unsigned char *) pkt, offsetof(NTP_Packet, auth_keyid));
     MD5Final(&ctx);
     if (!memcmp((void *) &ctx.digest, (void *) &(pkt->auth_data), 16)) {
@@ -539,7 +542,13 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
 
   /* Generate transmit packet */
   message.lvm = ((leap << 6) &0xc0) | ((version << 3) & 0x38) | (my_mode & 0x07); 
-  message.stratum = our_stratum;
+  if (our_stratum <= NTP_MAX_STRATUM) {
+    message.stratum = our_stratum;
+  } else {
+    /* (WGU) to handle NTP  "Invalid" stratum as per the NTP V4 documents. */
+    message.stratum = NTP_INVALID_STRATUM;
+  }
+ 
   message.poll = my_poll;
   message.precision = LCL_GetSysPrecisionAsLog();
 
@@ -981,6 +990,12 @@ receive_packet(NTP_Packet *message, struct timeval *now, NCR_Instance inst, int 
     test6 = 0; /* Failed */
   } else {
     test6 = 1; /* Succeeded */
+  }
+
+  /* (WGU) Set stratum to greater than any valid if incoming is 0 */
+  /* as per the NPT v4 documentation*/
+  if (message->stratum <= NTP_INVALID_STRATUM) {
+    message->stratum = NTP_MAX_STRATUM + 1;
   }
 
   /* Test 7 checks that the stratum in the packet is appropriate */

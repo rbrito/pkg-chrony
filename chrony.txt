@@ -2177,7 +2177,7 @@ will revert to the previous state for each source.  This might be either
 online, if the source was being periodically measured in the normal way,
 or offline, if the source had been indicated as being offline.
 (Switching a source between the online and offline states is described
-in *Note online command::, *Note offline command::).
+in *note online command::, *note offline command::).
 
    The syntax of the burst command is as follows
 
@@ -2381,7 +2381,7 @@ directive::.
 
    To use the `dump', you probably want to configure the name of the
 directory into which the dump files will be written.  This can only be
-done in the configuration file, see *Note dumpdir directive::.
+done in the configuration file, see *note dumpdir directive::.
 
 4.3.4.19 exit
 .............
@@ -2402,7 +2402,7 @@ a reference source, even if it is not itself properly synchronised to
 an external source.  (This can be used on isolated networks, to allow
 one computer to be a master time server with the other computers slaving
 to it.)  The `local' command is somewhat equivalent to the `local'
-directive in the configuration file, see *Note local directive::.
+directive in the configuration file, see *note local directive::.
 
    The syntax is as shown in the following examples.
 
@@ -2561,7 +2561,7 @@ the next measurement has been made.
 ......................
 
 This command has the same effect as the `maxupdateskew' directive in
-the configuration file, see *Note maxupdateskew directive::.
+the configuration file, see *note maxupdateskew directive::.
 
 4.3.4.28 minpoll
 ................
@@ -2598,7 +2598,7 @@ connection to a particular host or hosts is about to be lost.  It should
 be used on computers with a dial-up or similar connection to their time
 sources, to warn `chronyd' that the connection is about to be broken.
 
-   An example of how to use `offline' in this case is shown in *Note
+   An example of how to use `offline' in this case is shown in *note
 Advising chronyd of internet availability::.
 
    Another case where `offline' could be used is where a computer
@@ -2658,7 +2658,7 @@ The `online' command is opposite in function to the `offline' command.
 It is used to advise `chronyd' that network connectivity to a
 particular source or sources has been restored.
 
-   The syntax is identical to that of the `offline' command, see *Note
+   The syntax is identical to that of the `offline' command, see *note
 offline command::.
 
 4.3.4.31 password
@@ -3221,8 +3221,8 @@ patent must be licensed for everyone's free use or not licensed at all.
    The precise terms and conditions for copying, distribution and
 modification follow.
 
-   		    GNU GENERAL PUBLIC LICENSE    TERMS AND CONDITIONS FOR COPYING,
-DISTRIBUTION AND MODIFICATION
+   		    GNU GENERAL PUBLIC LICENSE    TERMS AND CONDITIONS
+FOR COPYING, DISTRIBUTION AND MODIFICATION
 
    0. This License applies to any program or other work which contains
 a notice placed by the copyright holder saying it may be distributed
@@ -3464,7 +3464,7 @@ does.>     Copyright (C) 19yy  <name of author>
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+(at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of

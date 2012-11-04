@@ -184,7 +184,7 @@ read_from_socket(void *anything)
   ReceiveBuffer message;
   int message_length;
   struct sockaddr_in where_from;
-  int from_length;
+  socklen_t from_length;
   unsigned int flags = 0;
   struct timeval now;
   NTP_Remote_Address remote_addr;
@@ -244,7 +244,7 @@ NIO_SendNormalPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr)
 
   if (sendto(sock_fd, (void *) packet, NTP_NORMAL_PACKET_SIZE, 0,
              (struct sockaddr *) &remote, sizeof(remote)) < 0) {
-    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to :%s%d : %s",
+    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to %s:%d : %s",
         UTI_IPToDottedQuad(remote_addr->ip_addr), remote_addr->port, strerror(errno));
   }
 
@@ -267,7 +267,7 @@ NIO_SendAuthenticatedPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr)
 
   if (sendto(sock_fd, (void *) packet, sizeof(NTP_Packet), 0,
              (struct sockaddr *) &remote, sizeof(remote)) < 0) {
-    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to :%s%d : %s",
+    LOG(LOGS_WARN, LOGF_NtpIO, "Could not send to %s:%d : %s",
         UTI_IPToDottedQuad(remote_addr->ip_addr), remote_addr->port, strerror(errno));
   }
 
