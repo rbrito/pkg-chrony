@@ -93,4 +93,7 @@ ucf --sum-file /usr/share/chrony/chrony.conf.md5sum /etc/chrony/chrony.conf.new 
 rm /etc/chrony/chrony.conf.new
 
 invoke-rc.d chrony start
+
+#DEBHELPER#
+
 exit 0
