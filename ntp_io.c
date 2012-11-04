@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/ntp_io.c,v 1.15 1999/04/29 20:29:49 richard Exp $
+  $Header: /cvs/src/chrony/ntp_io.c,v 1.16 2000/06/12 21:22:49 richard Exp $
 
   =======================================================================
 
@@ -96,7 +96,7 @@ NIO_Initialise(void)
 
   /* Make the socket capable of re-using an old address */
   if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &on_off, sizeof(on_off)) < 0) {
-    perror("setsockopt");
+    LOG(LOGS_ERR, LOGF_NtpIO, "Could not set socket options");
     /* Don't quit - we might survive anyway */
   }
 
@@ -125,11 +125,11 @@ NIO_Initialise(void)
 
 #if 0
   if (fcntl(sock_fd, F_SETFL, O_NONBLOCK | O_NDELAY) < 0) {
-    perror("couldn't make socket non-blocking");
+    LOG(LOGS_ERR, LOGF_NtpIO, "Could not make socket non-blocking");
   }
 
   if (ioctl(sock_fd, I_SETSIG, S_INPUT) < 0) {
-    perror("can't enable signal");
+    LOG(LOGS_ERR, LOGF_NtpIO, "Could not enable signal");
   }
 #endif
 

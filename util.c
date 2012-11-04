@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/util.c,v 1.12 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/util.c,v 1.13 1999/08/17 21:21:46 richard Exp $
 
   =======================================================================
 
@@ -52,17 +52,21 @@ UTI_CompareTimevals(struct timeval *a, struct timeval *b)
   } else if (a->tv_sec > b->tv_sec) {
     return +1;
   } else {
-    assert(a->tv_sec == b->tv_sec);
+    if (a->tv_sec != b->tv_sec) {
+      CROAK("a->tv_sec != b->tv_sec");
+    }
     if (a->tv_usec < b->tv_usec) {
       return -1;
     } else if (a->tv_usec > b->tv_usec) {
       return +1;
     } else {
-      assert(a->tv_usec == b->tv_usec);
+      if (a->tv_usec != b->tv_usec) {
+        CROAK("a->tv_usec != b->tv_usec");
+      }
       return 0;
     }
   }
-  assert(0); /* Shouldn't be able to fall through. */
+  CROAK("Impossible"); /* Shouldn't be able to fall through. */
 }
 
 /* ================================================== */
@@ -172,12 +176,6 @@ UTI_AverageDiffTimevals (struct timeval *earlier,
     /* Assume the required behaviour is to treat it as zero */
     *diff = 0.0;
   }
-
-#if 0
-  assert(*diff >= 0.0); /* Otherwise, the definition of earlier and later
-                           is likely to be bogus elsewhere, and we want
-                           to know */
-#endif
 
   tvhalf.tv_sec = tvdiff.tv_sec / 2;
   tvhalf.tv_usec = tvdiff.tv_usec / 2 + (tvdiff.tv_sec % 2);
@@ -297,6 +295,22 @@ UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *
   UTI_DiffTimevalsToDouble(&elapsed, when, old_tv);
   delta_time = elapsed * dfreq - doffset;
   UTI_AddDoubleToTimeval(old_tv, delta_time, new_tv);
+}
+
+/* ================================================== */
+/* Force a core dump and exit without doing abort() or assert(0).
+   These do funny things with the call stack in the core file that is
+   generated, which makes diagnosis difficult. */
+
+int
+croak(char *file, int line, char *msg)
+{
+  int a;
+  LOG(LOGS_ERR, LOGF_Util, "Unexpected condition [%s] at %s:%d, core dumped\n",
+      msg, file, line);
+  a = * (int *) 0;
+  return a; /* Can't happen - this stops the optimiser optimising the
+               line above */
 }
 
 /* ================================================== */

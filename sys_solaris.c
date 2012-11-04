@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/sys_solaris.c,v 1.12 1999/04/21 20:18:44 richard Exp $
+  $Header: /cvs/src/chrony/sys_solaris.c,v 1.14 2000/06/12 21:22:49 richard Exp $
 
   =======================================================================
 
@@ -83,20 +83,17 @@ clock_initialise(void)
   current_freq = 0.0;
 
   if (gettimeofday(&T0, &tz) < 0) {
-    perror("gettimeofday() failed in clock_initialise()");
-    assert(0);
+    CROAK("gettimeofday() failed in clock_initialise()");
   }
 
   newadj = GET_ZERO;
 
   if (adjtime(&newadj, &oldadj) < 0) {
-    perror("adjtime() failed in clock_initialise");
-    assert(0);
+    CROAK("adjtime() failed in clock_initialise");
   }
 
   if (adjtime(&newadj, &oldadj) < 0) {
-    perror("adjtime() failed in clock_initialise");
-    assert(0);
+    CROAK("adjtime() failed in clock_initialise");
   }
 
   return;
@@ -129,8 +126,7 @@ start_adjust(void)
 
   /* Determine the amount of error built up since the last adjustment */
   if (gettimeofday(&T1, &tz) < 0) {
-    perror("gettimeofday() failed in start_adjust");
-    assert(0);
+    CROAK("gettimeofday() failed in start_adjust");
   }
 
   UTI_DiffTimevalsToDouble(&elapsed, &T1, &T0);
@@ -150,8 +146,7 @@ start_adjust(void)
   UTI_DiffTimevalsToDouble(&rounding_error, &exact_newadj, &newadj);
 
   if (adjtime(&newadj, &oldadj) < 0) {
-    perror("adjtime() failed in start_adjust");
-    assert(0);
+    CROAK("adjtime() failed in start_adjust");
   }
 
   UTI_TimevalToDouble(&oldadj, &old_adjust_remaining);
@@ -178,13 +173,11 @@ stop_adjust(void)
   zeroadj = GET_ZERO;
 
   if (adjtime(&zeroadj, &remadj) < 0) {
-    perror("adjtime() failed in stop_adjust");
-    assert(0);
+    CROAK("adjtime() failed in stop_adjust");
   }
 
   if (gettimeofday(&T1, &tz) < 0) {
-    perror("gettimeofday() failed in stop_adjust");
-    assert(0);
+    CROAK("gettimeofday() failed in stop_adjust");
   }
   
   UTI_DiffTimevalsToDouble(&elapsed, &T1, &T0);
@@ -228,8 +221,7 @@ apply_step_offset(double offset)
   
   stop_adjust();
   if (gettimeofday(&old_time, &tz) < 0) {
-    perror("gettimeofday in apply_step_offset");
-    assert(0);
+    CROAK("gettimeofday in apply_step_offset");
   }
 
   UTI_AddDoubleToTimeval(&old_time, -offset, &new_time);
@@ -250,8 +242,7 @@ apply_step_offset(double offset)
   UTI_DiffTimevalsToDouble(&rounding_error, &rounded_new_time, &new_time);
 
   if (settimeofday(&new_time, &tz) < 0) {
-    perror("settimeofday in apply_step_offset");
-    assert(0);
+    CROAK("settimeofday in apply_step_offset");
   }
 
   UTI_AddDoubleToTimeval(&T0, offset, &T1);
@@ -260,7 +251,6 @@ apply_step_offset(double offset)
   offset_register += rounding_error;
 
   start_adjust();
-
 }
 
 /* ================================================== */
@@ -341,7 +331,9 @@ set_dosynctodr(unsigned long on_off)
   kvm_t *kt;
   unsigned long read_back;
 
-  assert(on_off==1 || on_off==0);
+  if (on_off!=1 && on_off!=0) {
+    CROAK("on_off should be 0 or 1");
+  }
 
   kt = kvm_open(NULL, NULL, NULL, O_RDWR, NULL);
   if (!kt) {
@@ -369,7 +361,9 @@ set_dosynctodr(unsigned long on_off)
 
   kvm_close(kt);
 
-  assert(read_back == on_off);
+  if (read_back != on_off) {
+    CROAK("read_back should equal on_off");
+  }
 
 #if 0
   LOG(LOGS_INFO, LOGF_SysSolaris, "Set value of dosynctodr to %d\n", on_off);

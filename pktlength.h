@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/pktlength.h,v 1.2 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/pktlength.h,v 1.2 1999/04/19 20:27:29 richard Exp $
 
   =======================================================================
 

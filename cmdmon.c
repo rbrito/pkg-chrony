@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/cmdmon.c,v 1.41 1999/04/29 20:29:41 richard Exp $
+  $Header: /cvs/src/chrony/cmdmon.c,v 1.46 2000/07/24 21:44:44 richard Exp $
 
   =======================================================================
 
@@ -154,10 +154,15 @@ CAM_Initialise(void)
   unsigned long bind_address;
   int on_off;
 
-  assert(!initialised);
+  if (initialised) {
+    CROAK("Shouldn't be initialised");
+  }
+
   initialised = 1;
 
-  assert((sizeof(permissions)/sizeof(permissions[0])) == N_REQUEST_TYPES);
+  if ((sizeof(permissions)/sizeof(permissions[0])) != N_REQUEST_TYPES) {
+    CROAK("Permissions table size wrong");
+  }
 
   utoken = (unsigned long) time(NULL);
 
@@ -180,7 +185,7 @@ CAM_Initialise(void)
 
   /* Allow reuse of port number */
   if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &on_off, sizeof(on_off)) < 0) {
-    perror ("setsockopt");
+    LOG(LOGS_ERR, LOGF_CmdMon, "Could not set socket options");
     /* Don't quit - we might survive anyway */
   }
 
@@ -1097,7 +1102,7 @@ handle_add_server(CMD_Request *rx_message, CMD_Reply *tx_message)
       tx_message->status = htons(STT_TOOMANYSOURCES);
       break;
     case NSR_NoSuchSource:
-      assert(0);
+      CROAK("Impossible");
       break;
   }
 }
@@ -1132,7 +1137,7 @@ handle_add_peer(CMD_Request *rx_message, CMD_Reply *tx_message)
       tx_message->status = htons(STT_TOOMANYSOURCES);
       break;
     case NSR_NoSuchSource:
-      assert(0);
+      CROAK("Impossible");
       break;
   }
 }
@@ -1158,7 +1163,7 @@ handle_del_source(CMD_Request *rx_message, CMD_Reply *tx_message)
       break;
     case NSR_TooManySources:
     case NSR_AlreadyInUse:
-      assert(0);
+      CROAK("Impossible");
       break;
   }
 }
@@ -1347,7 +1352,7 @@ handle_subnets_accessed(CMD_Request *rx_message, CMD_Reply *tx_message)
         tx_message->status = htons(STT_INACTIVE);
         return;
       default:
-        assert(0);
+        CROAK("Impossible");
         break;
     }
   }
@@ -1391,7 +1396,7 @@ handle_client_accesses(CMD_Request *rx_message, CMD_Reply *tx_message)
         tx_message->data.client_accesses.clients[i].cmd_hits_bad = htonl(report.cmd_hits_bad);
         tx_message->data.client_accesses.clients[i].last_ntp_hit_ago = htonl(report.last_ntp_hit_ago);
         tx_message->data.client_accesses.clients[i].last_cmd_hit_ago = htonl(report.last_cmd_hit_ago);
-        printf("%08lx %d %d %d %d %d %d %d\n", ip, report.client_hits, report.peer_hits, report.cmd_hits_auth, report.cmd_hits_normal, report.cmd_hits_bad, report.last_ntp_hit_ago, report.last_cmd_hit_ago);
+        printf("%08lx %lu %lu %lu %lu %lu %lu %lu\n", ip, report.client_hits, report.peer_hits, report.cmd_hits_auth, report.cmd_hits_normal, report.cmd_hits_bad, report.last_ntp_hit_ago, report.last_cmd_hit_ago);
         break;
       case CLG_EMPTYSUBNET:
         /* Signal back to the client that this single client address
@@ -1403,7 +1408,7 @@ handle_client_accesses(CMD_Request *rx_message, CMD_Reply *tx_message)
         tx_message->status = htons(STT_INACTIVE);
         return;
       default:
-        assert(0);
+        CROAK("Impossible");
         break;
     }
   }
@@ -1418,7 +1423,6 @@ handle_client_accesses_by_index(CMD_Request *rx_message, CMD_Reply *tx_message)
   CLG_Status result;
   RPT_ClientAccessByIndex_Report report;
   unsigned long first_index, n_indices, last_index, n_indices_in_table;
-  unsigned long nc;
   int i, j;
   struct timeval now;
   double local_time_error;
@@ -1457,7 +1461,7 @@ handle_client_accesses_by_index(CMD_Request *rx_message, CMD_Reply *tx_message)
         tx_message->status = htons(STT_INACTIVE);
         return;
       default:
-        assert(0);
+        CROAK("Impossible");
         break;
     }
   }
@@ -1471,7 +1475,6 @@ handle_client_accesses_by_index(CMD_Request *rx_message, CMD_Reply *tx_message)
 static void
 handle_manual_list(CMD_Request *rx_message, CMD_Reply *tx_message)
 {
-  int status;
   int n_samples;
   int i;
   RPY_ManualListSample *sample;
@@ -1560,7 +1563,6 @@ read_from_cmd_socket(void *anything)
   int valid_ts;
   int authenticated;
   int localhost;
-  int allowed;
   unsigned short rx_command;
   unsigned long rx_message_token;
   unsigned long tx_message_token;
@@ -1569,7 +1571,6 @@ read_from_cmd_socket(void *anything)
   struct timeval now;
   struct timeval cooked_now;
   double local_clock_err;
-  struct timezone tz;
 
   flags = 0;
   rx_message_length = sizeof(rx_message);
@@ -1778,7 +1779,8 @@ read_from_cmd_socket(void *anything)
     tx_message.status = htons(STT_INVALID);
     tx_message.reply = htons(RPY_NULL);
   } else {
-    
+    int allowed = 0;
+
     /* Check level of authority required to issue the command */
     switch(permissions[rx_command]) {
       case PERMIT_AUTH:
@@ -1799,7 +1801,7 @@ read_from_cmd_socket(void *anything)
         allowed = 1;
         break;
       default:
-        assert(0);
+        CROAK("Impossible");
     }
 
     if (allowed) {

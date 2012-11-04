@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/local.c,v 1.12 1999/04/21 20:16:03 richard Exp $
+  $Header: /cvs/src/chrony/local.c,v 1.15 1999/09/21 21:03:26 richard Exp $
 
   =======================================================================
 
@@ -107,7 +107,9 @@ calculate_sys_precision(void)
       iters++;
     }
   } while (iters < NITERS);
-  assert(best_dusec > 0);
+  if (!(best_dusec > 0)) {
+    CROAK("best_dusec should be positive");
+  }
   precision_log = 0;
   while (best_dusec < 500000) {
     precision_log--;
@@ -177,7 +179,9 @@ LCL_AddParameterChangeHandler(LCL_ParameterChangeHandler handler, void *anything
 
   /* Check that the handler is not already registered */
   for (ptr = change_list.next; ptr != &change_list; ptr = ptr->next) {
-    assert(ptr->handler != handler || ptr->anything != anything);
+    if (!(ptr->handler != handler || ptr->anything != anything)) {
+      CROAK("a handler is already registered");
+    }
   }
 
   new_entry = MallocNew(ChangeListEntry);
@@ -214,7 +218,9 @@ void LCL_RemoveParameterChangeHandler(LCL_ParameterChangeHandler handler, void *
     }
   }
 
-  assert(ok);
+  if (!ok) {
+    CROAK("did not find a matching handler");
+  }
 
   /* Unlink entry from the list */
   ptr->next->prev = ptr->prev;
@@ -234,7 +240,9 @@ LCL_AddDispersionNotifyHandler(LCL_DispersionNotifyHandler handler, void *anythi
 
   /* Check that the handler is not already registered */
   for (ptr = dispersion_notify_list.next; ptr != &dispersion_notify_list; ptr = ptr->next) {
-    assert(ptr->handler != handler || ptr->anything != anything);
+    if (!(ptr->handler != handler || ptr->anything != anything)) {
+      CROAK("a handler is already registered");
+    }
   }
 
   new_entry = MallocNew(DispersionNotifyListEntry);
@@ -271,7 +279,9 @@ void LCL_RemoveDispersionNotifyHandler(LCL_DispersionNotifyHandler handler, void
     }
   }
 
-  assert(ok);
+  if (!ok) {
+    CROAK("no matching handler found");
+  }
 
   /* Unlink entry from the list */
   ptr->next->prev = ptr->prev;
@@ -291,7 +301,9 @@ LCL_ReadRawTime(struct timeval *result)
 {
   struct timezone tz;
 
-  assert(gettimeofday(result, &tz) >= 0);
+  if (!(gettimeofday(result, &tz) >= 0)) {
+    CROAK("Could not get time of day");
+  }
   return;
 
 }
@@ -535,18 +547,13 @@ lcl_RegisterSystemDrivers(lcl_ReadFrequencyDriver read_freq,
 int
 LCL_MakeStep(void)
 {
-  struct timeval raw;
-  double error;
-
   if (drv_immediate_step) {
     (drv_immediate_step)();
     LOG(LOGS_INFO, LOGF_Local, "Made step to system time to apply remaining slew");
     return 1;
-  } else {
-    return 0;
   }
 
-  return;
+  return 0;
 }
 
 /* ================================================== */

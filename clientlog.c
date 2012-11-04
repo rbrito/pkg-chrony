@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/clientlog.c,v 1.4 1999/04/19 20:21:15 richard Exp $
+  $Header: /cvs/src/chrony/clientlog.c,v 1.7 1999/09/21 21:03:00 richard Exp $
 
   =======================================================================
 
@@ -23,8 +23,10 @@
 
 #include "sysincl.h"
 #include "clientlog.h"
+#include "conf.h"
 #include "memory.h"
 #include "reports.h"
+#include "util.h"
 
 /* Number of bits of address per layer of the table.  This value has
    been chosen on the basis that a server will predominantly be serving
@@ -147,7 +149,9 @@ create_node(Subnet *parent_subnet, int the_entry)
       max_nodes += NODE_TABLE_INCREMENT;
       nodes = ReallocArray(Node *, max_nodes, nodes);
     } else {
-      assert(max_nodes == 0);
+      if (max_nodes != 0) {
+        CROAK("max_nodes should be 0");
+      }
       max_nodes = NODE_TABLE_INCREMENT;
       nodes = MallocArray(Node *, max_nodes);
     }
@@ -164,7 +168,6 @@ find_subnet(Subnet *subnet, CLG_IP_Addr addr, int bits_left)
 {
   unsigned long this_subnet, new_subnet, mask, shift;
   unsigned long new_bits_left;
-  Node *result;
   
   shift = 32 - NBITS;
   mask = (1UL<<shift) - 1;
@@ -200,7 +203,6 @@ find_subnet_dont_open(Subnet *subnet, CLG_IP_Addr addr, int bits_left)
 {
   unsigned long this_subnet, new_subnet, mask, shift;
   unsigned long new_bits_left;
-  Node *result;
 
   if (bits_left == 0) {
     return subnet;
@@ -274,7 +276,7 @@ CLG_LogCommandAccess(CLG_IP_Addr client, CLG_Command_Type type, time_t now)
         ++node->cmd_hits_bad;
         break;
       default:
-        assert(0);
+        CROAK("Impossible");
         break;
     }
   }

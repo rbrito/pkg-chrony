@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/sources.c,v 1.23 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/sources.c,v 1.24 1999/08/17 21:30:57 richard Exp $
 
   =======================================================================
 
@@ -146,7 +146,9 @@ SRC_Instance SRC_CreateNewInstance(unsigned long ref_id)
 {
   SRC_Instance result;
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
 
   result = MallocNew(struct SRC_Instance_Record);
   result->stats = SST_CreateInstance(ref_id);
@@ -187,7 +189,9 @@ void SRC_DestroyInstance(SRC_Instance instance)
 {
   int dead_index, i;
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
 
   if (instance->index == selected_source_index) {
     instance->reachable = 0;
@@ -222,7 +226,9 @@ void SRC_DestroyInstance(SRC_Instance instance)
 
 void SRC_GetFrequencyRange(SRC_Instance instance, double *lo, double *hi)
 {
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
 
   SST_GetFrequencyRange(instance->stats, lo, hi);
   return;
@@ -253,7 +259,9 @@ void SRC_AccumulateSample
  NTP_Leap leap_status)
 {
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
 
   inst->leap_status = leap_status;
 
@@ -479,7 +487,7 @@ SRC_SelectSource(unsigned long match_addr)
           break;
 
         case CENTRE:
-          assert(0); /* We aren't using this any more */
+          CROAK("CENTRE cannot occur");
           break;
 
         case HIGH:

@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/clientlog.h,v 1.4 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/clientlog.h,v 1.5 1999/09/01 21:31:34 richard Exp $
 
   =======================================================================
 
@@ -63,8 +63,8 @@ extern CLG_Status
 CLG_GetClientAccessReportByIP(unsigned long ip, RPT_ClientAccess_Report *report, time_t now);
 
 CLG_Status
-CLG_GetClientAccesReportByIndex(int index, RPT_ClientAccessByIndex_Report *report,
-                                time_t now, unsigned long *n_indices);
+CLG_GetClientAccessReportByIndex(int index, RPT_ClientAccessByIndex_Report *report,
+                                 time_t now, unsigned long *n_indices);
 
 /* And an iterating function, to call 'fn' for each client or peer
    that has accessed us since 'since'. */

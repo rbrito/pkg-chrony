@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/srcparams.h,v 1.7 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/srcparams.h,v 1.7 1999/04/19 20:27:29 richard Exp $
 
   =======================================================================
 

@@ -18,17 +18,19 @@ accordingly.  It also works out the rate at which the system clock
 gains or loses time and uses this information to keep it accurate
 between measurements from the reference.
 
-The reference time can be derived from either NTP servers (preferred),
-or wristwatch-and-keyboard (via chronyc).
+The reference time can be derived from either Network Time Protocol
+(NTP) servers (preferred), or wristwatch-and-keyboard (via chronyc).
+The main source of information about the Network Time Protocol is
+http://www.eecis.udel.edu/~ntp.
 
 It is designed so that it can work on computers which only have
 intermittent access to reference sources, for example computers which
 use a dial-up account to access the Internet.  Of course, it will work
 on computers with permanent connections too.
 
-In addition, the Linux 2.0.x version (for x >= 32) can monitor the
-system's real time clock performance, so the system can maintain
-accurate time even across reboots.
+In addition, the Linux 2.0.x (for x >= 32), 2.2.x and 2.3.x versions
+can monitor the system's real time clock performance, so the system
+can maintain accurate time even across reboots.
 
 Typical accuracies available between 2 machines are
 
@@ -44,7 +46,7 @@ What will chrony run on?
 
 Chrony can be successfully built and run on
 
-1. Linux v2.0.x (i386)
+1. Linux v2.0.x, 2.1.x (partially), 2.2.x, 2.3.x (i386)
 
 Linux 1.2.13 may work - the code has support but I haven't access to
 anything to test it on. There is support for some patchlevels of Linux
@@ -72,19 +74,19 @@ compilation process should be automatic.
 You will need an ANSI C compiler -- gcc is recommended.  Versions
 2.7.2/2.7.2.2 are known to work.
 
-The manual (in texinfo and Postscript formats) describes how to set
-the software up for the less straightforward cases.
+The manual (in texinfo and text formats) describes how to set the
+software up for the less straightforward cases.
 
 What documentation is there?
 ============================
 
 A manual is supplied in Texinfo format (chrony.texi) and
-ready-formatted Postscript for A4 paper (chrony-a4.ps) in the
-distribution.
+ready-formatted plain text (chrony.txt) in the distribution.
 
-There is also information available on my web page,
+There is also information available on the chrony web pages, accessible
+through the URL 
 
-http://www.curnow.demon.co.uk/chrony/index.html
+    http://go.to/chrony
 
 What can chrony not do?
 =======================
@@ -93,12 +95,52 @@ Compared to the `reference' RFC1305 implementation xntpd, chronyd does
 not support hardware reference clocks, leap seconds or broadcast
 modes.
 
+Where are new versions announced?
+=================================
 
-How can I contact the author?
-=============================
+There is a low volume mailing list hosted on egroups where new versions
+and other important news relating to chrony is announced.  You can join
+this list by sending mail to
 
-You can email me at <richard@curnow.demon.co.uk>.  It would be nice
-if:
+chrony-announce-subscribe@egroups.com
+
+These messages will be copied to chrony-users (see below).  I also try
+to announce new versions on Freshmeat (http://freshmeat.net/).
+
+I don't reliably announce via news any more - I don't tend to keep up
+with news as I haven't enough time.
+
+How can I get support for chrony?
+and where can I discuss new features, possible bugs etc?
+========================================================
+
+There is a mailing list for chrony discussion (including questions and answers
+of a support nature) hosted on Egroups.  To subscribe to this list, send mail
+to
+
+chrony-users-subscribe@egroups.com
+
+The remit of this groups is
+o Support question / answer forum
+o Discussion about possible bugs, extensions, ports to other O/Ses etc
+o Announcements of new releases (copies of messages to chrony-announce)
+o Developer discussions for the time being - if sufficient traffic
+  builds up, I'll start a separate list for this.
+
+Note that due to family commitments (a 2 year-old and a 0 year-old), I
+no longer have the time to give to supporting chrony that I once had.
+Therefore, the mailing list should be your main route for support,
+rather than mailing me directly.  Even if it's me that responds to your
+question on the list, at least *ALL* subscribers then benefit from
+seeing the discussion, rather than me taking up lots of time on
+supporting people on a one-to-one basis.
+
+But how can I contact the author if I need to?
+==============================================
+
+You can email me at <rpc@myself.com> (or equivalently through
+chrony@go.to, or even through <chrony-users-owner@egroups.com>).  It
+would be nice if:
 
 - you include the word 'chrony' in the subject line (so my mail reader
 can sort my mail by topic)
@@ -107,3 +149,46 @@ can sort my mail by topic)
 editing such material down to just the relevant bits - a few tens of
 lines at most.  (My dial-up connection handles large messages rather
 slowly ...).
+
+Acknowledgements
+================
+
+The following people have provided patches and other contributions to
+the program :
+
+Andrew Bishop <amb@gedanken.demon.co.uk>
+    Fixes for bugs in logging when in daemon mode
+    Fixes for compiler warnings
+    Robustness improvements for drift file
+    Improve installation (directory checking etc)
+    Entries in contrib directory
+
+Jim Knoble <jmknoble@pobox.com>
+    Fixes for compiler warnings
+
+Stephan I. Boettcher <stephan@nevis1.columbia.edu>
+    Entries in contrib directory
+
+Erik Bryer <ebryer@spots.ab.ca>
+    Entries in contrib directory
+
+Antti Jrvinen <costello@iki.fi>
+    Advice on configuring for BSD/386
+
+Ulrich Windl <ulrich.windl@rz.uni-regensburg.de> for the
+    Providing me with information about the Linux 2.2 kernel
+    functionality compared to 2.0.
+
+Walter Haidinger <walter.haidinger@gmx.at>
+    Providing me with login access to a Linux installation where v1.12
+    wouldn't compile, so I could develop the fixes for v1.13.
+
+Many other people have contributed bug reports and suggestions, sorry I
+can't identify all of you by name.
+
+Version control information
+===========================
+
+$Header: /cvs/src/chrony/README,v 1.14 2000/07/15 21:29:37 richard Exp $
+
+vim:tw=72

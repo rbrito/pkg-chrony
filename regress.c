@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/regress.c,v 1.26 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/regress.c,v 1.28 1999/09/21 21:04:29 richard Exp $
 
   =======================================================================
 
@@ -24,6 +24,7 @@
 
 #include "regress.h"
 #include "logging.h"
+#include "util.h"
 
 #define MAX_POINTS 128
 
@@ -50,13 +51,14 @@ RGR_WeightedRegression
  /* Could add correlation stuff later if required */
 )
 {
- 
-  double P, Q, U, V, W, D;
+  double P, Q, U, V, W;
   double diff;
   double u, ui, aa;
   int i;
 
-  assert (n>=3); /* Otherwise meaningless to do any statistical stuff */
+  if (n<3) {
+    CROAK("Insufficient points");
+  }
 
   W = U = 0;
   for (i=0; i<n; i++) {
@@ -214,7 +216,6 @@ RGR_FindBestRegression
 {
   double P, Q, U, V, W; /* total */
   double resid[RESID_SIZE];
-  double D;
   double ss;
   double a, b, u, ui, aa;
 
@@ -318,7 +319,9 @@ find_ordered_entry_with_flags(double *x, int n, int index, int *flags)
   double piv;
   int pivind;
 
-  assert(index >= 0);
+  if (index < 0) {
+    CROAK("Negative index");
+  }
 
   /* If this bit of the array is already sorted, simple! */
   if (flags[index]) {
@@ -363,7 +366,7 @@ find_ordered_entry_with_flags(double *x, int n, int index, int *flags)
       } else if (index > r) {
         u = l;
       } else {
-        assert(0);
+        CROAK("Impossible");
       }
     }
   } while (1);
@@ -475,10 +478,11 @@ RGR_FindBestRobustRegression
   int start;
   int n_points;
   double a, b;
-  double P, Q, U, V, W, D;
+  double P, U, V, W, X;
   double resid, resids[MAX_POINTS];
   double blo, bhi, bmid, rlo, rhi, rmid;
   double s2, sb, incr;
+  double mx, dx, my, dy;
   int nruns = 0;
 
   if (n < 2) {
@@ -504,21 +508,32 @@ RGR_FindBestRobustRegression
 
     /* Use standard least squares regression to get starting estimate */
 
-    P = Q = U = V = W = 0.0;
+    P = U = 0.0;
     for (i=start; i<n; i++) {
       P += y[i];
-      Q += y[i] * x[i];
       U += x[i];
-      V += x[i] * x[i];
     }
 
     W = (double) n_points;
 
-    D = V*W - U*U;
-    assert(D != 0.0);
+    my = P/W;
+    mx = U/W;
 
-    b = (Q*W - U*P) / D;
-    a = (V*P - Q*U) / D;
+    X = V = 0.0;
+    for (i=start; i<n; i++) {
+      dy = y[i] - my;
+      dx = x[i] - mx;
+      X += dy * dx;
+      V += dx * dx;
+    }
+
+    b = X / V;
+    a = my - b*mx;
+
+
+#if 0
+    printf("my=%20.12f mx=%20.12f a=%20.12f b=%20.12f\n", my, mx, a, b);
+#endif
 
     s2 = 0.0;
     for (i=start; i<n; i++) {
@@ -529,7 +544,7 @@ RGR_FindBestRobustRegression
     /* Need to expand range of b to get a root in the interval.
        Estimate standard deviation of b and expand range about b based
        on that. */
-    sb = sqrt(s2 * W/D);
+    sb = sqrt(s2 * W/V);
     if (sb > 0.0) {
       incr = 3.0 * sb;
     } else {
@@ -546,10 +561,10 @@ RGR_FindBestRobustRegression
       /* We don't want 'a' yet */
       eval_robust_residual(x + start, y + start, n_points, blo, &a, &rlo);
       eval_robust_residual(x + start, y + start, n_points, bhi, &a, &rhi);
-      
+
     } while (rlo * rhi > 0.0); /* fn vals have same sign, i.e. root not
                                   in interval. */
-    
+
     /* OK, so the root for b lies in (blo, bhi). Start bisecting */
     do {
       bmid = 0.5 * (blo + bhi);
@@ -563,7 +578,7 @@ RGR_FindBestRobustRegression
         bhi = bmid;
         rhi = rmid;
       } else {
-        assert(0);
+        CROAK("Impossible");
       }
     } while ((bhi - blo) > tol);
 

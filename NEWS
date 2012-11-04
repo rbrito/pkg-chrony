@@ -1,3 +1,43 @@
+New in version 1.14
+===================
+* Fix compilation for certain other Linux distributions (including Mandrake
+  7.1)
+
+New in version 1.13
+===================
+* Fixed compilation problems on Redhat/SuSE installations with recent 2.2.x
+  kernels.
+* Minor tidy-ups and documentation enhancements.
+* Add support for Linux 2.4 kernels
+
+New in version 1.12
+===================
+
+* Trial fix for long-standing bug in Linux RTC estimator when system time is
+  slewed.
+* Fix bug in chronyc if -h is specified without a hostname
+* Fixes to logging various error conditions when operating in daemon mode.
+* More stuff under contrib/
+* Changes to README file (e.g. about the new chrony-users mailing list)
+
+New in version 1.11a
+====================
+
+* Minor changes to contact details
+* Minor changes to installation details (chrony subdirectory under doc/)
+
+New in version 1.11
+===================
+
+* Improve robustness of installation procedure
+* Tidy up documenation and contact details
+* Distribute manual as .txt rather than as .ps
+* Add -n option to chronyc to work with numeric IP addresses rather than
+  names.
+* Add material in contrib subdirectory
+* Improve robustness of handling drift file and RTC coefficients file
+* Improve robustness of regression algorithm
+
 New in version 1.1
 ==================
 

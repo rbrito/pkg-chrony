@@ -80,7 +80,7 @@ the RFC did not make absolutely clear.  The core algorithms in
 
 @node Getting the software, Platforms, Availability, Availability
 @subsection Getting the software
-Links on @uref{http://www.curnow.demon.co.uk/chrony/index.html, the
+Links on @uref{http://www.rrbcurnow.freeuk.com/chrony/index.html, the
 chrony home page} describe how to obtain the software.
 
 @node Platforms,  , Getting the software, Availability
@@ -824,6 +824,14 @@ maxupdateskew 100.0
 dumponexit
 dumpdir /var/log/chrony
 rtcfile /etc/chrony.rtc
+@end example
+
+With Freeserve as the ISP, I use the following server lines :
+
+@example
+server 194.152.64.68 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+server 194.152.64.35 minpoll 5 maxpoll 10 maxdelay 0.4 offline
+server 194.152.64.34 minpoll 5 maxpoll 10 maxdelay 0.4 offline
 @end example
 
 I use @code{pppd} for connecting to my ISP.  This runs two scripts

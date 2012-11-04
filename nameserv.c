@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/nameserv.c,v 1.11 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/nameserv.c,v 1.11 1999/04/19 20:27:29 richard Exp $
 
   =======================================================================
 

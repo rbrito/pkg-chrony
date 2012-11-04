@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/rtc_linux.h,v 1.9 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/rtc_linux.h,v 1.10 2000/07/24 21:44:45 richard Exp $
 
   ======================================================================
 
@@ -21,7 +21,7 @@
 
 #if defined LINUX
 
-extern int RTC_Linux_Initialise();
+extern int RTC_Linux_Initialise(void);
 extern void RTC_Linux_Finalise(void);
 extern void RTC_Linux_TimePreInit(void);
 extern void RTC_Linux_TimeInit(void (*after_hook)(void *), void *anything);

@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/util.h,v 1.8 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/util.h,v 1.9 1999/08/17 21:30:22 richard Exp $
 
   =======================================================================
 
@@ -66,6 +66,10 @@ extern char *UTI_TimeToLogForm(time_t t);
 
 /* Adjust time following a frequency/offset change */
 extern void UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *new_tv, double dfreq, double doffset);
+
+/* Like assert(0) */
+extern int croak(char *file, int line, char *msg);
+#define CROAK(message) croak(__FILE__, __LINE__, message);
 
 #if defined (INLINE_UTILITIES)
 #define INLINE_STATIC inline static

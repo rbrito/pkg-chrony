@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/configure,v 1.14 1999/04/19 20:27:29 richard Exp $
+# $Header: /cvs/src/chrony/configure,v 1.15 2000/07/15 21:20:06 richard Exp $
 #
 # =======================================================================
 #
@@ -60,7 +60,7 @@ case $SYSTEM in
 	esac
     ;;
     Linux-i[3456]86 )
-	EXTRA_OBJECTS="sys_linux.o rtc_linux.o"
+	EXTRA_OBJECTS="sys_linux.o wrap_adjtimex.o rtc_linux.o"
         SYSDEFS="-DLINUX"
 	echo "Configuring for " $SYSTEM
     ;;

@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/sourcestats.c,v 1.32 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/sourcestats.c,v 1.33 1999/08/17 21:30:46 richard Exp $
 
   =======================================================================
 
@@ -225,8 +225,10 @@ prune_register(SST_Stats inst, int new_oldest, int *bad_points)
 {
   int i, j;
 
-  assert(new_oldest < inst->n_samples);
-
+  if (!(new_oldest < inst->n_samples)) {
+    CROAK("new_oldest should be < n_samples");
+  }
+   
   for (i=0, j=new_oldest; j<inst->n_samples; j++) {
     if (!bad_points || !bad_points[j]) {
       if (j != i) {
@@ -327,7 +329,10 @@ find_best_sample_index(SST_Stats inst, double *times_back)
 #endif
 
     /* Because the loop does not consider the most recent sample, this assertion must hold */
-    assert(elapsed > 0.0);
+    if (elapsed <= 0.0) {
+      CROAK("elapsed should be > 0.0");
+    }
+
     root_distance = inst->root_dispersions[i] + elapsed * inst->skew + 0.5 * fabs(inst->root_delays[i]);
     if (root_distance < best_root_distance) {
       best_root_distance = root_distance;

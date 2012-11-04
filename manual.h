@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/manual.h,v 1.9 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/manual.h,v 1.10 1999/09/01 21:32:34 richard Exp $
 
   =======================================================================
 
@@ -31,5 +31,6 @@ extern void MNL_Disable(void);
 extern void MNL_Reset(void);
 
 extern void MNL_ReportSamples(RPT_ManualSamplesReport *report, int max, int *n);
+extern int MNL_DeleteSample(int index);
 
 #endif /* GOT_MANUAL_H */

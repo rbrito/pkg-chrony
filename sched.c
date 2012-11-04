@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/sched.c,v 1.11 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/sched.c,v 1.13 2000/06/12 21:22:49 richard Exp $
 
   =======================================================================
 
@@ -148,12 +148,16 @@ SCH_AddInputFileHandler
 (int fd, SCH_FileHandler handler, SCH_ArbitraryArgument arg)
 {
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
   
   /* Don't want to allow the same fd to register a handler more than
      once without deleting a previous association - this suggests
      a bug somewhere else in the program. */
-  assert (!FD_ISSET(fd, &read_fds));
+  if (FD_ISSET(fd, &read_fds)) {
+    CROAK("File handler already registered");
+  }
 
   ++n_read_fds;
   
@@ -177,10 +181,14 @@ SCH_RemoveInputFileHandler(int fd)
 {
   int fds_left, fd_to_check;
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
 
   /* Check that a handler was registered for the fd in question */
-  assert(FD_ISSET(fd, &read_fds));
+  if (!FD_ISSET(fd, &read_fds)) {
+    CROAK("File handler not registered");
+  }
 
   --n_read_fds;
 
@@ -244,7 +252,9 @@ SCH_AddTimeout(struct timeval *tv, SCH_TimeoutHandler handler, SCH_ArbitraryArgu
   TimerQueueEntry *new_tqe;
   TimerQueueEntry *ptr;
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
 
   new_tqe = allocate_tqe();
 
@@ -285,7 +295,9 @@ SCH_AddTimeoutByDelay(double delay, SCH_TimeoutHandler handler, SCH_ArbitraryArg
 {
   struct timeval now, then;
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
 
   LCL_ReadRawTime(&now);
   UTI_AddDoubleToTimeval(&now, delay, &then);
@@ -306,7 +318,9 @@ SCH_AddTimeoutInClass(double min_delay, double separation,
   double diff;
   double new_min_delay;
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
   
   LCL_ReadRawTime(&now);
   new_min_delay = min_delay;
@@ -362,7 +376,9 @@ SCH_RemoveTimeout(SCH_TimeoutID id)
   TimerQueueEntry *ptr;
   int ok;
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
 
   ok = 0;
 
@@ -481,13 +497,14 @@ handle_slew(struct timeval *raw,
 void
 SCH_MainLoop(void)
 {
-
   fd_set rd, wr, ex;
   int status;
   struct timeval tv, *ptv;
   struct timeval now;
 
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
 
   while (!need_to_exit) {
 
@@ -528,19 +545,22 @@ SCH_MainLoop(void)
     status = select(one_highest_fd, &rd, &wr, &ex, ptv);
 
     if (status < 0) {
-      /* Some sort of error condition, think about that
-         later. */
-      perror("Status < 0 after select");
+      CROAK("Status < 0 after select");
     } else if (status > 0) {
       /* A file descriptor is ready to read */
 
       dispatch_filehandlers(status, &rd);
 
     } else {
-      assert(status == 0);
+      if (status != 0) {
+        CROAK("Unexpected value from select");
+      }
+
       /* No descriptors readable, timeout must have elapsed.
        Therefore, tv must be non-null */
-      assert(ptv);
+      if (!ptv) {
+        CROAK("No descriptors or timeout?");
+      }
 
       /* There's nothing to do here, since the timeouts
          will be dispatched at the top of the next loop
@@ -558,7 +578,9 @@ SCH_MainLoop(void)
 void
 SCH_QuitProgram(void)
 {
-  assert(initialised);
+  if (!initialised) {
+    CROAK("Should be initialised");
+  }
   need_to_exit = 1;
 }
 

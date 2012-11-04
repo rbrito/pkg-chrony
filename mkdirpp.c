@@ -1,5 +1,5 @@
 /*
-  $Header: /home/richard/myntp/chrony/chrony-1.1/RCS/mkdirpp.c,v 1.6 1999/04/19 20:27:29 richard Exp $
+  $Header: /cvs/src/chrony/mkdirpp.c,v 1.7 1999/08/17 21:24:52 richard Exp $
 
   =======================================================================
 
@@ -72,6 +72,11 @@ mkdir_and_parents(const char *path)
 
       if (do_dir(p) < 0) {
         return 0;
+      }
+
+      if (!path[i]) {
+        /* End of the string */
+        break;
       }
 
       /* check whether its a trailing / or group of / */
