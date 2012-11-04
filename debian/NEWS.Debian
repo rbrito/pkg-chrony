@@ -1,0 +1,3 @@
+Upstream has fixed the HPET error message problem so updating of the
+real-time clock has been enabled.  However, RTC may still not work on
+systems with HPET: it just won't flood the log.

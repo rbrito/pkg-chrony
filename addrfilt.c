@@ -43,16 +43,14 @@
 /* Define the table size */
 #define TABLE_SIZE (1UL<<NBITS)
 
-struct _TableNode;
-
-typedef struct _TableNode ExtendedTable[TABLE_SIZE];
-
 typedef enum {DENY, ALLOW, AS_PARENT} State;
 
 typedef struct _TableNode {
   State state;
-  ExtendedTable *extended;
+  struct _TableNode *extended;
 } TableNode;
+
+typedef struct _TableNode ExtendedTable[TABLE_SIZE];
 
 struct ADF_AuthTableInst {
   TableNode base;
@@ -101,7 +99,7 @@ close_node(TableNode *node)
 
   if (node->extended != NULL) {
     for (i=0; i<TABLE_SIZE; i++) {
-      child_node = &((*(node->extended))[i]);
+      child_node = node->extended + i;
       close_node(child_node);
     }
     Free(node->extended);
@@ -124,10 +122,11 @@ open_node(TableNode *node)
 
   if (node->extended == NULL) {
 
-    node->extended = MallocNew(ExtendedTable);
+
+    node->extended = (TableNode *) MallocArray(ExtendedTable, TABLE_SIZE);
 
     for (i=0; i<TABLE_SIZE; i++) {
-      child_node = &((*(node->extended))[i]);
+      child_node = node->extended + i;
       child_node->state = AS_PARENT;
       child_node->extended = NULL;
     }
@@ -168,7 +167,7 @@ set_subnet(TableNode *start_node,
         if (!(node->extended)) {
           open_node(node);
         }
-        node = &((*(node->extended))[subnet]);
+        node = node->extended + subnet;
         bits_to_go -= NBITS;
       }
 
@@ -187,7 +186,7 @@ set_subnet(TableNode *start_node,
         if (!(node->extended)) {
           open_node(node);
         }
-        node = &((*(node->extended))[subnet]);
+        node = node->extended + subnet;
         bits_to_go -= NBITS;
       }
 
@@ -199,7 +198,7 @@ set_subnet(TableNode *start_node,
       }
       
       for (i=subnet, j=0; j<N; i++, j++) {
-        this_node = &((*(node->extended))[i]);
+        this_node = node->extended + i;
         if (delete_children) {
           close_node(this_node);
         }
@@ -283,7 +282,7 @@ check_ip_in_node(TableNode *start_node, unsigned long ip)
     if (node->extended) {
       subnet = get_subnet(residual);
       residual = get_residual(residual);
-      node = &((*(node->extended))[subnet]);
+      node = node->extended + subnet;
     } else {
       /* Make decision on this node */
       finished = 1;

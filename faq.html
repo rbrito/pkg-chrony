@@ -1,4 +1,3 @@
-@@PROLOGUE
 <html>
 <head>
 <title>Frequently asked questions</title>
@@ -34,20 +33,118 @@ mail reader can keep my mail sorted by topic)!
 <hr>
 
 <br clear=all>
-@@ENDPROLOGUE
-S: Administrative issues
-
-Q: Where can I get chrony source code?
+<ul>
+<b><li> <a href="#section_1">1.</a> Administrative issues</b>
+  <ul>
+  <li> <a href="#question_1.1">1.1.</a> Where can I get chrony source code?
+  <li> <a href="#question_1.2">1.2.</a> Are there any packaged versions of chrony?
+  <li> <a href="#question_1.3">1.3.</a> Where is the home page?
+  <li> <a href="#question_1.4">1.4.</a> Is there a mailing list?
+  <li> <a href="#question_1.5">1.5.</a> What licence is applied to chrony?
+  </ul>
+<b><li> <a href="#section_2">2.</a> Chrony compared to other programs</b>
+  <ul>
+  <li> <a href="#question_2.1">2.1.</a> How does chrony compare to xntpd?
+  </ul>
+<b><li> <a href="#section_3">3.</a> Compilation issues</b>
+  <ul>
+  <li> <a href="#question_3.1">3.1.</a> How do I apply source patches?
+  <li> <a href="#question_3.2">3.2.</a> Can I compile chrony with an ANSI-C compiler that is not GCC v2.x?
+  <li> <a href="#question_3.3">3.3.</a> I get errors like 'client.c:44: readline/readline.h: file not found'
+  <li> <a href="#question_3.4">3.4.</a> I have RedHat 7.3 and can't compile rtc_linux.c (error in spinlock.h)
+  </ul>
+<b><li> <a href="#section_4">4.</a> Selection of NTP servers</b>
+  <ul>
+  <li> <a href="#question_4.1">4.1.</a> I have several computers on a LAN.  Should I make one the master, or make them all clients of an external server?
+  </ul>
+<b><li> <a href="#section_5">5.</a> Addressing issues</b>
+  <ul>
+  <li> <a href="#question_5.1">5.1.</a> I get the following error message : "Could not get IP adress for localhost"
+  <li> <a href="#question_5.2">5.2.</a> I have problems if I put the names of my NTP servers in the chrony.conf file.
+  </ul>
+<b><li> <a href="#section_6">6.</a> My computer is not synchronising.</b>
+  <ul>
+  <li> <a href="#question_6.1">6.1.</a> Behind a firewall?
+  <li> <a href="#question_6.2">6.2.</a> Do you have a non-permanant (i.e. intermittent) Internet connection?
+  <li> <a href="#question_6.3">6.3.</a> In measurements.log, do the '7' and '8' flag columns always show zero?
+  </ul>
+<b><li> <a href="#section_7">7.</a> Issues with chronyd</b>
+  <ul>
+  <li> <a href="#question_7.1">7.1.</a> chronyd crashes after a syslog message "adjtimex failed for set frequency"
+  </ul>
+<b><li> <a href="#section_8">8.</a> Issues with chronyc</b>
+  <ul>
+  <li> <a href="#question_8.1">8.1.</a> I keep getting the error '510 No command access from this host --- Reply not authenticated'.
+  <li> <a href="#question_8.2">8.2.</a> I cannot log in from chronyc to carry out privileged tasks.
+  <li> <a href="#question_8.3">8.3.</a> When I enter a command and hit &lt;Return&gt;, chronyc hangs
+  <li> <a href="#question_8.4">8.4.</a> Is the chronyc&lt;-&gt;chronyd protocol documented anywhere?
+  </ul>
+<b><li> <a href="#section_9">9.</a> Real-time clock issues.</b>
+  <ul>
+  <li> <a href="#question_9.1">9.1.</a> What is the real-time clock (RTC)?
+  <li> <a href="#question_9.2">9.2.</a> I want to use chronyd's real-time clock support.  Must I disable hwclock?
+  <li> <a href="#question_9.3">9.3.</a> I just keep getting the '513 RTC driver not running' message
+  </ul>
+<b><li> <a href="#section_10">10.</a> Problems with isolated networks.</b>
+  <ul>
+  <li> <a href="#question_10.1">10.1.</a> When I use the 'settime' command, chronyd crashes.
+  </ul>
+<b><li> <a href="#section_11">11.</a> Microsoft Windows</b>
+  <ul>
+  <li> <a href="#question_11.1">11.1.</a> Does chrony support Windows?
+  <li> <a href="#question_11.2">11.2.</a> Are there any plans to support Windows?
+  <li> <a href="#question_11.3">11.3.</a> What alternative NTP clients are there for Windows?
+  </ul>
+<b><li> <a href="#section_12">12.</a> NTP-specific issues</b>
+  <ul>
+  <li> <a href="#question_12.1">12.1.</a> Can chrony be driven from broadcast NTP servers?
+  <li> <a href="#question_12.2">12.2.</a> Can chronyd transmit broadcast NTP packets (e.g. to synchronise other computers on a private LAN)?
+  <li> <a href="#question_12.3">12.3.</a> Can chrony keep the system clock a fixed offset away from real time?
+  <li> <a href="#question_12.4">12.4.</a> What happens if the network connection is dropped without using chronyc's 'offline' command first?
+  </ul>
+<b><li> <a href="#section_13">13.</a> Development</b>
+  <ul>
+  <li> <a href="#question_13.1">13.1.</a> Can I get the source via CVS from anywhere?
+  </ul>
+<b><li> <a href="#section_14">14.</a> Linux-specific issues</b>
+  <ul>
+  <li> <a href="#question_14.1">14.1.</a> Why does the source code include kernel header files?
+  <li> <a href="#question_14.2">14.2.</a> I get "Could not open /dev/rtc, Device or resource busy" in my syslog file.
+  </ul>
+<b><li> <a href="#section_15">15.</a> Solaris-specific issues</b>
+  <ul>
+  <li> <a href="#question_15.1">15.1.</a> On Solaris 2.8, I get an error message about not being able to open kvm to change dosynctodr.
+  </ul>
+</ul>
+<hr>
+<a name=section_1>
+<?php pretty_h2("1. Administrative issues"); ?>
+<p>
+<a name=question_1.1>
+<font size=+1 face="arial,helvetica">1.1. Where can I get chrony source code?</font>
+<pre>
 Via the home page, see below.
 
-Q: Are there any packaged versions of chrony?
+</pre>
+<p>
+<a name=question_1.2>
+<font size=+1 face="arial,helvetica">1.2. Are there any packaged versions of chrony?</font>
+<pre>
 I am aware of packages for Debian, Mandrake and Redhat.  I am not personally
 involved with how these are built or distributed.
 
-Q: Where is the home page?
+</pre>
+<p>
+<a name=question_1.3>
+<font size=+1 face="arial,helvetica">1.3. Where is the home page?</font>
+<pre>
 It is currently at <a href="http://chrony.sunsite.dk/">http://chrony.sunsite.dk/</a>. 
 
-Q: Is there a mailing list?
+</pre>
+<p>
+<a name=question_1.4>
+<font size=+1 face="arial,helvetica">1.4. Is there a mailing list?</font>
+<pre>
 Yes, it's currently at chrony-users@sunsite.dk. There is a low-volume
 list called chrony-announce which is just for announcements of new releases or
 similar matters of high importance.  You can join the lists by sending a
@@ -58,7 +155,11 @@ For those who want to contribute to the development of chrony, there is a
 developers' mailing list.  You can subscribe by sending mail to
 <a href="mailto:chrony-dev-subscribe@sunsite.dk">chrony-dev-subscribe@sunsite.dk</a>.
 
-Q: What licence is applied to chrony?
+</pre>
+<p>
+<a name=question_1.5>
+<font size=+1 face="arial,helvetica">1.5. What licence is applied to chrony?</font>
+<pre>
 Starting from version 1.15, chrony is licensed under the GNU General Public
 License.  Versions prior to 1.15 were licensed under a custom BSD-like
 license.
@@ -71,8 +172,14 @@ licences, as well as to commercial projects which are of a single-customer
 "turnkey" nature (as opposed to mass-market "shrink-wrap" or "floating-licence"
 products).
 
-S: Chrony compared to other programs
-Q: How does chrony compare to xntpd?
+</pre>
+<hr>
+<a name=section_2>
+<?php pretty_h2("2. Chrony compared to other programs"); ?>
+<p>
+<a name=question_2.1>
+<font size=+1 face="arial,helvetica">2.1. How does chrony compare to xntpd?</font>
+<pre>
 If your computer is permenently connected, or connected for long periods (that
 is, for the several hours it takes xntpd to settle down), or you need to
 support hardware reference clocks to your computer, then xntpd will work fine.
@@ -107,8 +214,14 @@ at all, I found xntpd gave me no help with managing the local clock's
 gain/loss rate on the NTP master node (which I set from my watch).  I
 added some automated support in chrony to deal with this.
 
-S: Compilation issues
-Q:How do I apply source patches?
+</pre>
+<hr>
+<a name=section_3>
+<?php pretty_h2("3. Compilation issues"); ?>
+<p>
+<a name=question_3.1>
+<font size=+1 face="arial,helvetica">3.1. How do I apply source patches?</font>
+<pre>
 Sometimes I release source patches rather than a full version when I need to
 provide a fix for small problems.  Supposing you have chrony-1.X.tar.gz and a
 source patch chrony-1.X-1.X.1.gz.  The steps required are:
@@ -120,7 +233,11 @@ source patch chrony-1.X-1.X.1.gz.  The steps required are:
     make
     make install
 
-Q:Can I compile chrony with an ANSI-C compiler that is not GCC v2.x?
+</pre>
+<p>
+<a name=question_3.2>
+<font size=+1 face="arial,helvetica">3.2. Can I compile chrony with an ANSI-C compiler that is not GCC v2.x?</font>
+<pre>
 I have had reports that chrony can be compiled with GCC v1.42, by using the
 following trick when running make
 
@@ -130,13 +247,21 @@ following trick when running make
 
 The same trick may be enough to allow other compilers to be used.
 
-Q: I get errors like 'client.c:44: readline/readline.h: file not found'
+</pre>
+<p>
+<a name=question_3.3>
+<font size=+1 face="arial,helvetica">3.3. I get errors like 'client.c:44: readline/readline.h: file not found'</font>
+<pre>
 Read the section about 'readline' in the INSTALL file or in chrony.txt.  You
 may need to disable readline support (e.g. if you haven't got readline
 installed at all, or just don't want it), or specify the location of the
 readline files (e.g. if you've installed them in a non-standard place).
 
-Q: I have RedHat 7.3 and can't compile rtc_linux.c (error in spinlock.h)
+</pre>
+<p>
+<a name=question_3.4>
+<font size=+1 face="arial,helvetica">3.4. I have RedHat 7.3 and can't compile rtc_linux.c (error in spinlock.h)</font>
+<pre>
 The following solution has been found for this.  Enter the following 3 commands
 (as root):
 
@@ -157,8 +282,14 @@ tree is sufficient to fix the problem.
 Note : from version 1.21 onwards, this problem no longer exists.  The kernel
 header files are no longer included.
 
-S: Selection of NTP servers
-Q: I have several computers on a LAN.  Should I make one the master, or make them all clients of an external server?
+</pre>
+<hr>
+<a name=section_4>
+<?php pretty_h2("4. Selection of NTP servers"); ?>
+<p>
+<a name=question_4.1>
+<font size=+1 face="arial,helvetica">4.1. I have several computers on a LAN.  Should I make one the master, or make them all clients of an external server?</font>
+<pre>
 I think the best configuration is to make one computer the master, with the
 others as clients of it.  Add a 'local' directive to the master's chrony.conf
 file.  This configuration will be better because
@@ -168,12 +299,22 @@ file.  This configuration will be better because
 * if your external connection goes down, the computers on the LAN will maintain
   a common time with each other.
 
-S: Addressing issues
-Q: I get the following error message : "Could not get IP adress for localhost"
+</pre>
+<hr>
+<a name=section_5>
+<?php pretty_h2("5. Addressing issues"); ?>
+<p>
+<a name=question_5.1>
+<font size=+1 face="arial,helvetica">5.1. I get the following error message : "Could not get IP adress for localhost"</font>
+<pre>
 Add a line like the following to your /etc/hosts file
     127.0.0.1   localhost
 
-Q: I have problems if I put the names of my NTP servers in the chrony.conf file.
+</pre>
+<p>
+<a name=question_5.2>
+<font size=+1 face="arial,helvetica">5.2. I have problems if I put the names of my NTP servers in the chrony.conf file.</font>
+<pre>
 If you have no connection to the Internet at boot time, chrony won't be able to
 turn the names into IP addresses when it starts.  There seem to be 2 solutions:
 
@@ -186,11 +327,19 @@ The problem is that chronyd (currently) isn't designed in a way that allows
 hostname->IP address lookups during normal operation.  I hope to work on this
 problem very soon.
 
-S: My computer is not synchronising.
+</pre>
+<hr>
+<a name=section_6>
+<?php pretty_h2("6. My computer is not synchronising."); ?>
+<pre>
 This is the most common problem.  There are a number of reasons, see the
 following questions.
 
-Q: Behind a firewall?
+</pre>
+<p>
+<a name=question_6.1>
+<font size=+1 face="arial,helvetica">6.1. Behind a firewall?</font>
+<pre>
 If there is a firewall between you and the NTP server you're trying to use,
 the packets may be blocked.  Try using a tool like etherfind or tcpdump to see
 if you're getting responses from the server.  If you have an external modem,
@@ -202,19 +351,32 @@ been running for a short period.  See if any measurements appear.
 Most people run chronyd on the firewall itself, to avoid all issues of UDP
 packet forwarding and/or masquerading.
 
-Q: Do you have a non-permanant (i.e. intermittent) Internet connection?
+</pre>
+<p>
+<a name=question_6.2>
+<font size=+1 face="arial,helvetica">6.2. Do you have a non-permanant (i.e. intermittent) Internet connection?</font>
+<pre>
 Check that you're using chronyc's 'online' and 'offline' commands
 appropriately.  Again, check in measurements.log to see if you're getting any
 data back from the server.
 
-Q: In measurements.log, do the '7' and '8' flag columns always show zero?
+</pre>
+<p>
+<a name=question_6.3>
+<font size=+1 face="arial,helvetica">6.3. In measurements.log, do the '7' and '8' flag columns always show zero?</font>
+<pre>
 Do you have a 'local stratum X' directive in the chrony.conf file?  If X is
 lower than the stratum of the server you're trying to use, this situation will
 arise.  You should always make X quite high (e.g. 10) in this directive.
 
-S: Issues with chronyd
-
-Q: chronyd crashes after a syslog message "adjtimex failed for set frequency"
+</pre>
+<hr>
+<a name=section_7>
+<?php pretty_h2("7. Issues with chronyd"); ?>
+<p>
+<a name=question_7.1>
+<font size=+1 face="arial,helvetica">7.1. chronyd crashes after a syslog message "adjtimex failed for set frequency"</font>
+<pre>
 The usual cause is that the kernel is running with a different value of 'HZ'
 (the timer interrupt rate) than the value that was found in the kernel header
 files when chrony was compiled.  The chrony.conf file can include options to
@@ -227,16 +389,25 @@ you'll find instructions on how to do this.
 This will be fixed in version 1.19, by getting chronyd to auto-detect the
 kernel's value rather than relying on the compiled-in default.
 
-S: Issues with chronyc
-
-Q: I keep getting the error '510 No command access from this host --- Reply not authenticated'.
+</pre>
+<hr>
+<a name=section_8>
+<?php pretty_h2("8. Issues with chronyc"); ?>
+<p>
+<a name=question_8.1>
+<font size=+1 face="arial,helvetica">8.1. I keep getting the error '510 No command access from this host --- Reply not authenticated'.</font>
+<pre>
 Make sure that the chrony.conf file (on the computer where chronyd is running)
 has a 'cmdallow' entry for the computer you are running chronyc on.  This
 shouldn't be necessary for localhost, but some people still seem to need an
 entry like 'cmdallow 127.0.0.1'.  (It would be good to understand why problem
 only affects some people).
 
-Q: I cannot log in from chronyc to carry out privileged tasks.
+</pre>
+<p>
+<a name=question_8.2>
+<font size=+1 face="arial,helvetica">8.2. I cannot log in from chronyc to carry out privileged tasks.</font>
+<pre>
 This is the second most common problem.
 
 Perhaps your /etc/chrony.keys file is badly formatted.  Make sure that the
@@ -244,7 +415,11 @@ final line has a line feed at the end, otherwise the key on that line will work
 as though the last character is missing.  (Note, this bug was fixed in version
 1.16.)
 
-Q: When I enter a command and hit &lt;Return&gt;, chronyc hangs
+</pre>
+<p>
+<a name=question_8.3>
+<font size=+1 face="arial,helvetica">8.3. When I enter a command and hit &lt;Return&gt;, chronyc hangs</font>
+<pre>
 This probably means that chronyc cannot communicate with chronyd.
 
 Perhaps chronyd is not running.  Try using the ps command (e.g. on Linux, 'ps
@@ -255,18 +430,32 @@ problem with the way you are trying to start it (e.g. at boot time).
 Perhaps you have a firewall set up in a way that blocks packets on port
 323/udp.  You need to amend the firewall configuration in this case.
 
-Q: Is the chronyc&lt;-&gt;chronyd protocol documented anywhere?
+</pre>
+<p>
+<a name=question_8.4>
+<font size=+1 face="arial,helvetica">8.4. Is the chronyc&lt;-&gt;chronyd protocol documented anywhere?</font>
+<pre>
 Only by the source code :-)  See cmdmon.c (chronyd side) and client.c (chronyc
 side).
 
-S: Real-time clock issues.
-Q: What is the real-time clock (RTC)?
+</pre>
+<hr>
+<a name=section_9>
+<?php pretty_h2("9. Real-time clock issues."); ?>
+<p>
+<a name=question_9.1>
+<font size=+1 face="arial,helvetica">9.1. What is the real-time clock (RTC)?</font>
+<pre>
 This is the clock which keeps the time even when your computer is turned off.
 It works with 1 second resolution.   chronyd can monitor the rate at which the
 real-time clock gains or loses time, and compensate for it when you set the
 system time from it at the next reboot.  See the documentation for details.
 
-Q: I want to use chronyd's real-time clock support.  Must I disable hwclock?
+</pre>
+<p>
+<a name=question_9.2>
+<font size=+1 face="arial,helvetica">9.2. I want to use chronyd's real-time clock support.  Must I disable hwclock?</font>
+<pre>
 The hwclock program is often set-up by default in the boot and shutdown scripts
 with many Linux installations.  If you want to use chronyd's real-time clock
 support, the important thing is to disable hwclock in the <b>shutdown</b>
@@ -278,43 +467,71 @@ meaningless initial system time.
 There is no need to remove hwclock from the boot process, as long as chronyd is
 started after it has run.
 
-Q: I just keep getting the '513 RTC driver not running' message
+</pre>
+<p>
+<a name=question_9.3>
+<font size=+1 face="arial,helvetica">9.3. I just keep getting the '513 RTC driver not running' message</font>
+<pre>
 For the real time clock support to work, you need the following three things:
                                                                                                                                     
 * a kernel that is supported (e.g. 2.2 onwards)                                                                                     
 * enhanced RTC support compiled into the kernel                                                                                     
 * an 'rtcfile' directive in your chrony.conf file.                                                                                  
 
-S: Problems with isolated networks.
-
-Q: When I use the 'settime' command, chronyd crashes.
+</pre>
+<hr>
+<a name=section_10>
+<?php pretty_h2("10. Problems with isolated networks."); ?>
+<p>
+<a name=question_10.1>
+<font size=+1 face="arial,helvetica">10.1. When I use the 'settime' command, chronyd crashes.</font>
+<pre>
 If you enter times that are too far away from the real time, chronyd will
 think the system clock runs fast or slow by an excessive amount.  The required
 compensation factor will be outside the bounds for the adjtimex() system call.
 chronyd will crash when it tries to apply such an excessive adjustment.
 
-S: Microsoft Windows
-
-Q: Does chrony support Windows?
+</pre>
+<hr>
+<a name=section_11>
+<?php pretty_h2("11. Microsoft Windows"); ?>
+<p>
+<a name=question_11.1>
+<font size=+1 face="arial,helvetica">11.1. Does chrony support Windows?</font>
+<pre>
 No.  The chronyc program (the command-line client used for configuring
 chronyd while it is running) has been successfully built and run under Cygwin
 in the past.  chronyd is not portable, because part of it is very
 system-dependent.  It needs adapting to work with Windows' equivalent of the
 adjtimex() call, and it needs to be made to work as an NT service.
 
-Q: Are there any plans to support Windows?
+</pre>
+<p>
+<a name=question_11.2>
+<font size=+1 face="arial,helvetica">11.2. Are there any plans to support Windows?</font>
+<pre>
 I have no personal plans to do this.  I have neither the time nor the
 Windows programming expertise.  Some time ago I did start work on a port which
 I was developing under Cygwin.  Anyone is welcome to pick this work up and
 contribute it back to the project.
 
-Q: What alternative NTP clients are there for Windows?
+</pre>
+<p>
+<a name=question_11.3>
+<font size=+1 face="arial,helvetica">11.3. What alternative NTP clients are there for Windows?</font>
+<pre>
 Some of the names I've seen mentioned are 
    - Automachron
    - NetTime (nettime.sourceforge.net)
 
-S: NTP-specific issues
-Q: Can chrony be driven from broadcast NTP servers?
+</pre>
+<hr>
+<a name=section_12>
+<?php pretty_h2("12. NTP-specific issues"); ?>
+<p>
+<a name=question_12.1>
+<font size=+1 face="arial,helvetica">12.1. Can chrony be driven from broadcast NTP servers?</font>
+<pre>
 No.  I remember looking at how they worked when I was first writing chrony.
 Since the 'target market' then was dial-up systems, broadcast packets were not
 relevant so I didn't bother working out how to deal with the complexities of
@@ -325,14 +542,26 @@ server support.  Neither have I the time to work on this.  I would be very
 happy to accept a patch from anyone who can develop, test and debug the
 necessary changes!
 
-Q: Can chronyd transmit broadcast NTP packets (e.g. to synchronise other computers on a private LAN)?
+</pre>
+<p>
+<a name=question_12.2>
+<font size=+1 face="arial,helvetica">12.2. Can chronyd transmit broadcast NTP packets (e.g. to synchronise other computers on a private LAN)?</font>
+<pre>
 Yes.  Starting from version 1.17, chrony has this capability.
 
-Q: Can chrony keep the system clock a fixed offset away from real time?
+</pre>
+<p>
+<a name=question_12.3>
+<font size=+1 face="arial,helvetica">12.3. Can chrony keep the system clock a fixed offset away from real time?</font>
+<pre>
 I have not experimented much, but I don't believe this would be possible as
 the program currently stands.
 
-Q: What happens if the network connection is dropped without using chronyc's 'offline' command first?
+</pre>
+<p>
+<a name=question_12.4>
+<font size=+1 face="arial,helvetica">12.4. What happens if the network connection is dropped without using chronyc's 'offline' command first?</font>
+<pre>
 In this case chronyd will keep trying to access the server(s) that it thinks
 are online.  Eventually it will decide that they are unreachable and no longer
 consider itself synchronised to them.  If you have other computers on your LAN
@@ -343,18 +572,28 @@ computer.
 The 'auto_offline' option to the 'server' entry in the chrony.conf file may be
 useful to avoid this situation.
 
-S: Development
-
-Q: Can I get the source via CVS from anywhere?
+</pre>
+<hr>
+<a name=section_13>
+<?php pretty_h2("13. Development"); ?>
+<p>
+<a name=question_13.1>
+<font size=+1 face="arial,helvetica">13.1. Can I get the source via CVS from anywhere?</font>
+<pre>
 Yes.  See <a href="http://chrony.sunsite.dk/cvs.php">http://chrony.sunsite.dk/cvs.php</a> for information.  Currently there is
 only anonymous read-only access.  I keep the master copy on my own PC, which is
 more convenient for me because I don't have to connect to the Internet to do
 CVS operations on the files.  So for now, there is no read-write access for
 other developers.  Please email me your patches + documentation instead.
 
-S: Linux-specific issues
-
-Q: Why does the source code include kernel header files?
+</pre>
+<hr>
+<a name=section_14>
+<?php pretty_h2("14. Linux-specific issues"); ?>
+<p>
+<a name=question_14.1>
+<font size=+1 face="arial,helvetica">14.1. Why does the source code include kernel header files?</font>
+<pre>
 The program needs to see the definitions of structures used to interact with
 the real time clock (via /dev/rtc) and with the adjtimex() system call.  Sadly
 this has led to a number of compilation problems with newer kernels which have
@@ -362,12 +601,22 @@ been increasingly hard to fix in a way that makes the code compilable on all
 Linux kernel versions (from 2.0 up anyway, I doubt 1.x still works.)  Hopefully
 the situation will not deteriorate further with future kernel versions.
 
-Q: I get "Could not open /dev/rtc, Device or resource busy" in my syslog file.
+</pre>
+<p>
+<a name=question_14.2>
+<font size=+1 face="arial,helvetica">14.2. I get "Could not open /dev/rtc, Device or resource busy" in my syslog file.</font>
+<pre>
 Check that you haven't accidentally got two copies of chronyd running (perhaps
 defined in different start-up scripts.)
 
-S: Solaris-specific issues
-Q: On Solaris 2.8, I get an error message about not being able to open kvm to change dosynctodr.
+</pre>
+<hr>
+<a name=section_15>
+<?php pretty_h2("15. Solaris-specific issues"); ?>
+<p>
+<a name=question_15.1>
+<font size=+1 face="arial,helvetica">15.1. On Solaris 2.8, I get an error message about not being able to open kvm to change dosynctodr.</font>
+<pre>
 (The dosynctodr variable controls whether Solaris couples the equivalent of its
 BIOS clock into its system clock at regular intervals).  The Solaris port of
 chrony was developed in the Solaris 2.5 era.  Some aspect of the Solaris kernel
@@ -376,7 +625,7 @@ access to any Solaris machines to work on this, and am reliant on somebody
 developing the patch and testing it.  A good starting point would be to see if
 xntpd has been modified to work for Solaris 2.8.
 
-@@EPILOGUE
+</pre>
 <hr>
 
 Back to
@@ -384,4 +633,3 @@ Back to
 <a href="http://www.rc0.org.uk/">main page</a>
 </body>
 </html>
-@@ENDEPILOGUE

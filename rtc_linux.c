@@ -43,32 +43,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-#ifdef HAS_SPINLOCK_H
-#include <linux/spinlock.h>
-#else
-/* Include dummy definition of spinlock_t to cope with earlier kernels. */
-typedef int spinlock_t;
-#endif
-
-/* This is a complete hack since the alpha sys/io.h needs these types
- * but does not arrange them to be defined.  This is almost certainly
- * not how one should do these things.  -- broonie
- */
-#include <linux/types.h>
-#ifdef __alpha__
-typedef __u8  u8;
-typedef __u16 u16;
-typedef __u32 u32;
-typedef __u64 u64;
-#endif
-
-#if defined(__i386__) /* || defined(__sparc__) */
-#include <linux/mc146818rtc.h>
-#else
-#include <linux/rtc.h>
-#define RTC_UIE 0x10		/* update-finished interrupt enable */
-#endif
-
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -84,9 +58,22 @@ typedef __u64 u64;
 #include "regress.h"
 #include "rtc.h"
 #include "rtc_linux.h"
+#include "io_linux.h"
 #include "conf.h"
 #include "memory.h"
 #include "mkdirpp.h"
+
+struct rtc_time {
+	int tm_sec;
+	int tm_min;
+	int tm_hour;
+	int tm_mday;
+	int tm_mon;
+	int tm_year;
+	int tm_wday;
+	int tm_yday;
+	int tm_isdst;
+};
 
 /* ================================================== */
 /* Forward prototypes */
@@ -880,9 +867,19 @@ read_from_device(void *any)
 
   status = read(fd, &data, sizeof(data));
   if (status < 0) {
+    /* This looks like a bad error : the file descriptor was indicating it was
+     * ready to read but we couldn't read anything.  Give up. */
     LOG(LOGS_ERR, LOGF_RtcLinux, "Could not read flags %s : %s", CNF_GetRtcDevice(), strerror(errno));
     error = 1;
-    goto turn_off_interrupt;
+    SCH_RemoveInputFileHandler(fd);
+    switch_interrupts(0); /* Likely to raise error too, but just to be sure... */
+    close(fd);
+    fd = -1;
+    if (logfile) {
+      fclose(logfile);
+      logfile = NULL;
+    }
+    return;
   }    
 
   if ((data & RTC_UIE) == RTC_UIE) {

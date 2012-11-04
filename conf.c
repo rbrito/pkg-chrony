@@ -55,7 +55,7 @@
 
 /* ================================================== */
 
-#define DEFAULT_CONF_FILE "/etc/chrony.conf"
+#define DEFAULT_CONF_FILE "/etc/chrony/chrony.conf"
 
 /* ================================================== */
 /* Forward prototypes */
