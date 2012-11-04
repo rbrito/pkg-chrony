@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -88,6 +88,7 @@ struct SRC_Instance_Record {
   unsigned long ref_id;         /* The reference ID of this source
                                    (i.e. its IP address, NOT the
                                    reference _it_ is sync'd to) */
+  IPAddr *ip_addr;              /* Its IP address if NTP source */
 
   /* Flag indicating that we are receiving packets with valid headers
      from this source and can use it as a reference */
@@ -95,6 +96,9 @@ struct SRC_Instance_Record {
 
   /* Flag indicating the status of the source */
   SRC_Status status;
+
+  /* Type of the source */
+  SRC_Type type;
 
   struct SelectInfo sel_info;
 };
@@ -126,6 +130,8 @@ static int selected_source_index; /* Which source index is currently
 static void
 slew_sources(struct timeval *raw, struct timeval *cooked, double dfreq, double afreq,
              double doffset, int is_step_change, void *anything);
+static char *
+source_to_string(SRC_Instance inst);
 
 /* ================================================== */
 /* Initialisation function */
@@ -155,7 +161,7 @@ void SRC_Finalise(void)
 /* Function to create a new instance.  This would be called by one of
    the individual source-type instance creation routines. */
 
-SRC_Instance SRC_CreateNewInstance(unsigned long ref_id)
+SRC_Instance SRC_CreateNewInstance(unsigned long ref_id, SRC_Type type, IPAddr *addr)
 {
   SRC_Instance result;
 
@@ -164,7 +170,7 @@ SRC_Instance SRC_CreateNewInstance(unsigned long ref_id)
   }
 
   result = MallocNew(struct SRC_Instance_Record);
-  result->stats = SST_CreateInstance(ref_id);
+  result->stats = SST_CreateInstance(ref_id, addr);
 
   if (n_sources == max_n_sources) {
     /* Reallocate memory */
@@ -184,8 +190,10 @@ SRC_Instance SRC_CreateNewInstance(unsigned long ref_id)
   result->index = n_sources;
   result->leap_status = LEAP_Normal;
   result->ref_id = ref_id;
+  result->ip_addr = addr;
   result->reachable = 0;
   result->status = SRC_BAD_STATS;
+  result->type = type;
 
   n_sources++;
 
@@ -280,7 +288,7 @@ void SRC_AccumulateSample
 
 #ifdef TRACEON
   LOG(LOGS_INFO, LOGF_Sources, "ip=[%s] t=%s ofs=%f del=%f disp=%f str=%d",
-      UTI_IPToDottedQuad(inst->ref_id), UTI_TimevalToString(sample_time), -offset, root_delay, root_dispersion, stratum);
+      source_to_string(inst), UTI_TimevalToString(sample_time), -offset, root_delay, root_dispersion, stratum);
 #endif
 
   /* WE HAVE TO NEGATE OFFSET IN THIS CALL, IT IS HERE THAT THE SENSE OF OFFSET
@@ -301,7 +309,7 @@ SRC_SetReachable(SRC_Instance inst)
   inst->reachable = 1;
 
 #ifdef TRACEON
-  LOG(LOGS_INFO, LOGF_Sources, "%s", UTI_IPToDottedQuad(inst->ref_id));
+  LOG(LOGS_INFO, LOGF_Sources, "%s", source_to_string(inst));
 #endif
 
   /* Don't do selection at this point, though - that will come about
@@ -316,7 +324,7 @@ SRC_UnsetReachable(SRC_Instance inst)
   inst->reachable = 0;
 
 #ifdef TRACEON
-  LOG(LOGS_INFO, LOGF_Sources, "%s%s", UTI_IPToDottedQuad(inst->ref_id),
+  LOG(LOGS_INFO, LOGF_Sources, "%s%s", source_to_string(inst),
       (inst->index == selected_source_index) ? "(REF)":"");
 #endif
 
@@ -347,6 +355,22 @@ compare_sort_elements(const void *a, const void *b)
   } else {
     return 0;
   }
+}
+
+/* ================================================== */
+
+static char *
+source_to_string(SRC_Instance inst)
+{
+  switch (inst->type) {
+    case SRC_NTP:
+      return UTI_IPToString(inst->ip_addr);
+    case SRC_REFCLOCK:
+      return UTI_RefidToString(inst->ref_id);
+    default:
+      CROAK("Unknown source type");
+  }
+  return NULL;
 }
 
 /* ================================================== */
@@ -418,7 +442,7 @@ SRC_SelectSource(unsigned long match_addr)
 
 #if 0
       LOG(LOGS_INFO, LOGF_Sources, "%s off=%f dist=%f lo=%f hi=%f",
-          UTI_IPToDottedQuad(sources[i]->ref_id),
+          source_to_string(sources[i]),
           si->best_offset, si->root_distance,
           si->lo_limit, si->hi_limit);
 #endif
@@ -491,7 +515,7 @@ SRC_SelectSource(unsigned long match_addr)
     for (i=0; i<n_endpoints; i++) {
 #if 0
       LOG(LOGS_INFO, LOGF_Sources, "i=%d t=%f tag=%d addr=%s", i, sort_list[i].offset, sort_list[i].tag,
-          UTI_IPToDottedQuad(sources[sort_list[i].index]->ref_id));
+          source_to_string(sources[sort_list[i].index]));
 #endif
       switch(sort_list[i].tag) {
         case LOW:
@@ -565,12 +589,12 @@ SRC_SelectSource(unsigned long match_addr)
 
             sel_sources[n_sel_sources++] = i;
 #if 0
-            LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s is valid", i, UTI_IPToDottedQuad(sources[i]->ref_id));
+            LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s is valid", i, source_to_string(sources[i]));
 #endif
           } else {
             sources[i]->status = SRC_FALSETICKER;
 #if 0
-            LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s is a falseticker", i, UTI_IPToDottedQuad(sources[i]->ref_id));
+            LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s is a falseticker", i, source_to_string(sources[i]));
 #endif
           }
         }
@@ -603,7 +627,7 @@ SRC_SelectSource(unsigned long match_addr)
           sel_sources[i] = INVALID_SOURCE;
           sources[index]->status = SRC_JITTERY;
 #if 0
-          LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s has too much variance", i, UTI_IPToDottedQuad(sources[i]->ref_id));
+          LOG(LOGS_INFO, LOGF_Sources, "i=%d addr=%s has too much variance", i, source_to_string(sources[i]));
 #endif
         }
       }
@@ -632,33 +656,36 @@ SRC_SelectSource(unsigned long match_addr)
           if (stratum < min_stratum) min_stratum = stratum;
         }
 
+        /* Find the best source with minimum stratum */
+        min_distance_index = INVALID_SOURCE;
+        for (i=0; i<n_sel_sources; i++) {
+          index = sel_sources[i];
+          if (sources[index]->sel_info.stratum == min_stratum) {
+            if ((min_distance_index == INVALID_SOURCE) ||
+                (sources[index]->sel_info.root_distance < min_distance)) {
+              min_distance = sources[index]->sel_info.root_distance;
+              min_distance_index = index;
+            }
+          }
+        }
+
 #if 0
         LOG(LOGS_INFO, LOGF_Sources, "min_stratum=%d", min_stratum);
 #endif
 
-        /* Does the current source have this stratum and is it still a
-           survivor? */
+        /* Does the current source have this stratum, doesn't have distance
+           much worse than the best source and is it still a survivor? */
 
         if ((selected_source_index == INVALID_SOURCE) ||
             (sources[selected_source_index]->status != SRC_SELECTABLE) ||
-            (sources[selected_source_index]->sel_info.stratum > min_stratum)) {
+            (sources[selected_source_index]->sel_info.stratum > min_stratum) ||
+            (sources[selected_source_index]->sel_info.root_distance > 10 * min_distance)) {
           
           /* We have to elect a new synchronisation source */
-          min_distance_index = INVALID_SOURCE;
-          for (i=0; i<n_sel_sources; i++) {
-            index = sel_sources[i];
-            if (sources[index]->sel_info.stratum == min_stratum) {
-              if ((min_distance_index == INVALID_SOURCE) ||
-                  (sources[index]->sel_info.root_distance < min_distance)) {
-                min_distance = sources[index]->sel_info.root_distance;
-                min_distance_index = index;
-              }
-            }
-          }
 
           selected_source_index = min_distance_index;
           LOG(LOGS_INFO, LOGF_Sources, "Selected source %s",
-              UTI_IPToDottedQuad(sources[selected_source_index]->ref_id));
+                source_to_string(sources[selected_source_index]));
                                  
 
 #if 0
@@ -687,11 +714,29 @@ SRC_SelectSource(unsigned long match_addr)
         total_root_dispersion = (src_accrued_dispersion +
                                  sources[selected_source_index]->sel_info.root_dispersion);
 
+        /* Accept leap second status if more than half of selectable sources agree */
+
+        for (i=j1=j2=0; i<n_sel_sources; i++) {
+          index = sel_sources[i];
+          if (sources[index]->leap_status == LEAP_InsertSecond) {
+            j1++;
+          } else if (sources[index]->leap_status == LEAP_DeleteSecond) {
+            j2++;
+          }
+        }
+
+        if (j1 > n_sel_sources / 2) {
+          leap_status = LEAP_InsertSecond;
+        } else if (j2 > n_sel_sources / 2) {
+          leap_status = LEAP_DeleteSecond;
+        }
+
         if ((match_addr == 0) ||
             (match_addr == sources[selected_source_index]->ref_id)) {
 
           REF_SetReference(min_stratum, leap_status,
                            sources[selected_source_index]->ref_id,
+                           sources[selected_source_index]->ip_addr,
                            &now,
                            src_offset,
                            src_frequency,
@@ -873,7 +918,16 @@ SRC_ReportSource(int index, RPT_SourceReport *report, struct timeval *now)
     return 0;
   } else {
     src = sources[index];
-    report->ip_addr = src->ref_id;
+
+    memset(&report->ip_addr, 0, sizeof (report->ip_addr));
+    if (src->ip_addr)
+      report->ip_addr = *src->ip_addr;
+    else {
+      /* Use refid as an address */
+      report->ip_addr.addr.in4 = src->ref_id;
+      report->ip_addr.family = IPADDR_INET4;
+    }
+
     switch (src->status) {
       case SRC_SYNC:
         report->state = RPT_SYNC;
@@ -902,7 +956,7 @@ SRC_ReportSource(int index, RPT_SourceReport *report, struct timeval *now)
 /* ================================================== */
 
 int
-SRC_ReportSourcestats(int index, RPT_SourcestatsReport *report)
+SRC_ReportSourcestats(int index, RPT_SourcestatsReport *report, struct timeval *now)
 { 
   SRC_Instance src;
 
@@ -910,10 +964,24 @@ SRC_ReportSourcestats(int index, RPT_SourcestatsReport *report)
     return 0;
   } else {
     src = sources[index];
-    report->ip_addr = src->ref_id;
-    SST_DoSourcestatsReport(src->stats, report);
+    report->ref_id = src->ref_id;
+    if (src->ip_addr)
+      report->ip_addr = *src->ip_addr;
+    else
+      report->ip_addr.family = IPADDR_UNSPEC; 
+    SST_DoSourcestatsReport(src->stats, report, now);
     return 1;
   }
+}
+
+/* ================================================== */
+
+SRC_Type
+SRC_GetType(int index)
+{
+  if ((index >= n_sources) || (index < 0))
+    return -1;
+  return sources[index]->type;
 }
 
 /* ================================================== */

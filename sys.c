@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -30,6 +30,7 @@
   */
 
 #include "sys.h"
+#include "logging.h"
 
 #if defined (LINUX)
 #include "sys_linux.h"
@@ -97,8 +98,42 @@ SYS_Finalise(void)
 }
 
 /* ================================================== */
+
+void SYS_DropRoot(char *user)
+{
+#if defined(LINUX) && defined (FEAT_LINUXCAPS)
+  SYS_Linux_DropRoot(user);
+#else
+  LOG_FATAL(LOGF_Sys, "dropping root privileges not supported");
+#endif
+
+  return;
+}
+
 /* ================================================== */
+
+void SYS_SetScheduler(int SchedPriority)
+{
+#if defined(LINUX) && defined(HAVE_SCHED_SETSCHEDULER)
+  SYS_Linux_SetScheduler(SchedPriority);
+#else
+  LOG_FATAL(LOGF_Sys, "scheduler priority setting not supported");
+#endif
+
+  return;
+}
+
 /* ================================================== */
 
+void SYS_LockMemory(void)
+{
+#if defined(LINUX) && defined(HAVE_MLOCKALL)
+  SYS_Linux_MemLockAll(1);
+#else
+  LOG_FATAL(LOGF_Sys, "memory locking not supported");
+#endif
 
+  return;
+}
 
+/* ================================================== */

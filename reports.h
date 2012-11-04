@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -32,31 +32,29 @@
 #define GOT_REPORTS_H
 
 #include "sysincl.h"
+#include "addressing.h"
 
 #define REPORT_INVALID_OFFSET 0x80000000
 
 typedef struct {
-  unsigned long ip_addr;
+  IPAddr ip_addr;
   int stratum;
   int poll;
   enum {RPT_NTP_CLIENT, RPT_NTP_PEER, RPT_LOCAL_REFERENCE} mode;
   enum {RPT_SYNC, RPT_UNREACH, RPT_FALSETICKER, RPT_JITTERY, RPT_OTHER} state;
 
   unsigned long latest_meas_ago; /* seconds */
-  long orig_latest_meas; /* microseconds (us) */
-  long latest_meas; /* us */
-  unsigned long latest_meas_err; /* us */
-  long est_offset; /* us */
-  unsigned long est_offset_err; /* us */
-  long resid_freq; /* ppm * 1000 */
-  unsigned long resid_skew; /* ppm * 1000 */
+  double orig_latest_meas; /* seconds */
+  double latest_meas; /* seconds */
+  double latest_meas_err; /* seconds */
 } RPT_SourceReport ;
 
 typedef struct {
   unsigned long ref_id;
+  IPAddr ip_addr;
   unsigned long stratum;
   struct timeval ref_time;
-  struct timeval current_correction;
+  double current_correction;
   double freq_ppm;
   double resid_freq_ppm;
   double skew_ppm;
@@ -65,17 +63,20 @@ typedef struct {
 } RPT_TrackingReport;
 
 typedef struct {
-  unsigned long ip_addr;
+  unsigned long ref_id;
+  IPAddr ip_addr;
   unsigned long n_samples;
   unsigned long n_runs;
   unsigned long span_seconds;
   double resid_freq_ppm;
   double skew_ppm;
-  double sd_us;
+  double sd;
+  double est_offset;
+  double est_offset_err;
 } RPT_SourcestatsReport;
 
 typedef struct {
-  unsigned long ref_time;
+  struct timeval ref_time;
   unsigned short n_samples;
   unsigned short n_runs;
   unsigned long span_seconds;
@@ -94,7 +95,7 @@ typedef struct {
 } RPT_ClientAccess_Report;
 
 typedef struct {
-  unsigned long ip_addr;
+  IPAddr ip_addr;
   unsigned long client_hits;
   unsigned long peer_hits;
   unsigned long cmd_hits_auth;
@@ -105,7 +106,7 @@ typedef struct {
 } RPT_ClientAccessByIndex_Report;
 
 typedef struct {
-  time_t when;
+  struct timeval when;
   double slewed_offset;
   double orig_offset;
   double residual;

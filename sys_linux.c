@@ -7,6 +7,8 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) John G. Hasler  2009
+ * Copyright (C) Miroslav Lichvar  2009
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +21,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -38,6 +40,25 @@
 #include <ctype.h>
 #include <assert.h>
 #include <sys/utsname.h>
+
+#if defined(HAVE_SCHED_SETSCHEDULER)
+#  include <sched.h>
+int SchedPriority = 0;
+#endif
+
+#if defined(HAVE_MLOCKALL)
+#  include <sys/mman.h>
+#include <sys/resource.h>
+int LockAll = 0;
+#endif
+
+#ifdef FEAT_LINUXCAPS
+#include <sys/types.h>
+#include <pwd.h>
+#include <sys/prctl.h>
+#include <sys/capability.h>
+#include <grp.h>
+#endif
 
 #include "localp.h"
 #include "sys_linux.h"
@@ -84,10 +105,11 @@ static int version_major;
 static int version_minor;
 static int version_patchlevel;
 
-/* Flag indicating whether adjtimex() with txc.modes equal to zero
-returns the remaining time adjustment or not.  If not we have to read
-the outstanding adjustment by setting it to zero, examining the return
-value and setting the outstanding adjustment back again. */
+/* Flag indicating whether adjtimex() returns the remaining time adjustment
+or not.  If not we have to read the outstanding adjustment by setting it to
+zero, examining the return value and setting the outstanding adjustment back
+again.  If 1, txc.modes equal to zero is used to read the time.  If 2,
+txc.modes is set to ADJ_OFFSET_SS_READ. */
 
 static int have_readonly_adjtime;
 
@@ -106,9 +128,23 @@ our_round(double x) {
   return y;
 }
 
+inline static long
+our_lround(double x) {
+  int y;
+
+  if (x > 0.0)
+	  y = x + 0.5;
+  else
+	  y = x - 0.5;
+  return y;
+}
+
 /* ================================================== */
 /* Amount of outstanding offset to process */
 static double offset_register;
+
+/* Flag set true if an adjtime slew was started and still may be running */
+static int slow_slewing;
 
 /* Flag set true if a fast slew (one done by altering tick) is being
    run at the moment */
@@ -233,16 +269,28 @@ initiate_slew(void)
     return;
   }
 
+  /* Cancel any standard adjtime that is running */
+  if (slow_slewing) {
+    offset = 0;
+    if (TMX_ApplyOffset(&offset) < 0) {
+      CROAK("adjtimex() failed in accrue_offset");
+    }
+    offset_register -= (double) offset / 1.0e6;
+    slow_slewing = 0;
+  }
+
   if (fabs(offset_register) < MAX_ADJUST_WITH_ADJTIME) {
     /* Use adjtime to do the shift */
-    offset = (long)(0.5 + 1.0e6*(-offset_register));
+    offset = our_lround(1.0e6 * -offset_register);
 
-    if (TMX_ApplyOffset(&offset) < 0) {
-      CROAK("adjtimex() failed in initiate_slew");
+    offset_register += offset * 1e-6;
+
+    if (offset != 0) {
+      if (TMX_ApplyOffset(&offset) < 0) {
+        CROAK("adjtimex() failed in initiate_slew");
+      }
+      slow_slewing = 1;
     }
-
-    offset_register = 0.0;
-
   } else {
 
     /* If the system clock has a high drift rate, the combination of
@@ -305,7 +353,9 @@ initiate_slew(void)
     fast_slewing = 1;
     slew_start_tv = T0a;
 
-    /* Set up timeout for end of slew */
+    /* Set up timeout for end of slew, limit to one week */
+    if (dseconds > 3600 * 24 * 7)
+      dseconds = 3600 * 24 * 7;
     UTI_AddDoubleToTimeval(&T0a, dseconds, &end_of_slew);
 
     slew_timeout_id = SCH_AddTimeout(&end_of_slew, handle_end_of_slew, NULL);
@@ -353,18 +403,8 @@ abort_slew(void)
 static void
 accrue_offset(double offset)
 {
-  long toffset;
-  
   /* Add the new offset to the register */
   offset_register += offset;
-
-  /* Cancel any standard adjtime that is running */
-  toffset = 0;
-  if (TMX_ApplyOffset(&toffset) < 0) {
-    CROAK("adjtimex() failed in accrue_offset");
-  }
-
-  offset_register -= (double) toffset / 1.0e6;
 
   if (!fast_slewing) {
     initiate_slew();
@@ -511,27 +551,46 @@ get_offset_correction(struct timeval *raw,
   double fast_slew_duration;
   double fast_slew_achieved;
   double fast_slew_remaining;
-  long offset;
+  long offset, toffset;
 
-  if (have_readonly_adjtime) {
-    if (TMX_GetOffsetLeft(&offset) < 0) {
-      CROAK("adjtimex() failed in get_offset_correction");
-    }
-    
-    adjtime_left = (double)offset / 1.0e6;
-  } else {
+  if (!slow_slewing) {
     offset = 0;
-    if (TMX_ApplyOffset(&offset) < 0) {
-      CROAK("adjtimex() failed in get_offset_correction");
+  } else {
+again:
+    switch (have_readonly_adjtime) {
+      case 2:
+        if (TMX_GetOffsetLeft(&offset) < 0) {
+          LOG(LOGS_INFO, LOGF_SysLinux, "adjtimex() doesn't support ADJ_OFFSET_SS_READ");
+          have_readonly_adjtime = 0;
+          goto again;
+        }
+        break;
+      case 0:
+        toffset = 0;
+        if (TMX_ApplyOffset(&toffset) < 0) {
+          CROAK("adjtimex() failed in get_offset_correction");
+        }
+        offset = toffset;
+        if (TMX_ApplyOffset(&toffset) < 0) {
+          CROAK("adjtimex() failed in get_offset_correction");
+        }
+        break;
+      case 1:
+        if (TMX_GetOffsetLeftOld(&offset) < 0) {
+          CROAK("adjtimex() failed in get_offset_correction");
+        }
+        break;
+      default:
+        assert(0);
     }
-    
-    adjtime_left = (double)offset / 1.0e6;
 
-    /* txc.offset still set from return value of last call */
-    if (TMX_ApplyOffset(&offset) < 0) {
-      CROAK("adjtimex() failed in get_offset_correction");
+    if (offset == 0) {
+      /* adjtime slew has finished */
+      slow_slewing = 0;
     }
   }
+
+  adjtime_left = (double)offset / 1.0e6;
 
   if (fast_slewing) {
     UTI_DiffTimevalsToDouble(&fast_slew_duration, raw, &slew_start_tv);
@@ -550,34 +609,14 @@ get_offset_correction(struct timeval *raw,
 /* ================================================== */
 
 static void
-immediate_step(void)
+set_leap(int leap)
 {
-  struct timeval old_time, new_time;
-  struct timezone tz;
-  long offset;
-
-  if (fast_slewing) {
-    abort_slew();
+  if (TMX_SetLeap(leap) < 0) {
+    LOG_FATAL(LOGF_SysLinux, "adjtimex() failed in set_leap");
   }
 
-  offset = 0;
-  if (TMX_ApplyOffset(&offset) < 0) {
-    CROAK("adjtimex() failed in immediate_step");
-  }
-
-  offset_register -= (double) offset / 1.0e6;
-
-  if (gettimeofday(&old_time, &tz) < 0) {
-    CROAK("gettimeofday() failed in immediate_step");
-  }
-
-  UTI_AddDoubleToTimeval(&old_time, -offset_register, &new_time);
-
-  if (settimeofday(&new_time, &tz) < 0) {
-    CROAK("settimeofday() failed in immediate_step");
-  }
-
-  offset_register = 0.0;
+  LOG(LOGS_INFO, LOGF_SysLinux, "System clock status set to %s leap second",
+     leap ? (leap > 0 ? "insert" : "delete") : "not insert/delete");
 
   return;
 }
@@ -762,13 +801,19 @@ get_version_specific_details(void)
         case 4:
         case 5:
         case 6:
+          if (minor < 6 || patch < 27) {
+            /* These seem to be like 2.0.32 */
+            freq_scale = (hz==100) ? (128.0 / 128.125) : basic_freq_scale;
+            have_readonly_adjtime = 0;
+            break;
+          }
           /* Let's be optimistic that these will be the same until proven
              otherwise :-) */
         case 7:
         case 8:
-          /* These seem to be like 2.0.32 */
-          freq_scale = (hz==100) ? (128.0 / 128.125) : basic_freq_scale;
-          have_readonly_adjtime = 0;
+          /* These don't need scaling */
+          freq_scale = 1.0;
+          have_readonly_adjtime = 2;
           break;
         default:
           LOG_FATAL(LOGF_SysLinux, "Kernel version not supported yet, sorry.");
@@ -805,7 +850,7 @@ SYS_Linux_Initialise(void)
 
   lcl_RegisterSystemDrivers(read_frequency, set_frequency,
                             accrue_offset, apply_step_offset,
-                            get_offset_correction, immediate_step);
+                            get_offset_correction, set_leap);
 }
 
 /* ================================================== */
@@ -830,6 +875,106 @@ SYS_Linux_GetKernelVersion(int *major, int *minor, int *patchlevel)
 }
 
 /* ================================================== */
+
+#ifdef FEAT_LINUXCAPS
+void
+SYS_Linux_DropRoot(char *user)
+{
+  struct passwd *pw;
+  cap_t cap;
+
+  if (user == NULL)
+    return;
+
+  if ((pw = getpwnam(user)) == NULL) {
+    LOG_FATAL(LOGF_SysLinux, "getpwnam(%s) failed", user);
+  }
+
+  if (prctl(PR_SET_KEEPCAPS, 1)) {
+    LOG_FATAL(LOGF_SysLinux, "prcap() failed");
+  }
+  
+  if (setgroups(0, NULL)) {
+    LOG_FATAL(LOGF_SysLinux, "setgroups() failed");
+  }
+
+  if (setgid(pw->pw_gid)) {
+    LOG_FATAL(LOGF_SysLinux, "setgid(%d) failed", pw->pw_gid);
+  }
+
+  if (setuid(pw->pw_uid)) {
+    LOG_FATAL(LOGF_SysLinux, "setuid(%d) failed", pw->pw_uid);
+  }
+
+  if ((cap = cap_from_text("cap_sys_time=ep")) == NULL) {
+    LOG_FATAL(LOGF_SysLinux, "cap_from_text() failed");
+  }
+
+  if (cap_set_proc(cap)) {
+    LOG_FATAL(LOGF_SysLinux, "cap_set_proc() failed");
+  }
+
+  cap_free(cap);
+
+  LOG(LOGS_INFO, LOGF_SysLinux, "Privileges dropped to user %s", user);
+}
+#endif
+
+/* ================================================== */
+
+#if defined(HAVE_SCHED_SETSCHEDULER)
+  /* Install SCHED_FIFO real-time scheduler with specified priority */
+void SYS_Linux_SetScheduler(int SchedPriority)
+{
+  int pmax, pmin;
+  struct sched_param sched;
+
+  if (SchedPriority < 1 || SchedPriority > 99) {
+    LOG_FATAL(LOGF_SysLinux, "Bad scheduler priority: %d", SchedPriority);
+  } else {
+    sched.sched_priority = SchedPriority;
+    pmax = sched_get_priority_max(SCHED_FIFO);
+    pmin = sched_get_priority_min(SCHED_FIFO);
+    if ( SchedPriority > pmax ) {
+      sched.sched_priority = pmax;
+    }
+    else if ( SchedPriority < pmin ) {
+      sched.sched_priority = pmin;
+    }
+    if ( sched_setscheduler(0, SCHED_FIFO, &sched) == -1 ) {
+      LOG(LOGS_ERR, LOGF_SysLinux, "sched_setscheduler() failed");
+    }
+    else {
+      LOG(LOGS_INFO, LOGF_SysLinux, "Enabled SCHED_FIFO with priority %d", sched.sched_priority);
+    }
+  }
+}
+#endif /* HAVE_SCHED_SETSCHEDULER */
+
+#if defined(HAVE_MLOCKALL)
+/* Lock the process into RAM so that it will never be swapped out */ 
+void SYS_Linux_MemLockAll(int LockAll)
+{
+  struct rlimit rlim;
+  if (LockAll == 1 ) {
+    /* Make sure that we will be able to lock all the memory we need */
+    /* even after dropping privileges.  This does not actually reaerve any memory */
+    rlim.rlim_max = RLIM_INFINITY;
+    rlim.rlim_cur = RLIM_INFINITY;
+    if (setrlimit(RLIMIT_MEMLOCK, &rlim) < 0) {
+      LOG(LOGS_ERR, LOGF_SysLinux, "setrlimit() failed: not locking into RAM");
+    }
+    else {
+      if (mlockall(MCL_CURRENT|MCL_FUTURE) < 0) {
+	LOG(LOGS_ERR, LOGF_SysLinux, "mlockall() failed");
+      }
+      else {
+	LOG(LOGS_INFO, LOGF_SysLinux, "Successfully locked into RAM");
+      }
+    }
+  }
+}
+#endif /* HAVE_MLOCKALL */
 
 #endif /* LINUX */
 

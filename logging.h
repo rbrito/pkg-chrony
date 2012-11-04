@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -53,6 +53,7 @@ typedef enum {
   LOGF_Local,
   LOGF_Util,
   LOGF_Main,
+  LOGF_ClientLog,
   LOGF_Configure,
   LOGF_CmdMon,
   LOGF_Acquire,
@@ -60,11 +61,13 @@ typedef enum {
   LOGF_Logging,
   LOGF_Rtc,
   LOGF_Regress,
+  LOGF_Sys,
   LOGF_SysLinux,
   LOGF_SysSolaris,
   LOGF_SysSunOS,
   LOGF_SysWinnt,
-  LOGF_RtcLinux
+  LOGF_RtcLinux,
+  LOGF_Refclock
 } LOG_Facility;
 
 /* Init function */
@@ -84,6 +87,9 @@ extern void LOG_Position(const char *filename, int line_number, const char *func
 
 extern void LOG_GoDaemon(void);
 
+/* Return zero once per 10 seconds */
+extern int LOG_RateLimited(void);
+
 /* Line logging macro.  If the compiler is GNU C, we take advantage of
    being able to get the function name also. */
 #if defined(__GNUC__)
@@ -93,5 +99,14 @@ extern void LOG_GoDaemon(void);
 #define LOG LOG_Position(__FILE__, __LINE__, ""); LOG_Line_Function
 #define LOG_FATAL LOG_Position(__FILE__, __LINE__, ""); LOG_Fatal_Function
 #endif /* defined (__GNUC__) */
+
+/* Like assert(0) */
+
+#if defined(LINUX) && defined(__alpha__)
+#define CROAK(message) assert(0) /* Added JGH Feb 24 2001  FIXME */
+#else
+extern int croak(const char *file, int line, const char *msg);
+#define CROAK(message) croak(__FILE__, __LINE__, message);
+#endif
 
 #endif /* GOT_LOGGING_H */

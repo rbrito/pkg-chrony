@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -94,12 +94,14 @@ extern void NCR_InitiateSampleBurst(NCR_Instance inst, int n_good_samples, int n
 
 extern void NCR_ReportSource(NCR_Instance inst, RPT_SourceReport *report, struct timeval *now);
 
-extern int NCR_AddAccessRestriction(unsigned long ip_addr, int subnet_bits, int allow, int all);
-extern int NCR_CheckAccessRestriction(unsigned long ip_addr);
+extern int NCR_AddAccessRestriction(IPAddr *ip_addr, int subnet_bits, int allow, int all);
+extern int NCR_CheckAccessRestriction(IPAddr *ip_addr);
 
 extern void NCR_CycleLogFile(void);
 
 extern void NCR_IncrementActivityCounters(NCR_Instance inst, int *online, int *offline, 
                                           int *burst_online, int *burst_offline);
+
+extern NTP_Remote_Address *NCR_GetRemoteAddress(NCR_Instance instance);
 
 #endif /* GOT_NTP_CORE_H */

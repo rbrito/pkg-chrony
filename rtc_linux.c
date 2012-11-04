@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -106,6 +106,8 @@ static int measurement_period = LOWEST_MEASUREMENT_PERIOD;
 
 static int timeout_running = 0;
 static SCH_TimeoutID timeout_id;
+
+static int skip_interrupts;
 
 /* ================================================== */
 
@@ -509,7 +511,9 @@ write_coefs_to_file(int valid,time_t ref_time,double offset,double rate)
   /* Clone the file attributes from the existing file if there is one. */
 
   if (!stat(coefs_file_name,&buf)) {
-    chown(temp_coefs_file_name,buf.st_uid,buf.st_gid);
+    if (chown(temp_coefs_file_name,buf.st_uid,buf.st_gid)) {
+      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not change ownership of temporary RTC file %s.tmp", coefs_file_name);
+    }
     chmod(temp_coefs_file_name,buf.st_mode&0777);
   }
 
@@ -627,16 +631,11 @@ RTC_Linux_Initialise(void)
     direc = CNF_GetLogDir();
     if (!mkdir_and_parents(direc)) {
       LOG(LOGS_ERR, LOGF_RtcLinux, "Could not create directory %s", direc);
-      logfile = NULL;
     } else {
       logfilename = MallocArray(char, 2 + strlen(direc) + strlen(RTC_LOG));
       strcpy(logfilename, direc);
       strcat(logfilename, "/");
       strcat(logfilename, RTC_LOG);
-      logfile = fopen(logfilename, "a");
-      if (!logfile) {
-        LOG(LOGS_WARN, LOGF_RtcLinux, "Couldn't open logfile %s for update", logfilename);
-      }
     }
   }
 
@@ -666,7 +665,7 @@ RTC_Linux_Finalise(void)
   if (logfile) {
     fclose(logfile);
   }
-
+  Free(logfilename);
 }
 
 /* ================================================== */
@@ -682,6 +681,7 @@ switch_interrupts(int onoff)
       LOG(LOGS_ERR, LOGF_RtcLinux, "Could not start measurement : %s", strerror(errno));
       return;
     }
+    skip_interrupts = 1;
   } else {
     status = ioctl(fd, RTC_UIE_OFF, 0);
     if (status < 0) {
@@ -837,7 +837,17 @@ process_reading(time_t rtc_time, struct timeval *system_time)
   }  
 
 
-  if (logfile) {
+  if (logfilename) {
+    if (!logfile) {
+      logfile = fopen(logfilename, "a");
+      if (!logfile) {
+        LOG(LOGS_WARN, LOGF_RtcLinux, "Couldn't open logfile %s for update", logfilename);
+        Free(logfilename);
+        logfilename = NULL;
+        return;
+      }
+    }
+
     rtc_fast = (double)(rtc_time - system_time->tv_sec) - 1.0e-6 * (double) system_time->tv_usec;
 
     if (((logwrites++) % 32) == 0) {
@@ -869,12 +879,10 @@ read_from_device(void *any)
   struct rtc_time rtc_raw;
   struct tm rtc_tm;
   time_t rtc_t;
-  double read_err;
   int error = 0;
 
   status = read(fd, &data, sizeof(data));
-  if (operating_mode == OM_NORMAL)
-      status = read(fd, &data, sizeof(data));
+
   if (status < 0) {
     /* This looks like a bad error : the file descriptor was indicating it was
      * ready to read but we couldn't read anything.  Give up. */
@@ -891,13 +899,19 @@ read_from_device(void *any)
     return;
   }    
 
+  if (skip_interrupts > 0) {
+    /* Wait for the next interrupt, this one may be bogus */
+    skip_interrupts--;
+    return;
+  }
+
   if ((data & RTC_UIE) == RTC_UIE) {
     /* Update interrupt detected */
     
     /* Read RTC time, sandwiched between two polls of the system clock
        so we can bound any error. */
 
-    LCL_ReadCookedTime(&sys_time, &read_err);
+    SCH_GetFileReadyTime(&sys_time);
 
     status = ioctl(fd, RTC_RD_TIME, &rtc_raw);
     if (status < 0) {
@@ -1104,7 +1118,8 @@ RTC_Linux_TimePreInit(void)
 int
 RTC_Linux_GetReport(RPT_RTC_Report *report)
 {
-  report->ref_time = (unsigned long) coef_ref_time;
+  report->ref_time.tv_sec = coef_ref_time;
+  report->ref_time.tv_usec = 0;
   report->n_samples = n_samples;
   report->n_runs = n_runs;
   if (n_samples > 1) {
@@ -1169,12 +1184,9 @@ RTC_Linux_Trim(void)
 void
 RTC_Linux_CycleLogFile(void)
 {
-  if (logfile && logfilename) {
+  if (logfile) {
     fclose(logfile);
-    logfile = fopen(logfilename, "a");
-    if (!logfile) {
-      LOG(LOGS_WARN, LOGF_RtcLinux, "Could not reopen logfile %s", logfilename);
-    }
+    logfile = NULL;
     logwrites = 0;
   }
 }

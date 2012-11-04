@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -33,7 +33,9 @@
 
 #include "sysincl.h"
 
+#include "addressing.h"
 #include "ntp.h"
+#include "candm.h"
 
 /* Convert a timeval into a floating point number of seconds */
 extern void UTI_TimevalToDouble(struct timeval *a, double *b);
@@ -72,8 +74,17 @@ extern char *UTI_TimevalToString(struct timeval *tv);
    diagnostic display */
 extern char *UTI_TimestampToString(NTP_int64 *ts);
 
-/* Convert an IP address to dotted quad notation, for diagnostics */
-extern char *UTI_IPToDottedQuad(unsigned long ip);
+/* Convert ref_id into a temporary string, for diagnostics */
+extern char *UTI_RefidToString(unsigned long ref_id);
+
+/* Convert an IP address to string, for diagnostics */
+extern char *UTI_IPToString(IPAddr *ip);
+
+extern int UTI_StringToIP(const char *addr, IPAddr *ip);
+extern unsigned long UTI_IPToRefid(IPAddr *ip);
+extern void UTI_IPHostToNetwork(IPAddr *src, IPAddr *dest);
+extern void UTI_IPNetworkToHost(IPAddr *src, IPAddr *dest);
+extern int UTI_CompareIPs(IPAddr *a, IPAddr *b, IPAddr *mask);
 
 extern char *UTI_TimeToLogForm(time_t t);
 
@@ -85,14 +96,11 @@ extern void UTI_TimevalToInt64(struct timeval *src, NTP_int64 *dest);
 
 extern void UTI_Int64ToTimeval(NTP_int64 *src, struct timeval *dest);
 
-/* Like assert(0) */
+extern void UTI_TimevalNetworkToHost(Timeval *src, struct timeval *dest);
+extern void UTI_TimevalHostToNetwork(struct timeval *src, Timeval *dest);
 
-#if defined(LINUX) && defined(__alpha__)
-#define CROAK(message) assert(0) /* Added JGH Feb 24 2001  FIXME */
-#else
-extern int croak(const char *file, int line, const char *msg);
-#define CROAK(message) croak(__FILE__, __LINE__, message);
-#endif
+extern double UTI_FloatNetworkToHost(Float x);
+extern Float UTI_FloatHostToNetwork(double x);
 
 #if defined (INLINE_UTILITIES)
 #define INLINE_STATIC inline static

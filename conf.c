@@ -7,6 +7,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Miroslav Lichvar  2009
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +20,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -44,6 +45,7 @@
 #include "conf.h"
 #include "ntp_sources.h"
 #include "ntp_core.h"
+#include "refclock.h"
 #include "cmdmon.h"
 #include "srcparams.h"
 #include "logging.h"
@@ -52,10 +54,15 @@
 #include "acquire.h"
 #include "cmdparse.h"
 #include "broadcast.h"
+#include "util.h"
 
 /* ================================================== */
 
-#define DEFAULT_CONF_FILE "/etc/chrony.conf"
+#ifndef DEFAULT_CONF_DIR
+#define DEFAULT_CONF_DIR "/etc"
+#endif
+
+#define DEFAULT_CONF_FILE DEFAULT_CONF_DIR"/chrony.conf"
 
 /* ================================================== */
 /* Forward prototypes */
@@ -73,6 +80,7 @@ static void parse_peer(const char *);
 static void parse_acquisitionport(const char *);
 static void parse_port(const char *);
 static void parse_server(const char *);
+static void parse_refclock(const char *);
 static void parse_local(const char *);
 static void parse_manual(const char *);
 static void parse_initstepslew(const char *);
@@ -83,6 +91,8 @@ static void parse_cmddeny(const char *);
 static void parse_cmdport(const char *);
 static void parse_rtconutc(const char *);
 static void parse_noclientlog(const char *);
+static void parse_clientloglimit(const char *);
+static void parse_makestep(const char *);
 static void parse_logchange(const char *);
 static void parse_mailonchange(const char *);
 static void parse_bindaddress(const char *);
@@ -92,6 +102,8 @@ static void parse_pidfile(const char *);
 static void parse_broadcast(const char *);
 static void parse_linux_hz(const char *);
 static void parse_linux_freq_scale(const char *);
+static void parse_sched_priority(const char *);
+static void parse_lockall(const char *);
 
 /* ================================================== */
 /* Configuration variables */
@@ -111,6 +123,7 @@ static int do_log_measurements = 0;
 static int do_log_statistics = 0;
 static int do_log_tracking = 0;
 static int do_log_rtc = 0;
+static int do_log_refclocks = 0;
 static int do_dump_on_exit = 0;
 static char *logdir = ".";
 static char *dumpdir = ".";
@@ -126,13 +139,17 @@ static int n_init_srcs;
    than this, slew instead of stepping */
 static int init_slew_threshold = -1;
 #define MAX_INIT_SRCS 8
-static unsigned long init_srcs_ip[MAX_INIT_SRCS];
+static IPAddr init_srcs_ip[MAX_INIT_SRCS];
 
 static int enable_manual=0;
 
 /* Flag set if the RTC runs UTC (default is it runs local time
    incl. daylight saving). */
 static int rtc_on_utc = 0;
+
+/* Limit and threshold for clock stepping */
+static int make_step_limit = 0;
+static double make_step_threshold = 0.0;
 
 /* Flag set if we should log to syslog when a time adjustment
    exceeding the threshold is initiated */
@@ -146,13 +163,16 @@ static double mail_change_threshold = 0.0;
    memory */
 static int no_client_log = 0;
 
-/* IP address (host order) for binding the NTP socket to.  0 means INADDR_ANY
-   will be used */
-static unsigned long bind_address = 0UL;
+/* Limit memory allocated for the clients log */
+static unsigned long client_log_limit = 524288;
 
-/* IP address (host order) for binding the command socket to.  0 means
+/* IP addresses for binding the NTP socket to.  UNSPEC family means INADDR_ANY
+   will be used */
+static IPAddr bind_address4, bind_address6;
+
+/* IP addresses for binding the command socket to.  UNSPEC family means
    use the value of bind_address */
-static unsigned long bind_cmd_address = 0UL;
+static IPAddr bind_cmd_address4, bind_cmd_address6;
 
 /* Filename to use for storing pid of running chronyd, to prevent multiple
  * chronyds being started. */
@@ -168,6 +188,9 @@ static int linux_hz;
 static int set_linux_freq_scale = 0;
 static double linux_freq_scale;
 
+static int sched_priority = 0;
+static int lock_memory = 0;
+
 /* ================================================== */
 
 typedef struct {
@@ -179,6 +202,7 @@ typedef struct {
 static const Command commands[] = {
   {"server", 6, parse_server},
   {"peer", 4, parse_peer},
+  {"refclock", 8, parse_refclock},
   {"acquisitionport", 15, parse_acquisitionport},
   {"port", 4, parse_port},
   {"driftfile", 9, parse_driftfile},
@@ -200,6 +224,8 @@ static const Command commands[] = {
   {"cmdport", 7, parse_cmdport},
   {"rtconutc", 8, parse_rtconutc},
   {"noclientlog", 11, parse_noclientlog},
+  {"clientloglimit", 14, parse_clientloglimit},
+  {"makestep", 8, parse_makestep},
   {"logchange", 9, parse_logchange},
   {"mailonchange", 12, parse_mailonchange},
   {"bindaddress", 11, parse_bindaddress},
@@ -208,7 +234,9 @@ static const Command commands[] = {
   {"pidfile", 7, parse_pidfile},
   {"broadcast", 9, parse_broadcast},
   {"linux_hz", 8, parse_linux_hz},
-  {"linux_freq_scale", 16, parse_linux_freq_scale}
+  {"linux_freq_scale", 16, parse_linux_freq_scale},
+  {"sched_priority", 14, parse_sched_priority},
+  {"lock_all", 8, parse_lockall}
 };
 
 static int n_commands = (sizeof(commands) / sizeof(commands[0]));
@@ -224,7 +252,7 @@ typedef enum {
 
 typedef struct {
   NTP_Source_Type type;
-  unsigned long ip_addr;
+  IPAddr ip_addr;
   unsigned short port;
   SourceParameters params;
 } NTP_Source;
@@ -234,12 +262,17 @@ typedef struct {
 static NTP_Source ntp_sources[MAX_NTP_SOURCES];
 static int n_ntp_sources = 0;
 
+#define MAX_RCL_SOURCES 8
+
+static RefclockParameters refclock_sources[MAX_RCL_SOURCES];
+static int n_refclock_sources = 0;
+
 /* ================================================== */
 
 typedef struct _AllowDeny {
   struct _AllowDeny *next;
   struct _AllowDeny *prev;
-  unsigned long ip;
+  IPAddr ip;
   int subnet_bits;
   int all; /* 1 to override existing more specific defns */
   int allow; /* 0 for deny, 1 for allow */
@@ -366,6 +399,24 @@ parse_source(const char *line, NTP_Source_Type type)
 /* ================================================== */
 
 static void
+parse_sched_priority(const char *line)
+{
+  if (sscanf(line, "%d", &sched_priority) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read scheduling priority at line %d", line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
+parse_lockall(const char *line)
+{
+  lock_memory = 1;
+}
+
+/* ================================================== */
+
+static void
 parse_server(const char *line)
 {
   parse_source(line, SERVER);
@@ -377,6 +428,104 @@ static void
 parse_peer(const char *line)
 {
   parse_source(line, PEER);
+}
+
+/* ================================================== */
+
+static void
+parse_refclock(const char *line)
+{
+  int i, n, poll, dpoll, filter_length, pps_rate;
+  unsigned long ref_id, lock_ref_id;
+  double offset, delay;
+  const char *tmp;
+  char name[5], cmd[10 + 1], *param;
+  unsigned char ref[5];
+
+  i = n_refclock_sources;
+  if (i >= MAX_RCL_SOURCES)
+    return;
+
+  poll = 4;
+  dpoll = 0;
+  filter_length = 15;
+  pps_rate = 0;
+  offset = 0.0;
+  delay = 1e-9;
+  ref_id = 0;
+  lock_ref_id = 0;
+
+  if (sscanf(line, "%4s%n", name, &n) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read refclock driver name at line %d", line_number);
+    return;
+  }
+  line += n;
+
+  while (isspace(line[0]))
+    line++;
+  tmp = line;
+  while (line[0] != '\0' && !isspace(line[0]))
+    line++;
+
+  if (line == tmp) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read refclock parameter at line %d", line_number);
+    return;
+  }
+
+  param = MallocArray(char, 1 + line - tmp);
+  strncpy(param, tmp, line - tmp);
+  param[line - tmp] = '\0';
+
+  while (sscanf(line, "%10s%n", cmd, &n) == 1) {
+    line += n;
+    if (!strncasecmp(cmd, "refid", 5)) {
+      if (sscanf(line, "%4s%n", (char *)ref, &n) != 1)
+        break;
+      ref_id = ref[0] << 24 | ref[1] << 16 | ref[2] << 8 | ref[3];
+    } else if (!strncasecmp(cmd, "lock", 4)) {
+      if (sscanf(line, "%4s%n", (char *)ref, &n) != 1)
+        break;
+      lock_ref_id = ref[0] << 24 | ref[1] << 16 | ref[2] << 8 | ref[3];
+    } else if (!strncasecmp(cmd, "poll", 4)) {
+      if (sscanf(line, "%d%n", &poll, &n) != 1) {
+        break;
+      }
+    } else if (!strncasecmp(cmd, "dpoll", 5)) {
+      if (sscanf(line, "%d%n", &dpoll, &n) != 1) {
+        break;
+      }
+    } else if (!strncasecmp(cmd, "filter", 6)) {
+      if (sscanf(line, "%d%n", &filter_length, &n) != 1) {
+        break;
+      }
+    } else if (!strncasecmp(cmd, "rate", 4)) {
+      if (sscanf(line, "%d%n", &pps_rate, &n) != 1)
+        break;
+    } else if (!strncasecmp(cmd, "offset", 6)) {
+      if (sscanf(line, "%lf%n", &offset, &n) != 1)
+        break;
+    } else if (!strncasecmp(cmd, "delay", 5)) {
+      if (sscanf(line, "%lf%n", &delay, &n) != 1)
+        break;
+    } else {
+      LOG(LOGS_WARN, LOGF_Configure, "Unknown refclock parameter %s at line %d", cmd, line_number);
+      break;
+    }
+    line += n;
+  }
+
+  strncpy(refclock_sources[i].driver_name, name, 4);
+  refclock_sources[i].driver_parameter = param;
+  refclock_sources[i].driver_poll = dpoll;
+  refclock_sources[i].poll = poll;
+  refclock_sources[i].filter_length = filter_length;
+  refclock_sources[i].pps_rate = pps_rate;
+  refclock_sources[i].offset = offset;
+  refclock_sources[i].delay = delay;
+  refclock_sources[i].ref_id = ref_id;
+  refclock_sources[i].lock_ref_id = lock_ref_id;
+
+  n_refclock_sources++;
 }
 
 /* ================================================== */
@@ -516,6 +665,9 @@ parse_log(const char *line)
       } else if (!strncmp(line, "rtc", 3)) {
         do_log_rtc = 1;
         line += 3;
+      } else if (!strncmp(line, "refclocks", 9)) {
+        do_log_refclocks = 1;
+        line += 9;
       } else {
         break;
       }
@@ -571,7 +723,7 @@ parse_initstepslew(const char *line)
   char hostname[HOSTNAME_LEN+1];
   int n;
   int threshold;
-  unsigned long ip_addr;
+  IPAddr ip_addr;
 
   n_init_srcs = 0;
   p = line;
@@ -584,8 +736,7 @@ parse_initstepslew(const char *line)
   }
   while (*p) {
     if (sscanf(p, "%" SHOSTNAME_LEN "s%n", hostname, &n) == 1) {
-      ip_addr = DNS_Name2IPAddress(hostname);
-      if (ip_addr != DNS_Failed_Address) {
+      if (DNS_Name2IPAddress(hostname, &ip_addr, 1)) {
         init_srcs_ip[n_init_srcs] = ip_addr;
         ++n_init_srcs;
       }
@@ -635,6 +786,34 @@ parse_noclientlog(const char *line)
 /* ================================================== */
 
 static void
+parse_clientloglimit(const char *line)
+{
+  if (sscanf(line, "%lu", &client_log_limit) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read clientlog memory limit at line %d", line_number);
+  }
+
+  if (client_log_limit == 0) {
+    /* unlimited */
+    client_log_limit = (unsigned long)-1;
+  }
+}
+
+/* ================================================== */
+
+static void
+parse_makestep(const char *line)
+{
+  if (sscanf(line, "%lf %d", &make_step_threshold, &make_step_limit) != 2) {
+    make_step_limit = 0;
+    LOG(LOGS_WARN, LOGF_Configure,
+        "Could not read threshold or update limit for stepping clock at line %d\n",
+        line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
 parse_logchange(const char *line)
 {
   if (sscanf(line, "%lf", &log_change_threshold) == 1) {
@@ -677,7 +856,7 @@ parse_allow_deny(const char *line, AllowDeny *list, int allow)
   unsigned long a, b, c, d, n;
   int all = 0;
   AllowDeny *new_node = NULL;
-  unsigned long ip_addr;
+  IPAddr ip_addr;
 
   p = line;
 
@@ -694,45 +873,54 @@ parse_allow_deny(const char *line, AllowDeny *list, int allow)
     new_node = MallocNew(AllowDeny);
     new_node->allow = allow;
     new_node->all = all;
-    new_node->ip = 0UL;
+    new_node->ip.family = IPADDR_UNSPEC;
     new_node->subnet_bits = 0;
   } else {
     char *slashpos;
     slashpos = strchr(p, '/');
     if (slashpos) *slashpos = 0;
 
-    n = sscanf(p, "%lu.%lu.%lu.%lu", &a, &b, &c, &d);
-   
-    if (n >= 1) {
+    n = 0;
+    if (UTI_StringToIP(p, &ip_addr) ||
+        (n = sscanf(p, "%lu.%lu.%lu.%lu", &a, &b, &c, &d)) >= 1) {
       new_node = MallocNew(AllowDeny);
       new_node->allow = allow;
       new_node->all = all;
 
-      a &= 0xff;
-      b &= 0xff;
-      c &= 0xff;
-      d &= 0xff;
-      
-      switch (n) {
-        case 1:
-          new_node->ip = (a<<24);
-          new_node->subnet_bits = 8;
-          break;
-        case 2:
-          new_node->ip = (a<<24) | (b<<16);
-          new_node->subnet_bits = 16;
-          break;
-        case 3:
-          new_node->ip = (a<<24) | (b<<16) | (c<<8);
-          new_node->subnet_bits = 24;
-          break;
-        case 4:
-          new_node->ip = (a<<24) | (b<<16) | (c<<8) | d;
+      if (n == 0) {
+        new_node->ip = ip_addr;
+        if (ip_addr.family == IPADDR_INET6)
+          new_node->subnet_bits = 128;
+        else
           new_node->subnet_bits = 32;
-          break;
-        default:
-          assert(0);
-          
+      } else {
+        new_node->ip.family = IPADDR_INET4;
+
+        a &= 0xff;
+        b &= 0xff;
+        c &= 0xff;
+        d &= 0xff;
+        
+        switch (n) {
+          case 1:
+            new_node->ip.addr.in4 = (a<<24);
+            new_node->subnet_bits = 8;
+            break;
+          case 2:
+            new_node->ip.addr.in4 = (a<<24) | (b<<16);
+            new_node->subnet_bits = 16;
+            break;
+          case 3:
+            new_node->ip.addr.in4 = (a<<24) | (b<<16) | (c<<8);
+            new_node->subnet_bits = 24;
+            break;
+          case 4:
+            new_node->ip.addr.in4 = (a<<24) | (b<<16) | (c<<8) | d;
+            new_node->subnet_bits = 32;
+            break;
+          default:
+            assert(0);
+        }
       }
       
       if (slashpos) {
@@ -746,13 +934,15 @@ parse_allow_deny(const char *line, AllowDeny *list, int allow)
       }
 
     } else {
-      ip_addr = DNS_Name2IPAddress(p);
-      if (ip_addr != DNS_Failed_Address) {
+      if (DNS_Name2IPAddress(p, &ip_addr, 1)) {
         new_node = MallocNew(AllowDeny);
         new_node->allow = allow;
         new_node->all = all;
         new_node->ip = ip_addr;
-        new_node->subnet_bits = 32;
+        if (ip_addr.family == IPADDR_INET6)
+          new_node->subnet_bits = 128;
+        else
+          new_node->subnet_bits = 32;
       } else {
         LOG(LOGS_WARN, LOGF_Configure, "Could not read address at line %d", line_number);
       }      
@@ -805,27 +995,20 @@ parse_cmddeny(const char *line)
 
 /* ================================================== */
 
-static unsigned long
-parse_an_address(const char *line, const char *errmsg)
-{
-  unsigned long a, b, c, d;
-  int n;
-  n = sscanf(line, "%lu.%lu.%lu.%lu", &a, &b, &c, &d);
-  if (n == 4) {
-    return (((a&0xff)<<24) | ((b&0xff)<<16) | 
-            ((c&0xff)<<8) | (d&0xff));
-  } else {
-    LOG(LOGS_WARN, LOGF_Configure, errmsg, line_number);
-    return 0UL;
-  }    
-}
-
-/* ================================================== */
-
 static void
 parse_bindaddress(const char *line)
 {
-  bind_address = parse_an_address(line, "Could not read bind address at line %d\n");
+  IPAddr ip;
+  char addr[51];
+
+  if (sscanf(line, "%50s", addr) == 1 && UTI_StringToIP(addr, &ip)) {
+    if (ip.family == IPADDR_INET4)
+      bind_address4 = ip;
+    else if (ip.family == IPADDR_INET6)
+      bind_address6 = ip;
+  } else {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read bind address at line %d\n", line_number);
+  }
 }
 
 /* ================================================== */
@@ -833,7 +1016,17 @@ parse_bindaddress(const char *line)
 static void
 parse_bindcmdaddress(const char *line)
 {
-  bind_cmd_address = parse_an_address(line, "Could not read bind command address at line %d\n");
+  IPAddr ip;
+  char addr[51];
+
+  if (sscanf(line, "%50s", addr) == 1 && UTI_StringToIP(addr, &ip)) {
+    if (ip.family == IPADDR_INET4)
+      bind_cmd_address4 = ip;
+    else if (ip.family == IPADDR_INET6)
+      bind_cmd_address6 = ip;
+  } else {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read bind command address at line %d\n", line_number);
+  }
 }
 
 /* ================================================== */
@@ -850,7 +1043,7 @@ parse_pidfile(const char *line)
 
 typedef struct {
   /* Both in host (not necessarily network) order */
-  unsigned long addr;
+  IPAddr addr;
   unsigned short port;
   int interval;
 } NTP_Broadcast_Destination;
@@ -866,27 +1059,22 @@ parse_broadcast(const char *line)
 {
   /* Syntax : broadcast <interval> <broadcast-IP-addr> [<port>] */
   int port;
-  unsigned int a, b, c, d;
   int n;
   int interval;
-  unsigned long addr;
+  char addr[51];
+  IPAddr ip;
   
-  n = sscanf(line, "%d %u.%u.%u.%u %d", &interval, &a, &b, &c, &d, &port);
-  if (n < 5) {
+  n = sscanf(line, "%d %50s %d", &interval, addr, &port);
+  if (n < 2 || !UTI_StringToIP(addr, &ip)) {
     LOG(LOGS_WARN, LOGF_Configure, "Could not parse broadcast directive at line %d", line_number);
     return;
-  } else if (n == 5) {
+  } else if (n == 2) {
     /* default port */
     port = 123;
-  } else if (n > 6) {
+  } else if (n > 3) {
     LOG(LOGS_WARN, LOGF_Configure, "Too many fields in broadcast directive at line %d", line_number);
   }
 
-  addr = ((unsigned long) a << 24) |
-         ((unsigned long) b << 16) |
-         ((unsigned long) c <<  8) |
-         ((unsigned long) d      );
-    
   if (max_broadcasts == n_broadcasts) {
     /* Expand array */
     max_broadcasts += 8;
@@ -897,7 +1085,7 @@ parse_broadcast(const char *line)
     }
   }
 
-  broadcasts[n_broadcasts].addr = addr;
+  broadcasts[n_broadcasts].addr = ip;
   broadcasts[n_broadcasts].port = port;
   broadcasts[n_broadcasts].interval = interval;
   ++n_broadcasts;
@@ -948,6 +1136,7 @@ CNF_AddSources(void) {
 
   for (i=0; i<n_ntp_sources; i++) {
     server.ip_addr = ntp_sources[i].ip_addr;
+    memset(&server.local_ip_addr, 0, sizeof (server.local_ip_addr));
     server.port = ntp_sources[i].port;
 
     switch (ntp_sources[i].type) {
@@ -969,11 +1158,22 @@ CNF_AddSources(void) {
 /* ================================================== */
 
 void
+CNF_AddRefclocks(void) {
+  int i;
+
+  for (i=0; i<n_refclock_sources; i++) {
+    RCL_AddRefclock(&refclock_sources[i]);
+  }
+}
+
+/* ================================================== */
+
+void
 CNF_AddBroadcasts(void)
 {
   int i;
   for (i=0; i<n_broadcasts; i++) {
-    BRD_AddDestination(broadcasts[i].addr,
+    BRD_AddDestination(&broadcasts[i].addr,
                        broadcasts[i].port,
                        broadcasts[i].interval);
   }
@@ -1049,6 +1249,13 @@ int
 CNF_GetLogRtc(void)
 {
   return do_log_rtc;
+}
+
+/* ================================================== */
+int
+CNF_GetLogRefclocks(void)
+{
+  return do_log_refclocks;
 }
 
 /* ================================================== */
@@ -1138,6 +1345,15 @@ CNF_GetRTCOnUTC(void)
 /* ================================================== */
 
 void
+CNF_GetMakeStep(int *limit, double *threshold)
+{
+  *limit = make_step_limit;
+  *threshold = make_step_threshold;
+}
+
+/* ================================================== */
+
+void
 CNF_GetLogChange(int *enabled, double *threshold)
 {
   *enabled = do_log_change;
@@ -1169,14 +1385,14 @@ CNF_SetupAccessRestrictions(void)
   int status;
 
   for (node = ntp_auth_list.next; node != &ntp_auth_list; node = node->next) {
-    status = NCR_AddAccessRestriction(node->ip, node->subnet_bits, node->allow, node->all);
+    status = NCR_AddAccessRestriction(&node->ip, node->subnet_bits, node->allow, node->all);
     if (!status) {
       LOG(LOGS_WARN, LOGF_Configure, "Bad subnet for %08lx", node->ip);
     }
   }
 
   for (node = cmd_auth_list.next; node != &cmd_auth_list; node = node->next) {
-    status = CAM_AddAccessRestriction(node->ip, node->subnet_bits, node->allow, node->all);
+    status = CAM_AddAccessRestriction(&node->ip, node->subnet_bits, node->allow, node->all);
     if (!status) {
       LOG(LOGS_WARN, LOGF_Configure, "Bad subnet for %08lx", node->ip);
     }
@@ -1195,18 +1411,36 @@ CNF_GetNoClientLog(void)
 
 /* ================================================== */
 
-void
-CNF_GetBindAddress(unsigned long *addr)
+unsigned long
+CNF_GetClientLogLimit(void)
 {
-  *addr = bind_address;
+  return client_log_limit;
 }
 
 /* ================================================== */
 
 void
-CNF_GetBindCommandAddress(unsigned long *addr)
+CNF_GetBindAddress(int family, IPAddr *addr)
 {
-  *addr = bind_cmd_address ? bind_cmd_address : bind_address;
+  if (family == IPADDR_INET4)
+    *addr = bind_address4;
+  else if (family == IPADDR_INET6)
+    *addr = bind_address6;
+  else
+    addr->family = IPADDR_UNSPEC;
+}
+
+/* ================================================== */
+
+void
+CNF_GetBindCommandAddress(int family, IPAddr *addr)
+{
+  if (family == IPADDR_INET4)
+    *addr = bind_cmd_address4.family != IPADDR_UNSPEC ? bind_cmd_address4 : bind_address4;
+  else if (family == IPADDR_INET6)
+    *addr = bind_cmd_address6.family != IPADDR_UNSPEC ? bind_cmd_address6 : bind_address6;
+  else
+    addr->family = IPADDR_UNSPEC;
 }
 
 /* ================================================== */
@@ -1235,3 +1469,18 @@ CNF_GetLinuxFreqScale(int *set, double *freq_scale)
   *freq_scale = linux_freq_scale ;
 }
 
+/* ================================================== */
+
+int
+CNF_GetSchedPriority(void)
+{
+  return sched_priority;
+}
+
+/* ================================================== */
+
+int
+CNF_GetLockMemory(void)
+{
+  return lock_memory;
+}

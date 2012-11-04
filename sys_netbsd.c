@@ -20,7 +20,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -285,7 +285,7 @@ SYS_NetBSD_Initialise(void)
   kvm_t *kt;
   FILE *fp;
 
-  kt = kvm_open(NULL, NULL, NULL, O_RDWR, NULL);
+  kt = kvm_open(NULL, NULL, NULL, O_RDONLY, NULL);
   if (!kt) {
     CROAK("Cannot open kvm\n");
   }
@@ -299,7 +299,8 @@ SYS_NetBSD_Initialise(void)
   }
 
   if (kvm_read(kt, nl[1].n_value, (char *)(&kern_bigadj), sizeof(long)) < 0) {
-    CROAK("Cannot read from _bigadj\n");
+    /* kernel doesn't have the symbol, use one second instead */
+    kern_bigadj = 1000000;
   }
 
   kvm_close(kt);
@@ -308,7 +309,8 @@ SYS_NetBSD_Initialise(void)
 
   lcl_RegisterSystemDrivers(read_frequency, set_frequency, 
                             accrue_offset, apply_step_offset,
-                            get_offset_correction, NULL /* immediate_step */);
+                            get_offset_correction,
+                            NULL /* set_leap */);
 
 }
 

@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -70,6 +70,9 @@ typedef struct {
 } FileHandlerEntry;
 
 static FileHandlerEntry file_handlers[FD_SET_SIZE];
+
+/* Last timestamp when a file descriptor became readable */
+static struct timeval last_fdready;
 
 /* ================================================== */
 
@@ -221,6 +224,14 @@ SCH_RemoveInputFileHandler(int fd)
 
   return;
 
+}
+
+/* ================================================== */
+
+void
+SCH_GetFileReadyTime(struct timeval *tv)
+{
+  *tv = last_fdready;
 }
 
 /* ================================================== */
@@ -429,7 +440,7 @@ dispatch_timeouts(struct timeval *now) {
   TimerQueueEntry *ptr;
   int n_done = 0;
 
-  while ((n_timer_queue_entries > 0) &&
+  if ((n_timer_queue_entries > 0) &&
          (UTI_CompareTimevals(now, &(timer_queue.next->tv)) >= 0)) {
     ptr = timer_queue.next;
 
@@ -510,10 +521,11 @@ handle_slew(struct timeval *raw,
 void
 SCH_MainLoop(void)
 {
-  fd_set rd, wr, ex;
+  fd_set rd;
   int status;
   struct timeval tv, *ptv;
   struct timeval now;
+  double err;
 
   if (!initialised) {
     CROAK("Should be initialised");
@@ -524,11 +536,6 @@ SCH_MainLoop(void)
     /* Copy current set of read file descriptors */
     memcpy((void *) &rd, (void *) &read_fds, sizeof(fd_set));
     
-    /* Blank the write and exception descriptors - we aren't very
-       interested */
-    FD_ZERO(&wr);
-    FD_ZERO(&ex);
-
     /* Try to dispatch any timeouts that have already gone by, and
        keep going until all are done.  (The earlier ones may take so
        long to do that the later ones come around by the time they are
@@ -555,13 +562,15 @@ SCH_MainLoop(void)
       LOG_FATAL(LOGF_Scheduler, "No descriptors or timeout to wait for");
     }
 
-    status = select(one_highest_fd, &rd, &wr, &ex, ptv);
+    status = select(one_highest_fd, &rd, NULL, NULL, ptv);
 
     if (status < 0) {
-      CROAK("Status < 0 after select");
+      if (!need_to_exit)
+        CROAK("Status < 0 after select");
     } else if (status > 0) {
       /* A file descriptor is ready to read */
 
+      LCL_ReadCookedTime(&last_fdready, &err);
       dispatch_filehandlers(status, &rd);
 
     } else {

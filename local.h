@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -179,6 +179,11 @@ extern void LCL_Finalise(void);
 /* Routine to convert the outstanding system clock error to a step and
    apply it, e.g. if the system clock has ended up an hour wrong due
    to a timezone problem. */
-extern int LCL_MakeStep(void);
+extern int LCL_MakeStep(double threshold);
+
+/* Routine to schedule a leap second. Leap second will be inserted
+   at the end of the day if argument is positive, deleted if negative,
+   and zero cancels scheduled leap second. */
+extern void LCL_SetLeap(int leap);
 
 #endif /* GOT_LOCAL_H */

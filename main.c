@@ -7,6 +7,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) John G. Hasler  2009
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +20,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -48,8 +49,10 @@
 #include "manual.h"
 #include "version.h"
 #include "rtc.h"
+#include "refclock.h"
 #include "clientlog.h"
 #include "broadcast.h"
+#include "nameserv.h"
 
 /* ================================================== */
 
@@ -83,19 +86,20 @@ MAI_CleanupAndExit(void)
     SRC_DumpSources();
   }
 
-  RTC_Finalise();
   MNL_Finalise();
   ACQ_Finalise();
-  CAM_Finalise();
   KEY_Finalise();
   CLG_Finalise();
-  NIO_Finalise();
   NSR_Finalise();
   NCR_Finalise();
   BRD_Finalise();
   SRC_Finalise();
   SST_Finalise();
   REF_Finalise();
+  RCL_Finalise();
+  RTC_Finalise();
+  CAM_Finalise();
+  NIO_Finalise();
   SYS_Finalise();
   SCH_Finalise();
   LCL_Finalise();
@@ -113,7 +117,8 @@ static void
 signal_cleanup(int x)
 {
   LOG(LOGS_WARN, LOGF_Main, "chronyd exiting on signal");
-  MAI_CleanupAndExit();
+  if (!initialised) exit(0);
+  SCH_QuitProgram();
 }
 
 /* ================================================== */
@@ -134,6 +139,7 @@ post_acquire_hook(void *anything)
   CNF_SetupAccessRestrictions();
 
   RTC_StartMeasurements();
+  RCL_StartRefclocks();
 }
 
 /* ================================================== */
@@ -206,9 +212,11 @@ int main
 (int argc, char **argv)
 {
   char *conf_file = NULL;
+  char *user = NULL;
   int debug = 0;
   int do_init_rtc = 0;
   int other_pid;
+  int lock_memory = 0, sched_priority = 0;
 
   LOG_Initialise();
 
@@ -218,8 +226,22 @@ int main
     if (!strcmp("-f", *argv)) {
       ++argv, --argc;
       conf_file = *argv;
+    } else if (!strcmp("-P", *argv)) {
+      ++argv, --argc;
+      if (argc == 0 || sscanf(*argv, "%d", &sched_priority) != 1) {
+        LOG_FATAL(LOGF_Main, "Bad scheduler priority");
+      }
+    } else if (!strcmp("-m", *argv)) {
+      lock_memory = 1;
     } else if (!strcmp("-r", *argv)) {
       reload = 1;
+    } else if (!strcmp("-u", *argv)) {
+      ++argv, --argc;
+      if (argc == 0) {
+        LOG_FATAL(LOGF_Main, "Missing user name");
+      } else {
+        user = *argv;
+      }
     } else if (!strcmp("-s", *argv)) {
       do_init_rtc = 1;
     } else if (!strcmp("-v", *argv) || !strcmp("--version",*argv)) {
@@ -228,8 +250,12 @@ int main
       exit(0);
     } else if (!strcmp("-d", *argv)) {
       debug = 1;
+    } else if (!strcmp("-4", *argv)) {
+      DNS_SetAddressFamily(IPADDR_INET4);
+    } else if (!strcmp("-6", *argv)) {
+      DNS_SetAddressFamily(IPADDR_INET6);
     } else {
-      LOG(LOGS_WARN, LOGF_Main, "Unrecognized command line option [%s]", *argv);
+      LOG_FATAL(LOGF_Main, "Unrecognized command line option [%s]", *argv);
     }
   }
 
@@ -269,19 +295,37 @@ int main
   LCL_Initialise();
   SCH_Initialise();
   SYS_Initialise();
+  NIO_Initialise();
+  CAM_Initialise();
+  RTC_Initialise();
+  RCL_Initialise();
+
+  /* Command-line switch must have priority */
+  if (!sched_priority) {
+    sched_priority = CNF_GetSchedPriority();
+  }
+  if (sched_priority) {
+    SYS_SetScheduler(sched_priority);
+  }
+
+  if (lock_memory || CNF_GetLockMemory()) {
+    SYS_LockMemory();
+  }
+
+  if (user) {
+    SYS_DropRoot(user);
+  }
+
   REF_Initialise();
   SST_Initialise();
   SRC_Initialise();
   BRD_Initialise();
   NCR_Initialise();
   NSR_Initialise();
-  NIO_Initialise();
   CLG_Initialise();
   KEY_Initialise();
-  CAM_Initialise();
   ACQ_Initialise();
   MNL_Initialise();
-  RTC_Initialise();
 
   /* From now on, it is safe to do finalisation on exit */
   initialised = 1;

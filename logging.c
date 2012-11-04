@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -39,6 +39,8 @@
 static int initialised = 0;
 
 static int is_detached = 0;
+
+static time_t last_limited = 0;
 
 #ifdef WINNT
 static FILE *logfile;
@@ -211,6 +213,38 @@ LOG_GoDaemon(void)
   }
 
 #endif
+}
+
+/* ================================================== */
+
+int
+LOG_RateLimited(void)
+{
+  time_t now;
+
+  now = time(NULL);
+
+  if (last_limited + 10 > now && last_limited <= now)
+    return 1;
+
+  last_limited = now;
+  return 0;
+}
+
+/* ================================================== */
+/* Force a core dump and exit without doing abort() or assert(0).
+   These do funny things with the call stack in the core file that is
+   generated, which makes diagnosis difficult. */
+
+int
+croak(const char *file, int line, const char *msg)
+{
+  int a;
+  LOG(LOGS_ERR, LOGF_Util, "Unexpected condition [%s] at %s:%d, core dumped",
+      msg, file, line);
+  a = * (int *) 0;
+  return a; /* Can't happen - this stops the optimiser optimising the
+               line above */
 }
 
 /* ================================================== */

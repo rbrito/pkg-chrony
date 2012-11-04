@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -38,6 +38,9 @@
 
 #include "chrony_timex.h"
 #include "wrap_adjtimex.h"
+
+/* Save leap status between calls */
+static int leap_status = 0;
 
 int
 TMX_SetTick(long tick)
@@ -73,6 +76,7 @@ TMX_SetFrequency(double freq, long tick)
   txc.tick = tick;
   txc.status = STA_UNSYNC; /* Prevent any of the FLL/PLL stuff coming
                               up */
+  txc.status |= leap_status; /* Preserve leap bits */
 
   return adjtimex(&txc);
 }
@@ -89,11 +93,22 @@ TMX_GetFrequency(double *freq)
 }
 
 int
-TMX_GetOffsetLeft(long *offset)
+TMX_GetOffsetLeftOld(long *offset)
 {
   struct timex txc;
   int result;
   txc.modes = 0; /* pure read */
+  result = adjtimex(&txc);
+  *offset = txc.offset;
+  return result;
+}
+
+int
+TMX_GetOffsetLeft(long *offset)
+{
+  struct timex txc;
+  int result;
+  txc.modes = ADJ_OFFSET_SS_READ;
   result = adjtimex(&txc);
   *offset = txc.offset;
   return result;
@@ -115,19 +130,19 @@ TMX_ReadCurrentParams(struct tmx_params *params)
   params->maxerror = txc.maxerror;
   params->esterror = txc.esterror;
   
-  params->sta_pll       = (txc.status & STA_PLL);
-  params->sta_ppsfreq   = (txc.status & STA_PPSFREQ);
-  params->sta_ppstime   = (txc.status & STA_PPSTIME);
-  params->sta_fll       = (txc.status & STA_FLL);
-  params->sta_ins       = (txc.status & STA_INS);
-  params->sta_del       = (txc.status & STA_DEL);
-  params->sta_unsync    = (txc.status & STA_UNSYNC);
-  params->sta_freqhold  = (txc.status & STA_FREQHOLD);
-  params->sta_ppssignal = (txc.status & STA_PPSSIGNAL);
-  params->sta_ppsjitter = (txc.status & STA_PPSJITTER);
-  params->sta_ppswander = (txc.status & STA_PPSWANDER);
-  params->sta_ppserror  = (txc.status & STA_PPSERROR);
-  params->sta_clockerr  = (txc.status & STA_CLOCKERR);
+  params->sta_pll       = !!(txc.status & STA_PLL);
+  params->sta_ppsfreq   = !!(txc.status & STA_PPSFREQ);
+  params->sta_ppstime   = !!(txc.status & STA_PPSTIME);
+  params->sta_fll       = !!(txc.status & STA_FLL);
+  params->sta_ins       = !!(txc.status & STA_INS);
+  params->sta_del       = !!(txc.status & STA_DEL);
+  params->sta_unsync    = !!(txc.status & STA_UNSYNC);
+  params->sta_freqhold  = !!(txc.status & STA_FREQHOLD);
+  params->sta_ppssignal = !!(txc.status & STA_PPSSIGNAL);
+  params->sta_ppsjitter = !!(txc.status & STA_PPSJITTER);
+  params->sta_ppswander = !!(txc.status & STA_PPSWANDER);
+  params->sta_ppserror  = !!(txc.status & STA_PPSERROR);
+  params->sta_clockerr  = !!(txc.status & STA_CLOCKERR);
 
   params->constant  = txc.constant;
   params->precision = txc.precision;
@@ -142,6 +157,25 @@ TMX_ReadCurrentParams(struct tmx_params *params)
   params->stbcnt    = txc.stbcnt;
 
   return result;
+}
+
+int
+TMX_SetLeap(int leap)
+{
+  struct timex txc;
+
+  if (leap > 0) {
+    leap_status = STA_INS;
+  } else if (leap < 0) {
+    leap_status = STA_DEL;
+  } else {
+    leap_status = 0;
+  }
+  
+  txc.modes = ADJ_STATUS;
+  txc.status = STA_UNSYNC | leap_status;
+
+  return adjtimex(&txc);
 }
 
 #endif

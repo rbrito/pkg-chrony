@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -34,6 +34,7 @@
 #define GOT_CANDM_H
 
 #include "sysincl.h"
+#include "addressing.h"
 
 /* This is the default port to use for CANDM, if no alternative is
    defined */
@@ -91,38 +92,55 @@
    password.  (This time value has long since gone by) */
 #define SPECIAL_UTOKEN 0x10101010
 
+/* Structure used to exchange timevals independent on size of time_t */
+typedef struct {
+  uint32_t tv_sec_high;
+  uint32_t tv_sec_low;
+  uint32_t tv_nsec;
+} Timeval;
+
+/* This is used in tv_sec_high for 32-bit timestamps */
+#define TV_NOHIGHSEC 0x7fffffff
+
+/* 32-bit floating-point format consisting of 7-bit signed exponent
+   and 25-bit signed coefficient without hidden bit.
+   The result is calculated as: 2^(exp - 25) * coef */
+typedef struct {
+  int32_t f;
+} Float;
+
 /* The EOR (end of record) fields are used by the offsetof operator in
    pktlength.c, to get the number of bytes that ought to be
    transmitted for each packet type. */
 
 typedef struct {
-  uint32_t mask;
-  uint32_t address;
+  IPAddr mask;
+  IPAddr address;
   int32_t EOR;
 } REQ_Online;
 
 typedef struct {
-  uint32_t mask;
-  uint32_t address;
+  IPAddr mask;
+  IPAddr address;
   int32_t EOR;
 } REQ_Offline;
 
 typedef struct {
-  uint32_t mask;
-  uint32_t address;
+  IPAddr mask;
+  IPAddr address;
   int32_t n_good_samples;
   int32_t n_total_samples;
   int32_t EOR;
 } REQ_Burst;
 
 typedef struct {
-  uint32_t address;
+  IPAddr address;
   int32_t new_minpoll;
   int32_t EOR;
 } REQ_Modify_Minpoll;
 
 typedef struct {
-  uint32_t address;
+  IPAddr address;
   int32_t new_maxpoll;
   int32_t EOR;
 } REQ_Modify_Maxpoll;
@@ -133,29 +151,29 @@ typedef struct {
 } REQ_Dump;
 
 typedef struct {
-  uint32_t address;
-  int32_t new_max_delay;
+  IPAddr address;
+  Float new_max_delay;
   int32_t EOR;
 } REQ_Modify_Maxdelay;
 
 typedef struct {
-  uint32_t address;
-  int32_t new_max_delay_ratio;
+  IPAddr address;
+  Float new_max_delay_ratio;
   int32_t EOR;
 } REQ_Modify_Maxdelayratio;
 
 typedef struct {
-  int32_t new_max_update_skew;
+  Float new_max_update_skew;
   int32_t EOR;
 } REQ_Modify_Maxupdateskew;
 
 typedef struct {
-  struct timeval ts;
+  Timeval ts;
   int32_t EOR;
 } REQ_Logon;
 
 typedef struct {
-  struct timeval ts;
+  Timeval ts;
   int32_t EOR;
 } REQ_Settime;
 
@@ -184,32 +202,35 @@ typedef struct {
 } REQ_Rekey;
 
 typedef struct {
-  uint32_t ip;
+  IPAddr ip;
   int32_t subnet_bits;
   int32_t EOR;
 } REQ_Allow_Deny;
 
 typedef struct {
-  uint32_t ip;
+  IPAddr ip;
   int32_t EOR;
 } REQ_Ac_Check;
 
+/* Flags used in NTP source requests */
+#define REQ_ADDSRC_ONLINE 0x1
+#define REQ_ADDSRC_AUTOOFFLINE 0x2
+
 typedef struct {
-  uint32_t ip_addr;
+  IPAddr ip_addr;
   uint32_t port;
   int32_t minpoll;
   int32_t maxpoll;
   int32_t presend_minpoll;
-  int32_t online;
-  int32_t auto_offline;
   uint32_t authkey;
-  int32_t max_delay;
-  int32_t max_delay_ratio;
+  Float max_delay;
+  Float max_delay_ratio;
+  uint32_t flags;
   int32_t EOR;
 } REQ_NTP_Source;
 
 typedef struct {
-  uint32_t ip_addr;
+  IPAddr ip_addr;
   int32_t EOR;
 } REQ_Del_Source;
 
@@ -218,7 +239,7 @@ typedef struct {
 } REQ_WriteRtc;
 
 typedef struct {
-  int32_t dfreq;
+  Float dfreq;
   int32_t EOR;
 } REQ_Dfreq;
 
@@ -250,7 +271,7 @@ typedef struct {
 } REQ_CycleLogs;
 
 typedef struct {
-  uint32_t ip;
+  IPAddr ip;
   uint32_t bits_specd;
 } REQ_SubnetsAccessed_Subnet;
 
@@ -263,11 +284,11 @@ typedef struct {
 
 /* This is based on the response size rather than the
    request size */
-#define MAX_CLIENT_ACCESSES 16
+#define MAX_CLIENT_ACCESSES 8
 
 typedef struct {
   uint32_t n_clients;
-  uint32_t client_ips[MAX_CLIENT_ACCESSES];
+  IPAddr client_ips[MAX_CLIENT_ACCESSES];
 } REQ_ClientAccesses;  
 
 typedef struct {
@@ -310,9 +331,18 @@ typedef struct {
 
    Version 3 : NTP_Source message lengthened (auto_offline)
 
+   Version 4 : IPv6 addressing added, 64-bit time values, sourcestats 
+   and tracking reports extended, added flags to NTP source request,
+   trimmed source report, replaced fixed-point format with floating-point
+   and used also instead of integer microseconds
+
  */
 
-#define PROTO_VERSION_NUMBER 3
+#define PROTO_VERSION_NUMBER 4
+
+/* The oldest protocol version that is compatible enough with
+   the current version to report a version mismatch */
+#define PROTO_VERSION_MISMATCH_COMPAT 4
 
 /* ================================================== */
 
@@ -378,13 +408,6 @@ typedef struct {
 #define PERMIT_AUTH 2
 
 /* ================================================== */
-/* These conversion utilities are used to convert between the internal
-   and the 'wire' representation of real quantities */
-
-#define WIRE2REAL(x) ((double) ((int32_t) ntohl(x)) / 65536.0)
-#define REAL2WIRE(x) (htonl((int32_t)(0.5 + 65536.0 * (x))))
-
-/* ================================================== */
 
 /* Reply codes */
 #define RPY_NULL 1
@@ -419,6 +442,9 @@ typedef struct {
 #define STT_BADRTCFILE 14
 #define STT_INACTIVE 15
 #define STT_BADSAMPLE 16
+#define STT_INVALIDAF 17
+#define STT_BADPKTVERSION 18
+#define STT_BADPKTLENGTH 19
 
 typedef struct {
   int32_t EOR;
@@ -440,67 +466,65 @@ typedef struct {
 #define RPY_SD_ST_OTHER 4
 
 typedef struct {
-  uint32_t ip_addr;
+  IPAddr ip_addr;
   uint16_t poll;
   uint16_t stratum;
   uint16_t state;
   uint16_t mode;
   uint32_t  since_sample;
-  int32_t orig_latest_meas;
-  int32_t latest_meas;
-  uint32_t latest_meas_err;
-  int32_t est_offset;
-  uint32_t est_offset_err;
-  int32_t resid_freq;
-  uint32_t resid_skew;
+  Float orig_latest_meas;
+  Float latest_meas;
+  Float latest_meas_err;
   int32_t EOR;
 } RPY_Source_Data;
 
 typedef struct {
   uint32_t ref_id;
+  IPAddr ip_addr;
   uint32_t stratum;
-  uint32_t ref_time_s;
-  uint32_t ref_time_us;
-  uint32_t current_correction_s;
-  uint32_t current_correction_us;
-  int32_t freq_ppm;
-  int32_t resid_freq_ppm;
-  int32_t skew_ppm;
-  int32_t root_delay;
-  int32_t root_dispersion;
+  Timeval ref_time;
+  Float current_correction;
+  Float freq_ppm;
+  Float resid_freq_ppm;
+  Float skew_ppm;
+  Float root_delay;
+  Float root_dispersion;
   int32_t EOR;
 } RPY_Tracking;
 
 typedef struct {
-  uint32_t ip_addr;
+  uint32_t ref_id;
+  IPAddr ip_addr;
   uint32_t n_samples;
   uint32_t n_runs;
   uint32_t span_seconds;
-  uint32_t sd_us;
-  int32_t resid_freq_ppm;
-  int32_t skew_ppm;
+  Float sd;
+  Float resid_freq_ppm;
+  Float skew_ppm;
+  Float est_offset;
+  Float est_offset_err;
   int32_t EOR;
 } RPY_Sourcestats;
 
 typedef struct {
-  uint32_t ref_time;
+  Timeval ref_time;
   uint16_t n_samples;
   uint16_t n_runs;
   uint32_t span_seconds;
-  int32_t rtc_seconds_fast;
-  int32_t rtc_gain_rate_ppm;
+  Float rtc_seconds_fast;
+  Float rtc_gain_rate_ppm;
   int32_t EOR;
 } RPY_Rtc;
 
 typedef struct {
   uint32_t centiseconds;
-  int32_t dfreq_ppm;
-  int32_t new_afreq_ppm;
+  Float dfreq_ppm;
+  Float new_afreq_ppm;
   int32_t EOR;
 } RPY_ManualTimestamp;
 
 typedef struct {
-  uint32_t ip;
+  IPAddr ip;
   uint32_t bits_specd;
   uint32_t bitmap[8];
 } RPY_SubnetsAccessed_Subnet;
@@ -511,7 +535,7 @@ typedef struct {
 } RPY_SubnetsAccessed;
 
 typedef struct {
-  uint32_t ip;
+  IPAddr ip;
   uint32_t client_hits;
   uint32_t peer_hits;
   uint32_t cmd_hits_auth;
@@ -536,10 +560,10 @@ typedef struct {
 #define MAX_MANUAL_LIST_SAMPLES 32
 
 typedef struct {
-  uint32_t when;
-  int32_t slewed_offset;
-  int32_t orig_offset;
-  int32_t residual;
+  Timeval when;
+  Float slewed_offset;
+  Float orig_offset;
+  Float residual;
 } RPY_ManualListSample;
 
 typedef struct {

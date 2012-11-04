@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -38,5 +38,11 @@ extern void SYS_Initialise(void);
 
 /* Called at the end of the run to do final clean-up */
 extern void SYS_Finalise(void);
+
+/* Drop root privileges to the specified user */
+extern void SYS_DropRoot(char *user);
+
+extern void SYS_SetScheduler(int SchedPriority);
+extern void SYS_LockMemory(void);
 
 #endif /* GOT_SYS_H */

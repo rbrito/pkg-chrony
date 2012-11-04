@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -110,6 +110,7 @@ extern void REF_SetReference
  int stratum,
  NTP_Leap leap,
  unsigned long ref_id,
+ IPAddr *ref_ip,
  struct timeval *ref_time,
  double offset,
  double frequency,
@@ -139,6 +140,7 @@ extern void REF_ModifyMaxupdateskew(double new_max_update_skew);
 
 extern void REF_EnableLocal(int stratum);
 extern void REF_DisableLocal(void);
+extern int REF_IsLocalActive(void);
 
 extern void REF_GetTrackingReport(RPT_TrackingReport *rep);
 

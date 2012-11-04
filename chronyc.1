@@ -1,4 +1,4 @@
-.TH CHRONYC 1 "August 10, 2001" chrony "User's Manual"
+.TH CHRONYC 1 "December 04, 2009" chrony "User's Manual"
 .SH NAME
 chronyc \- command-line interface for chronyd
 
@@ -31,22 +31,29 @@ specify port-number
 .TP
 \fB\-n\fR
 display raw IP addresses (don't attempt to look up hostnames)
-.TP \fIcommand\fR
+.TP
+\fB\-4\fR
+resolve hostnames only to IPv4 addresses
+.TP
+\fB\-6\fR
+resolve hostnames only to IPv6 addresses
+.TP
+\fIcommand\fR
 specify command.  If no command is given, chronyc will read commands
 interactively.
 
 
 .SH VERSION
-1.17
+1.24
 
 .SH BUGS
-To report bugs, please contact the author and/or visit \fIhttp://chrony.sunsite.dk/\fR
+To report bugs, please visit \fIhttp://chrony.tuxfamily.org\fR
 
 .SH "SEE ALSO"
 .BR chronyd(8),
 .BR chrony(1)
 
-.I http://chrony.sunsite.dk/
+.I http://chrony.tuxfamily.org/
 
 .SH AUTHOR
 Richard Curnow <rc@rc0.org.uk>

@@ -7,6 +7,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Miroslav Lichvar  2009
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +20,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -31,7 +32,7 @@
 #include "sysincl.h"
 
 #include "util.h"
-#include "logging.h"
+#include "md5.h"
 
 /* ================================================== */
 
@@ -65,21 +66,14 @@ UTI_CompareTimevals(struct timeval *a, struct timeval *b)
   } else if (a->tv_sec > b->tv_sec) {
     return +1;
   } else {
-    if (a->tv_sec != b->tv_sec) {
-      CROAK("a->tv_sec != b->tv_sec");
-    }
     if (a->tv_usec < b->tv_usec) {
       return -1;
     } else if (a->tv_usec > b->tv_usec) {
       return +1;
     } else {
-      if (a->tv_usec != b->tv_usec) {
-        CROAK("a->tv_usec != b->tv_usec");
-      }
       return 0;
     }
   }
-  CROAK("Impossible"); /* Shouldn't be able to fall through. */
 }
 
 /* ================================================== */
@@ -87,15 +81,17 @@ UTI_CompareTimevals(struct timeval *a, struct timeval *b)
 INLINE_STATIC void
 UTI_NormaliseTimeval(struct timeval *x)
 {
-  while (x->tv_usec >= 1000000) {
-    ++x->tv_sec;
-    x->tv_usec -= 1000000;
+  /* Reduce tv_usec to within +-1000000 of zero. JGH */
+  if ((x->tv_usec >= 1000000) || (x->tv_usec <= -1000000)) {
+    x->tv_sec += x->tv_usec/1000000;
+    x->tv_usec = x->tv_usec%1000000;
   }
 
-  while (x->tv_usec < 0) {
+  /* Make tv_usec positive. JGH */
+   if (x->tv_usec < 0) {
     --x->tv_sec;
     x->tv_usec += 1000000;
-  }
+ }
 
 }
 
@@ -110,17 +106,9 @@ UTI_DiffTimevals(struct timeval *result,
   result->tv_usec = a->tv_usec - b->tv_usec;
 
   /* Correct microseconds field to bring it into the range
-     [0,1000000) */
+     (0,1000000) */
 
-  while (result->tv_usec < 0) {
-    result->tv_usec += 1000000;
-    --result->tv_sec;
-  }
-
-  while (result->tv_usec > 999999) {
-    result->tv_usec -= 1000000;
-    ++result->tv_sec;
-  }
+  UTI_NormaliseTimeval(result); /* JGH */
 
   return;
 }
@@ -191,7 +179,7 @@ UTI_AverageDiffTimevals (struct timeval *earlier,
   }
 
   tvhalf.tv_sec = tvdiff.tv_sec / 2;
-  tvhalf.tv_usec = tvdiff.tv_usec / 2 + (tvdiff.tv_sec % 2);
+  tvhalf.tv_usec = tvdiff.tv_usec / 2 + (tvdiff.tv_sec % 2) * 500000; /* JGH */
   
   average->tv_sec  = earlier->tv_sec  + tvhalf.tv_sec;
   average->tv_usec = earlier->tv_usec + tvhalf.tv_usec;
@@ -199,17 +187,7 @@ UTI_AverageDiffTimevals (struct timeval *earlier,
   /* Bring into range */
   UTI_NormaliseTimeval(average);
 
-  while (average->tv_usec >= 1000000) {
-    ++average->tv_sec;
-    average->tv_usec -= 1000000;
-  }
-
-  while (average->tv_usec < 0) {
-    --average->tv_sec;
-    average->tv_usec += 1000000;
-  }
-
-}
+ }
 
 /* ================================================== */
 
@@ -264,17 +242,185 @@ UTI_TimestampToString(NTP_int64 *ts)
 /* ================================================== */
 
 char *
-UTI_IPToDottedQuad(unsigned long ip)
+UTI_RefidToString(unsigned long ref_id)
 {
-  unsigned long a, b, c, d;
-  char *result;
-  a = (ip>>24) & 0xff;
-  b = (ip>>16) & 0xff;
-  c = (ip>> 8) & 0xff;
-  d = (ip>> 0) & 0xff;
+  unsigned int i, j, c;
+  char buf[5], *result;
+
+  for (i = j = 0; i < 4; i++) {
+    c = (ref_id >> (24 - i * 8)) & 0xff;
+    if (isprint(c))
+      buf[j++] = c;
+  }
+
+  buf[j] = '\0';
+
   result = NEXT_BUFFER;
-  snprintf(result, BUFFER_LENGTH, "%ld.%ld.%ld.%ld", a, b, c, d);
+  snprintf(result, BUFFER_LENGTH, "%s", buf);
   return result;
+}
+
+/* ================================================== */
+
+char *
+UTI_IPToString(IPAddr *addr)
+{
+  unsigned long a, b, c, d, ip;
+  uint8_t *ip6;
+  char *result;
+
+  result = NEXT_BUFFER;
+  switch (addr->family) {
+    case IPADDR_UNSPEC:
+      snprintf(result, BUFFER_LENGTH, "[UNSPEC]");
+      break;
+    case IPADDR_INET4:
+      ip = addr->addr.in4;
+      a = (ip>>24) & 0xff;
+      b = (ip>>16) & 0xff;
+      c = (ip>> 8) & 0xff;
+      d = (ip>> 0) & 0xff;
+      snprintf(result, BUFFER_LENGTH, "%ld.%ld.%ld.%ld", a, b, c, d);
+      break;
+    case IPADDR_INET6:
+      ip6 = addr->addr.in6;
+#ifdef HAVE_IPV6
+      inet_ntop(AF_INET6, ip6, result, BUFFER_LENGTH);
+#else
+      snprintf(result, BUFFER_LENGTH, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+               ip6[0], ip6[1], ip6[2], ip6[3], ip6[4], ip6[5], ip6[6], ip6[7],
+               ip6[8], ip6[9], ip6[10], ip6[11], ip6[12], ip6[13], ip6[14], ip6[15]);
+#endif
+      break;
+    default:
+      snprintf(result, BUFFER_LENGTH, "[UNKNOWN]");
+  }
+  return result;
+}
+
+/* ================================================== */
+
+int
+UTI_StringToIP(const char *addr, IPAddr *ip)
+{
+#ifdef HAVE_IPV6
+  struct in_addr in4;
+  struct in6_addr in6;
+
+  if (inet_pton(AF_INET, addr, &in4) > 0) {
+    ip->family = IPADDR_INET4;
+    ip->addr.in4 = ntohl(in4.s_addr);
+    return 1;
+  }
+
+  if (inet_pton(AF_INET6, addr, &in6) > 0) {
+    ip->family = IPADDR_INET6;
+    memcpy(ip->addr.in6, in6.s6_addr, sizeof (ip->addr.in6));
+    return 1;
+  }
+#else
+  unsigned long a, b, c, d, n;
+
+  n = sscanf(addr, "%lu.%lu.%lu.%lu", &a, &b, &c, &d);
+  if (n == 4) {
+    ip->family = IPADDR_INET4;
+    ip->addr.in4 = ((a & 0xff) << 24) | ((b & 0xff) << 16) | 
+                   ((c & 0xff) << 8) | (d & 0xff);
+    return 1;
+  }
+#endif
+
+  return 0;
+}
+
+/* ================================================== */
+
+unsigned long
+UTI_IPToRefid(IPAddr *ip)
+{
+  MD5_CTX ctx;
+
+  switch (ip->family) {
+    case IPADDR_INET4:
+      return ip->addr.in4;
+    case IPADDR_INET6:
+      MD5Init(&ctx);
+      MD5Update(&ctx, (unsigned const char *) ip->addr.in6, sizeof (ip->addr.in6));
+      MD5Final(&ctx);
+      return ctx.digest[0] << 24 | ctx.digest[1] << 16 | ctx.digest[2] << 8 | ctx.digest[3];
+  }
+  return 0;
+}
+
+/* ================================================== */
+
+void
+UTI_IPHostToNetwork(IPAddr *src, IPAddr *dest)
+{
+  /* Don't send uninitialized bytes over network */
+  memset(dest, 0, sizeof (IPAddr));
+
+  dest->family = htons(src->family);
+
+  switch (src->family) {
+    case IPADDR_INET4:
+      dest->addr.in4 = htonl(src->addr.in4);
+      break;
+    case IPADDR_INET6:
+      memcpy(dest->addr.in6, src->addr.in6, sizeof (dest->addr.in6));
+      break;
+  }
+}
+
+/* ================================================== */
+
+void
+UTI_IPNetworkToHost(IPAddr *src, IPAddr *dest)
+{
+  dest->family = ntohs(src->family);
+
+  switch (dest->family) {
+    case IPADDR_INET4:
+      dest->addr.in4 = ntohl(src->addr.in4);
+      break;
+    case IPADDR_INET6:
+      memcpy(dest->addr.in6, src->addr.in6, sizeof (dest->addr.in6));
+      break;
+  }
+}
+
+/* ================================================== */
+
+int
+UTI_CompareIPs(IPAddr *a, IPAddr *b, IPAddr *mask)
+{
+  int i, d;
+
+  if (a->family != b->family)
+    return a->family - b->family;
+
+  if (mask && mask->family != b->family)
+    mask = NULL;
+
+  switch (a->family) {
+    case IPADDR_UNSPEC:
+      return 0;
+    case IPADDR_INET4:
+      if (mask)
+        return (a->addr.in4 & mask->addr.in4) - (b->addr.in4 & mask->addr.in4);
+      else
+        return a->addr.in4 - b->addr.in4;
+    case IPADDR_INET6:
+      for (i = 0, d = 0; !d && i < 16; i++) {
+        if (mask)
+          d = (a->addr.in6[i] & mask->addr.in6[i]) -
+              (b->addr.in6[i] & mask->addr.in6[i]);
+        else
+          d = a->addr.in6[i] - b->addr.in6[i];
+      }
+      return d;
+  }
+  return 0;
 }
 
 /* ================================================== */
@@ -346,19 +492,112 @@ UTI_Int64ToTimeval(NTP_int64 *src,
 }
 
 /* ================================================== */
-/* Force a core dump and exit without doing abort() or assert(0).
-   These do funny things with the call stack in the core file that is
-   generated, which makes diagnosis difficult. */
 
-int
-croak(const char *file, int line, const char *msg)
+void
+UTI_TimevalNetworkToHost(Timeval *src, struct timeval *dest)
 {
-  int a;
-  LOG(LOGS_ERR, LOGF_Util, "Unexpected condition [%s] at %s:%d, core dumped",
-      msg, file, line);
-  a = * (int *) 0;
-  return a; /* Can't happen - this stops the optimiser optimising the
-               line above */
+  uint32_t sec_low, sec_high;
+
+  dest->tv_usec = ntohl(src->tv_nsec) / 1000;
+  sec_high = ntohl(src->tv_sec_high);
+  sec_low = ntohl(src->tv_sec_low);
+
+  /* get the missing bits from current time when received timestamp
+     is only 32-bit */
+  if (sizeof (time_t) > 4 && sec_high == TV_NOHIGHSEC) {
+    struct timeval now;
+    struct timezone tz;
+
+    gettimeofday(&now, &tz);
+    sec_high = now.tv_sec >> 16 >> 16;
+  }
+  dest->tv_sec = (time_t)sec_high << 16 << 16 | sec_low;
+}
+
+/* ================================================== */
+
+void
+UTI_TimevalHostToNetwork(struct timeval *src, Timeval *dest)
+{
+  dest->tv_nsec = htonl(src->tv_usec * 1000);
+  if (sizeof (time_t) > 4)
+    dest->tv_sec_high = htonl(src->tv_sec >> 16 >> 16);
+  else
+    dest->tv_sec_high = htonl(TV_NOHIGHSEC);
+  dest->tv_sec_low = htonl(src->tv_sec);
+}
+
+/* ================================================== */
+
+#define FLOAT_EXP_BITS 7
+#define FLOAT_EXP_MIN (-(1 << (FLOAT_EXP_BITS - 1)))
+#define FLOAT_EXP_MAX (-FLOAT_EXP_MIN - 1)
+#define FLOAT_COEF_BITS ((int)sizeof (int32_t) * 8 - FLOAT_EXP_BITS)
+#define FLOAT_COEF_MIN (-(1 << (FLOAT_COEF_BITS - 1)))
+#define FLOAT_COEF_MAX (-FLOAT_COEF_MIN - 1)
+
+double
+UTI_FloatNetworkToHost(Float f)
+{
+  int32_t exp, coef, x;
+
+  x = ntohl(f.f);
+  exp = (x >> FLOAT_COEF_BITS) - FLOAT_COEF_BITS;
+  coef = x << FLOAT_EXP_BITS >> FLOAT_EXP_BITS;
+  return coef * pow(2.0, exp);
+}
+
+Float
+UTI_FloatHostToNetwork(double x)
+{
+  int32_t exp, coef, neg;
+  Float f;
+
+  if (x < 0.0) {
+    x = -x;
+    neg = 1;
+  } else {
+    neg = 0;
+  }
+
+  if (x < 1.0e-100) {
+    exp = coef = 0;
+  } else if (x > 1.0e100) {
+    exp = FLOAT_EXP_MAX;
+    coef = FLOAT_COEF_MAX + neg;
+  } else {
+    exp = log(x) / log(2) + 1;
+    coef = x * pow(2.0, -exp + FLOAT_COEF_BITS) + 0.5;
+
+    assert(coef > 0);
+
+    /* we may need to shift up to two bits down */
+    while (coef > FLOAT_COEF_MAX + neg) {
+      coef >>= 1;
+      exp++;
+    }
+
+    if (exp > FLOAT_EXP_MAX) {
+      /* overflow */
+      exp = FLOAT_EXP_MAX;
+      coef = FLOAT_COEF_MAX + neg;
+    } else if (exp < FLOAT_EXP_MIN) {
+      /* underflow */
+      if (exp + FLOAT_COEF_BITS >= FLOAT_EXP_MIN) {
+        coef >>= FLOAT_EXP_MIN - exp;
+        exp = FLOAT_EXP_MIN;
+      } else {
+        exp = coef = 0;
+      }
+    }
+  }
+
+  /* negate back */
+  if (neg)
+    coef = (uint32_t)-coef << FLOAT_EXP_BITS >> FLOAT_EXP_BITS;
+
+  f.f = htonl(exp << FLOAT_COEF_BITS | coef);
+  return f;
 }
 
 /* ================================================== */

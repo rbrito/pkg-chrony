@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -31,11 +31,13 @@
 #ifndef GOT_CMDMON_H
 #define GOT_CMDMON_H
 
+#include "addressing.h"
+
 extern void CAM_Initialise(void);
 
 extern void CAM_Finalise(void);
 
-extern int CAM_AddAccessRestriction(unsigned long ip_addr, int subnet_bits, int allow, int all);
-extern int CAM_CheckAccessRestriction(unsigned long ip_addr);
+extern int CAM_AddAccessRestriction(IPAddr *ip_addr, int subnet_bits, int allow, int all);
+extern int CAM_CheckAccessRestriction(IPAddr *ip_addr);
 
 #endif /* GOT_CMDMON_H */

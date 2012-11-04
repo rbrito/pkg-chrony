@@ -7,6 +7,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
+ * Copyright (C) Miroslav Lichvar  2009
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +20,7 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
  **********************************************************************
 
@@ -44,8 +45,10 @@ static int are_we_synchronised;
 static int enable_local_stratum;
 static int local_stratum;
 static NTP_Leap our_leap_status;
+static int our_leap_sec;
 static int our_stratum;
 static unsigned long our_ref_id;
+static IPAddr our_ref_ip;
 struct timeval our_ref_time; /* Stored relative to reference, NOT local time */
 static double our_offset;
 static double our_skew;
@@ -57,6 +60,10 @@ static double max_update_skew;
 
 /* Flag indicating that we are initialised */
 static int initialised = 0;
+
+/* Threshold and update limit for stepping clock */
+static int make_step_limit;
+static double make_step_threshold;
 
 /* Flag and threshold for logging clock changes to syslog */
 static int do_log_change;
@@ -84,9 +91,6 @@ static unsigned long logwrites = 0;
 
 /* ================================================== */
 
-/* Day number of 1 Jan 1970 */
-#define MJD_1970 40587
-
 /* Reference ID supplied when we are locally referenced */
 #define LOCAL_REFERENCE_ID 0x7f7f0101UL
 
@@ -102,7 +106,8 @@ REF_Initialise(void)
   double our_frequency_ppm;
 
   are_we_synchronised = 0;
-  our_leap_status = LEAP_Normal;
+  our_leap_status = LEAP_Unsynchronised;
+  our_leap_sec = 0;
   initialised = 1;
   our_root_dispersion = 1.0;
   our_root_delay = 1.0;
@@ -160,6 +165,7 @@ REF_Initialise(void)
 
   enable_local_stratum = CNF_AllowLocalReference(&local_stratum);
 
+  CNF_GetMakeStep(&make_step_limit, &make_step_threshold);
   CNF_GetLogChange(&do_log_change, &log_change_threshold);
   CNF_GetMailOnChange(&do_mail_change, &mail_change_threshold, &mail_change_user);
 
@@ -176,6 +182,10 @@ REF_Initialise(void)
 void
 REF_Finalise(void)
 {
+  if (our_leap_sec) {
+    LCL_SetLeap(0);
+  }
+
   if (logfile) {
     fclose(logfile);
   }
@@ -238,7 +248,9 @@ update_drift_file(double freq_ppm, double skew)
   /* Clone the file attributes from the existing file if there is one. */
 
   if (!stat(drift_file,&buf)) {
-    chown(temp_drift_file,buf.st_uid,buf.st_gid);
+    if (chown(temp_drift_file,buf.st_uid,buf.st_gid)) {
+      LOG(LOGS_WARN, LOGF_Reference, "Could not change ownership of temporary driftfile %s.tmp", drift_file);
+    }
     chmod(temp_drift_file,buf.st_mode&0777);
   }
 
@@ -311,11 +323,83 @@ maybe_log_offset(double offset)
 
 /* ================================================== */
 
+static void
+maybe_make_step()
+{
+  if (make_step_limit == 0) {
+    return;
+  } else if (make_step_limit > 0) {
+    make_step_limit--;
+  }
+  LCL_MakeStep(make_step_threshold);
+}
+
+/* ================================================== */
+
+static void
+update_leap_status(NTP_Leap leap)
+{
+  time_t now;
+  struct tm stm;
+  int leap_sec;
+
+  leap_sec = 0;
+
+  if (leap == LEAP_InsertSecond || leap == LEAP_DeleteSecond) {
+    /* Insert/delete leap second only on June 30 or December 31
+       and in other months ignore the leap status completely */
+
+    now = time(NULL);
+    stm = *gmtime(&now);
+
+    if (stm.tm_mon != 5 && stm.tm_mon != 11) {
+      leap = LEAP_Normal;
+    } else if ((stm.tm_mon == 5 && stm.tm_mday == 30) ||
+        (stm.tm_mon == 11 && stm.tm_mday == 31)) {
+      if (leap == LEAP_InsertSecond) {
+        leap_sec = 1;
+      } else {
+        leap_sec = -1;
+      }
+    }
+  }
+  
+  if (leap_sec != our_leap_sec) {
+    LCL_SetLeap(leap_sec);
+    our_leap_sec = leap_sec;
+  }
+
+  our_leap_status = leap;
+}
+
+/* ================================================== */
+
+static void
+write_log(struct timeval *ref_time, char *ref, int stratum, double freq, double skew, double offset)
+{
+  if (logfile) {
+
+    if (((logwrites++) % 32) == 0) {
+      fprintf(logfile,
+              "=======================================================================\n"
+              "   Date (UTC) Time     IP Address   St   Freq ppm   Skew ppm     Offset\n"
+              "=======================================================================\n");
+    }
+          
+    fprintf(logfile, "%s %-15s %2d %10.3f %10.3f %10.3e\n",
+            UTI_TimeToLogForm(ref_time->tv_sec), ref, stratum, freq, skew, offset);
+    
+    fflush(logfile);
+  }
+}
+
+/* ================================================== */
 
 void
 REF_SetReference(int stratum,
                  NTP_Leap leap,
                  unsigned long ref_id,
+                 IPAddr *ref_ip,
                  struct timeval *ref_time,
                  double offset,
                  double frequency,
@@ -334,6 +418,12 @@ REF_SetReference(int stratum,
   double abs_freq_ppm;
 
   assert(initialised);
+
+  /* Avoid getting NaNs */
+  if (skew == 0.0)
+    skew = 1e-10;
+  if (our_skew == 0.0)
+    our_skew = 1e-10;
 
   /* If we get a serious rounding error in the source stats regression
      processing, there is a remote chance that the skew argument is a
@@ -356,12 +446,17 @@ REF_SetReference(int stratum,
 
   are_we_synchronised = 1;
   our_stratum = stratum + 1;
-  our_leap_status = leap;
   our_ref_id = ref_id;
+  if (ref_ip)
+    our_ref_ip = *ref_ip;
+  else
+    our_ref_ip.family = IPADDR_UNSPEC;
   our_ref_time = *ref_time;
   our_offset = offset;
   our_root_delay = root_delay;
   our_root_dispersion = root_dispersion;
+
+  update_leap_status(leap);
 
   /* Eliminate updates that are based on totally unreliable frequency
      information */
@@ -410,27 +505,16 @@ REF_SetReference(int stratum,
     our_residual_freq = frequency;
   }
 
+  maybe_make_step();
+
   abs_freq_ppm = LCL_ReadAbsoluteFrequency();
 
-  if (logfile) {
-
-    if (((logwrites++) % 32) == 0) {
-      fprintf(logfile,
-              "=======================================================================\n"
-              "   Date (UTC) Time     IP Address   St   Freq ppm   Skew ppm     Offset\n"
-              "=======================================================================\n");
-    }
-          
-    fprintf(logfile, "%s %-15s %2d %10.3f %10.3f %10.3e\n",
-            UTI_TimeToLogForm(ref_time->tv_sec),
-            UTI_IPToDottedQuad(our_ref_id),
+  write_log(ref_time,
+            our_ref_ip.family != IPADDR_UNSPEC ? UTI_IPToString(&our_ref_ip) : UTI_RefidToString(our_ref_id),
             our_stratum,
             abs_freq_ppm,
             1.0e6*our_skew,
             our_offset);
-    
-    fflush(logfile);
-  }
 
   if (drift_file) {
     update_drift_file(abs_freq_ppm, our_skew);
@@ -454,7 +538,6 @@ REF_SetManualReference
  double skew
 )
 {
-  int millisecond;
   double abs_freq_ppm;
 
   /* We are not synchronised to an external source, as such.  This is
@@ -467,22 +550,16 @@ REF_SetManualReference
 
   maybe_log_offset(offset);
   LCL_AccumulateFrequencyAndOffset(frequency, offset);
+  maybe_make_step();
 
   abs_freq_ppm = LCL_ReadAbsoluteFrequency();
 
-  if (logfile) {
-    millisecond = ref_time->tv_usec / 1000;
-
-    fprintf(logfile, "%5s %-15s %2d %10.3f %10.3f %10.3e\n",
-            UTI_TimeToLogForm(ref_time->tv_sec),
+  write_log(ref_time,
             "127.127.1.1",
             our_stratum,
             abs_freq_ppm,
             1.0e6*our_skew,
             our_offset);
-
-    fflush(logfile);
-  }
 
   if (drift_file) {
     update_drift_file(abs_freq_ppm, our_skew);
@@ -495,28 +572,23 @@ void
 REF_SetUnsynchronised(void)
 {
   /* Variables required for logging to statistics log */
-  int millisecond;
   struct timeval now;
   double local_clock_err;
 
   assert(initialised);
 
-  if (logfile) {
-    LCL_ReadCookedTime(&now, &local_clock_err);
+  LCL_ReadCookedTime(&now, &local_clock_err);
 
-    millisecond = now.tv_usec / 1000;
-
-    fprintf(logfile, "%s %-15s  0 %10.3f %10.3f %10.3e\n",
-            UTI_TimeToLogForm(now.tv_sec),
+  write_log(&now,
             "0.0.0.0",
+            0,
             LCL_ReadAbsoluteFrequency(),
             1.0e6*our_skew,
             0.0);
-    
-    fflush(logfile);
-  }
 
   are_we_synchronised = 0;
+
+  update_leap_status(LEAP_Unsynchronised);
 }
 
 /* ================================================== */
@@ -636,6 +708,14 @@ REF_DisableLocal(void)
 
 /* ================================================== */
 
+int
+REF_IsLocalActive(void)
+{
+  return !are_we_synchronised && enable_local_stratum;
+}
+
+/* ================================================== */
+
 void
 REF_GetTrackingReport(RPT_TrackingReport *rep)
 {
@@ -654,9 +734,10 @@ REF_GetTrackingReport(RPT_TrackingReport *rep)
     extra_dispersion = (our_skew + fabs(our_residual_freq)) * elapsed;
     
     rep->ref_id = our_ref_id;
+    rep->ip_addr = our_ref_ip;
     rep->stratum = our_stratum;
     rep->ref_time = our_ref_time;
-    UTI_DoubleToTimeval(correction, &rep->current_correction);
+    rep->current_correction = correction;
     rep->freq_ppm = LCL_ReadAbsoluteFrequency();
     rep->resid_freq_ppm = 1.0e6 * our_residual_freq;
     rep->skew_ppm = 1.0e6 * our_skew;
@@ -666,9 +747,10 @@ REF_GetTrackingReport(RPT_TrackingReport *rep)
   } else if (enable_local_stratum) {
 
     rep->ref_id = LOCAL_REFERENCE_ID;
+    rep->ip_addr.family = IPADDR_UNSPEC;
     rep->stratum = local_stratum;
     rep->ref_time = now_cooked;
-    UTI_DoubleToTimeval(correction, &rep->current_correction);
+    rep->current_correction = correction;
     rep->freq_ppm = LCL_ReadAbsoluteFrequency();
     rep->resid_freq_ppm = 0.0;
     rep->skew_ppm = 0.0;
@@ -678,10 +760,11 @@ REF_GetTrackingReport(RPT_TrackingReport *rep)
   } else {
 
     rep->ref_id = 0UL;
+    rep->ip_addr.family = IPADDR_UNSPEC;
     rep->stratum = 0;
     rep->ref_time.tv_sec = 0;
     rep->ref_time.tv_usec = 0;
-    UTI_DoubleToTimeval(correction, &rep->current_correction);
+    rep->current_correction = correction;
     rep->freq_ppm = LCL_ReadAbsoluteFrequency();
     rep->resid_freq_ppm = 0.0;
     rep->skew_ppm = 0.0;
