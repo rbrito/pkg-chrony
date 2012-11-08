@@ -1,3 +1,5 @@
-changes-from-hasler.patch
+spelling-fixes.patch
+fix-makefile.in.patch
+add-version.h.patch
 don-t-look-for-ncurses.patch
 format-not-a-string-literal-and-no-format-arguments.patch
