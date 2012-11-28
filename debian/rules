@@ -37,7 +37,6 @@ clean:
 
 	# Add here commands to clean up after the build process.
 	[ ! -f Makefile ] || $(MAKE) distclean
-	rm -f faq.html chrony.html chrony.info
 	dh_clean
 
 install: install-stamp
