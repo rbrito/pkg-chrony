@@ -1,6 +1,6 @@
-chrony (1.26-3~1.gbpd32e0e) UNRELEASED; urgency=low
+chrony (1.26-3~2.gbp4220bf) UNRELEASED; urgency=low
 
-  ** SNAPSHOT build @d32e0e8f2b91ec6c4049d971a454f71f2eb71239 **
+  ** SNAPSHOT build @4220bf63472fda76d3febe0c64f27273a1a221d4 **
 
   * Declare source format of the package to be "3.0 (quilt)".
   * Reorganize/canonicalize files with a run of wrap-and-sort.
@@ -18,6 +18,12 @@ chrony (1.26-3~1.gbpd32e0e) UNRELEASED; urgency=low
     + Patch the configure script to not look for ncurses.  Thanks to Sven
       Joachim <svenjoac@gmx.de> for the patch. (Closes: #646732)
     + Unapply by default patches moved to debian/patches.
+  * debian/{compat,control}:
+    + Move to debhelper level 9 to gain implicit hardening.
+  * debian/{clean,rules}:
+    + Leave the work of cleaning files to debhelper.
+  * debian/rules:
+    + Add embrionary short-style dh-based rules file.
 
  -- Rogério Brito <rbrito@ime.usp.br>  Wed, 28 Nov 2012 01:35:30 -0200
 
