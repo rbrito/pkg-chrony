@@ -1,3 +1,26 @@
+chrony (1.26-3~1.gbpd32e0e) UNRELEASED; urgency=low
+
+  ** SNAPSHOT build @d32e0e8f2b91ec6c4049d971a454f71f2eb71239 **
+
+  * Declare source format of the package to be "3.0 (quilt)".
+  * Reorganize/canonicalize files with a run of wrap-and-sort.
+  * debian/control:
+    + Change build-dependency from libedit-dev to libreadline-gplv2-dev.
+  * debian/{post,pre}{inst,rm}:
+    + Fix lintian's maintainer-script-lacks-debhelper-token.
+  * Add support for status action to init.d script.
+    Thanks to Peter Eisentraut <petere@debian.org> for the patch.
+    (Closes: #652207)
+  * debian/patches:
+    + Split out monolithic patch in independent changes. Thanks to Ana
+      Beatriz Guerrero Lopez for the suggestion (Closes: 637514)
+    + Fix GCC's error when using hardening options.
+    + Patch the configure script to not look for ncurses.  Thanks to Sven
+      Joachim <svenjoac@gmx.de> for the patch. (Closes: #646732)
+    + Unapply by default patches moved to debian/patches.
+
+ -- Rogério Brito <rbrito@ime.usp.br>  Wed, 28 Nov 2012 01:35:30 -0200
+
 chrony (1.26-2) unstable; urgency=low
 
   * Fixed Makefile.in so that getdate.c gets made (and removed
