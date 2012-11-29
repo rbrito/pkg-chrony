@@ -1,6 +1,6 @@
-chrony (1.26-3~2.gbp4220bf) UNRELEASED; urgency=low
+chrony (1.26-3~3.gbpf56948) UNRELEASED; urgency=low
 
-  ** SNAPSHOT build @4220bf63472fda76d3febe0c64f27273a1a221d4 **
+  ** SNAPSHOT build @f569482dbc4d16381e679030ebec1c5270538ae0 **
 
   * Declare source format of the package to be "3.0 (quilt)".
   * Reorganize/canonicalize files with a run of wrap-and-sort.
@@ -24,6 +24,18 @@ chrony (1.26-3~2.gbp4220bf) UNRELEASED; urgency=low
     + Leave the work of cleaning files to debhelper.
   * debian/rules:
     + Add embrionary short-style dh-based rules file.
+  * debian/copyright:
+    + Change to Copyright Format 1.0.
+  * debian/dirs:
+    + Remove some directories that are automatically created.
+  * debian/{docs,rules}:
+    + Tell debhelper that upstream's changelog is NEWS.
+  * debian/docs:
+    + Keep one file per line, for readability and diff'ability purposes.
+  * debian/{install,rules}:
+    + Simplify debian/rules: let debhelper install files.
+  * debian/rules:
+    + Fix installation of manpages.
 
  -- Rogério Brito <rbrito@ime.usp.br>  Wed, 28 Nov 2012 01:35:30 -0200
 
