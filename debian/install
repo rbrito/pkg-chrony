@@ -1,0 +1,3 @@
+debian/chrony.conf              usr/share/chrony
+debian/chrony.conf.md5sum       usr/share/chrony
+chrony.info                     usr/share/info

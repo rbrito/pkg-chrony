@@ -17,9 +17,6 @@ override_dh_auto_install:
 
 	perl faqgen.pl < faq.txt > faq.html
 
-	cp debian/chrony.conf debian/chrony/usr/share/chrony
-	cp debian/chrony.conf.md5sum debian/chrony/usr/share/chrony
-	cp chrony.info debian/chrony/usr/share/info
 	cp debian/ip-up debian/chrony/etc/ppp/ip-up.d/chrony
 	cp debian/ip-down debian/chrony/etc/ppp/ip-down.d/chrony
 	cp debian/apm debian/chrony/etc/apm/event.d/01chrony
