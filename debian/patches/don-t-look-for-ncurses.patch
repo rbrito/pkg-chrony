@@ -7,7 +7,7 @@ Reviewed-by: Rogério Theodoro de Brito <rbrito@ime.usp.br>
 
 --- a/configure
 +++ b/configure
-@@ -449,12 +449,12 @@
+@@ -482,12 +482,12 @@
  
    if [ "x$READLINE_LINK" = "x" ] && [ $try_readline = "1" ]; then
      if test_code readline 'stdio.h readline/readline.h readline/history.h' \
