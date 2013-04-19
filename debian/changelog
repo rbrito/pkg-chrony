@@ -1,7 +1,8 @@
-chrony (1.26-3~3.gbpf56948) UNRELEASED; urgency=low
+chrony (1.27-1~2.gbp70bd75) UNRELEASED; urgency=low
 
-  ** SNAPSHOT build @f569482dbc4d16381e679030ebec1c5270538ae0 **
+  ** SNAPSHOT build @70bd75b60d8e546ecf696cd221aa8991c5e090dc **
 
+  * Imported Upstream version 1.27
   * Declare source format of the package to be "3.0 (quilt)".
   * Reorganize/canonicalize files with a run of wrap-and-sort.
   * debian/control:
@@ -18,14 +19,19 @@ chrony (1.26-3~3.gbpf56948) UNRELEASED; urgency=low
     + Patch the configure script to not look for ncurses.  Thanks to Sven
       Joachim <svenjoac@gmx.de> for the patch. (Closes: #646732)
     + Unapply by default patches moved to debian/patches.
+    + format-not-a-string... Removed, applied upstream.
+    + Refresh patches.
+    + Update add-version.h.patch.
   * debian/{compat,control}:
     + Move to debhelper level 9 to gain implicit hardening.
   * debian/{clean,rules}:
     + Leave the work of cleaning files to debhelper.
   * debian/rules:
     + Add embrionary short-style dh-based rules file.
+    + Enable parallel builds.
   * debian/copyright:
     + Change to Copyright Format 1.0.
+    + Update copyright years.
   * debian/dirs:
     + Remove some directories that are automatically created.
   * debian/{docs,rules}:
@@ -36,6 +42,10 @@ chrony (1.26-3~3.gbpf56948) UNRELEASED; urgency=low
     + Simplify debian/rules: let debhelper install files.
   * debian/rules:
     + Fix installation of manpages.
+  * debian/watch:
+    + Add watch file.
+  * debian/clean:
+    + Remove spurious log during clean.
 
  -- Rogério Brito <rbrito@ime.usp.br>  Wed, 28 Nov 2012 01:35:30 -0200
 
