@@ -3,7 +3,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009-2011
+ * Copyright (C) Miroslav Lichvar  2009-2012
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -48,7 +48,6 @@ static int our_stratum;
 static uint32_t our_ref_id;
 static IPAddr our_ref_ip;
 struct timeval our_ref_time; /* Stored relative to reference, NOT local time */
-static double our_offset;
 static double our_skew;
 static double our_residual_freq;
 static double our_root_delay;
@@ -56,12 +55,24 @@ static double our_root_dispersion;
 
 static double max_update_skew;
 
+static double last_offset;
+static double avg2_offset;
+static int avg2_moving;
+
+static double correction_time_ratio;
+
 /* Flag indicating that we are initialised */
 static int initialised = 0;
 
 /* Threshold and update limit for stepping clock */
 static int make_step_limit;
 static double make_step_threshold;
+
+/* Number of updates before offset checking, number of ignored updates
+   before exiting and the maximum allowed offset */
+static int max_offset_delay;
+static int max_offset_ignore;
+static double max_offset;
 
 /* Flag and threshold for logging clock changes to syslog */
 static int do_log_change;
@@ -77,6 +88,11 @@ static char *drift_file=NULL;
 static double drift_file_age;
 
 static void update_drift_file(double, double);
+
+/* Name of a system timezone containing leap seconds occuring at midnight */
+static char *leap_tzname;
+static time_t last_tz_leap_check;
+static NTP_Leap tz_leap;
 
 /* ================================================== */
 
@@ -110,6 +126,25 @@ static double last_ref_update_interval;
 
 /* ================================================== */
 
+static NTP_Leap get_tz_leap(time_t when);
+
+/* ================================================== */
+
+static void
+handle_slew(struct timeval *raw,
+            struct timeval *cooked,
+            double dfreq,
+            double doffset,
+            int is_step_change,
+            void *anything)
+{
+  if (is_step_change) {
+    UTI_AddDoubleToTimeval(&last_ref_update, -doffset, &last_ref_update);
+  }
+}
+
+/* ================================================== */
+
 void
 REF_Initialise(void)
 {
@@ -139,9 +174,8 @@ REF_Initialise(void)
           /* We have read valid data */
           our_frequency_ppm = file_freq_ppm;
           our_skew = 1.0e-6 * file_skew_ppm;
-          LOG(LOGS_INFO, LOGF_Reference, "Frequency %.3f +- %.3f ppm read from %s", file_freq_ppm, file_skew_ppm, drift_file);
+          LOG(LOGS_INFO, LOGF_Reference, "Frequency %.3f +/- %.3f ppm read from %s", file_freq_ppm, file_skew_ppm, drift_file);
           LCL_SetAbsoluteFrequency(our_frequency_ppm);
-          LCL_ReadCookedTime(&last_ref_update, NULL);
         } else {
           LOG(LOGS_WARN, LOGF_Reference, "Could not parse valid frequency and skew from driftfile %s",
               drift_file);
@@ -162,14 +196,29 @@ REF_Initialise(void)
   }
 
   logfileid = CNF_GetLogTracking() ? LOG_FileOpen("tracking",
-      "   Date (UTC) Time     IP Address   St   Freq ppm   Skew ppm     Offset")
+      "   Date (UTC) Time     IP Address   St   Freq ppm   Skew ppm     Offset L")
     : -1;
 
   max_update_skew = fabs(CNF_GetMaxUpdateSkew()) * 1.0e-6;
 
+  correction_time_ratio = CNF_GetCorrectionTimeRatio();
+
   enable_local_stratum = CNF_AllowLocalReference(&local_stratum);
 
+  leap_tzname = CNF_GetLeapSecTimezone();
+  if (leap_tzname) {
+    /* Check that the timezone has good data for Jun 30 2008 and Dec 31 2008 */
+    if (get_tz_leap(1214784000) == LEAP_Normal &&
+        get_tz_leap(1230681600) == LEAP_InsertSecond) {
+      LOG(LOGS_INFO, LOGF_Reference, "Using %s timezone to obtain leap second data", leap_tzname);
+    } else {
+      LOG(LOGS_WARN, LOGF_Reference, "Timezone %s failed leap second check, ignoring", leap_tzname);
+      leap_tzname = NULL;
+    }
+  }
+
   CNF_GetMakeStep(&make_step_limit, &make_step_threshold);
+  CNF_GetMaxChange(&max_offset_delay, &max_offset_ignore, &max_offset);
   CNF_GetLogChange(&do_log_change, &log_change_threshold);
   CNF_GetMailOnChange(&do_mail_change, &mail_change_threshold, &mail_change_user);
 
@@ -180,10 +229,13 @@ REF_Initialise(void)
     memset(fb_drifts, 0, sizeof (struct fb_drift) * (fb_drift_max - fb_drift_min + 1));
     next_fb_drift = 0;
     fb_drift_timeout_id = -1;
-    last_ref_update.tv_sec = 0;
-    last_ref_update.tv_usec = 0;
-    last_ref_update_interval = 0;
   }
+
+  last_ref_update.tv_sec = 0;
+  last_ref_update.tv_usec = 0;
+  last_ref_update_interval = 0.0;
+
+  LCL_AddParameterChangeHandler(handle_slew, NULL);
 
   /* And just to prevent anything wierd ... */
   if (do_log_change) {
@@ -262,9 +314,12 @@ update_drift_file(double freq_ppm, double skew)
   }
 
   /* Write the frequency and skew parameters in ppm */
-  fprintf(out, "%20.4f %20.4f\n", freq_ppm, 1.0e6 * skew);
-
-  fclose(out);
+  if ((fprintf(out, "%20.4f %20.4f\n", freq_ppm, 1.0e6 * skew) < 0) |
+      fclose(out)) {
+    LOG(LOGS_WARN, LOGF_Reference, "Could not write to temporary driftfile %s.tmp",
+        drift_file);
+    return;
+  }
 
   /* Clone the file attributes from the existing file if there is one. */
 
@@ -468,20 +523,109 @@ maybe_make_step()
 
 /* ================================================== */
 
-static void
-update_leap_status(NTP_Leap leap)
+static int
+is_offset_ok(double offset)
 {
-  time_t now;
+  if (max_offset_delay < 0)
+    return 1;
+
+  if (max_offset_delay > 0) {
+    max_offset_delay--;
+    return 1;
+  }
+
+  offset = fabs(offset);
+  if (offset > max_offset) {
+    LOG(LOGS_WARN, LOGF_Reference,
+        "Adjustment of %.3f seconds exceeds the allowed maximum of %.3f seconds (%s) ",
+        offset, max_offset, !max_offset_ignore ? "exiting" : "ignored");
+    if (!max_offset_ignore)
+      SCH_QuitProgram();
+    else if (max_offset_ignore > 0)
+      max_offset_ignore--;
+    return 0;
+  }
+  return 1;
+}
+
+/* ================================================== */
+
+static NTP_Leap
+get_tz_leap(time_t when)
+{
+  struct tm stm;
+  time_t t;
+  char *tz_env, tz_orig[128];
+
+  /* Do this check at most twice a day */
+  when = when / (12 * 3600) * (12 * 3600);
+  if (last_tz_leap_check == when)
+      return tz_leap;
+
+  last_tz_leap_check = when;
+  tz_leap = LEAP_Normal;
+
+  stm = *gmtime(&when);
+
+  /* Check for leap second only in the latter half of June and December */
+  if (stm.tm_mon == 5 && stm.tm_mday > 14)
+    stm.tm_mday = 30;
+  else if (stm.tm_mon == 11 && stm.tm_mday > 14)
+    stm.tm_mday = 31;
+  else
+    return tz_leap;
+
+  /* Temporarily switch to the timezone containing leap seconds */
+  tz_env = getenv("TZ");
+  if (tz_env) {
+    if (strlen(tz_env) >= sizeof (tz_orig))
+      return tz_leap;
+    strcpy(tz_orig, tz_env);
+  }
+  setenv("TZ", leap_tzname, 1);
+  tzset();
+
+  /* Set the time to 23:59:60 and see how it overflows in mktime() */
+  stm.tm_sec = 60;
+  stm.tm_min = 59;
+  stm.tm_hour = 23;
+
+  t = mktime(&stm);
+
+  if (tz_env)
+    setenv("TZ", tz_orig, 1);
+  else
+    unsetenv("TZ");
+  tzset();
+
+  if (t == -1)
+    return tz_leap;
+
+  if (stm.tm_sec == 60)
+    tz_leap = LEAP_InsertSecond;
+  else if (stm.tm_sec == 1)
+    tz_leap = LEAP_DeleteSecond;
+
+  return tz_leap;
+}
+
+/* ================================================== */
+
+static void
+update_leap_status(NTP_Leap leap, time_t now)
+{
   struct tm stm;
   int leap_sec;
 
   leap_sec = 0;
 
+  if (leap_tzname && now && leap == LEAP_Normal)
+    leap = get_tz_leap(now);
+
   if (leap == LEAP_InsertSecond || leap == LEAP_DeleteSecond) {
     /* Insert/delete leap second only on June 30 or December 31
        and in other months ignore the leap status completely */
 
-    now = time(NULL);
     stm = *gmtime(&now);
 
     if (stm.tm_mon != 5 && stm.tm_mon != 11) {
@@ -507,11 +651,12 @@ update_leap_status(NTP_Leap leap)
 /* ================================================== */
 
 static void
-write_log(struct timeval *ref_time, char *ref, int stratum, double freq, double skew, double offset)
+write_log(struct timeval *ref_time, char *ref, int stratum, NTP_Leap leap, double freq, double skew, double offset)
 {
+  const char leap_codes[4] = {'N', '+', '-', '?'};
   if (logfileid != -1) {
-    LOG_FileWrite(logfileid, "%s %-15s %2d %10.3f %10.3f %10.3e",
-            UTI_TimeToLogForm(ref_time->tv_sec), ref, stratum, freq, skew, offset);
+    LOG_FileWrite(logfileid, "%s %-15s %2d %10.3f %10.3f %10.3e %1c",
+            UTI_TimeToLogForm(ref_time->tv_sec), ref, stratum, freq, skew, offset, leap_codes[leap]);
   }
 }
 
@@ -524,6 +669,7 @@ REF_SetReference(int stratum,
                  IPAddr *ref_ip,
                  struct timeval *ref_time,
                  double offset,
+                 double offset_sd,
                  double frequency,
                  double skew,
                  double root_delay,
@@ -535,11 +681,13 @@ REF_SetReference(int stratum,
   double old_weight, new_weight, sum_weight;
   double delta_freq1, delta_freq2;
   double skew1, skew2;
+  double our_offset;
   double our_frequency;
   double abs_freq_ppm;
   double update_interval;
   double elapsed;
-  struct timeval now;
+  double correction_rate;
+  struct timeval now, raw_now;
 
   assert(initialised);
 
@@ -567,6 +715,14 @@ REF_SetReference(int stratum,
     }
   }
     
+  LCL_ReadRawTime(&raw_now);
+  LCL_CookTime(&raw_now, &now, NULL);
+
+  UTI_DiffTimevalsToDouble(&elapsed, &now, ref_time);
+  our_offset = offset + elapsed * frequency;
+
+  if (!is_offset_ok(offset))
+    return;
 
   are_we_synchronised = 1;
   our_stratum = stratum + 1;
@@ -579,11 +735,31 @@ REF_SetReference(int stratum,
   our_root_delay = root_delay;
   our_root_dispersion = root_dispersion;
 
-  LCL_ReadCookedTime(&now, NULL);
-  UTI_DiffTimevalsToDouble(&elapsed, &now, ref_time);
-  our_offset = offset + elapsed * frequency;
+  update_leap_status(leap, raw_now.tv_sec);
 
-  update_leap_status(leap);
+  if (last_ref_update.tv_sec) {
+    UTI_DiffTimevalsToDouble(&update_interval, &now, &last_ref_update);
+    if (update_interval < 0.0)
+      update_interval = 0.0;
+  } else {
+    update_interval = 0.0;
+  }
+  last_ref_update = now;
+
+  /* We want to correct the offset quickly, but we also want to keep the
+     frequency error caused by the correction itself low.
+
+     Define correction rate as the area of the region bounded by the graph of
+     offset corrected in time. Set the rate so that the time needed to correct
+     an offset equal to the current sourcestats stddev will be equal to the
+     update interval multiplied by the correction time ratio (assuming linear
+     adjustment). The offset and the time needed to make the correction are
+     inversely proportional.
+
+     This is only a suggestion and it's up to the system driver how the
+     adjustment will be executed. */
+
+  correction_rate = correction_time_ratio * 0.5 * offset_sd * update_interval;
 
   /* Eliminate updates that are based on totally unreliable frequency
      information */
@@ -619,7 +795,7 @@ REF_SetReference(int stratum,
     our_residual_freq = new_freq - our_frequency;
 
     maybe_log_offset(our_offset);
-    LCL_AccumulateFrequencyAndOffset(our_frequency, our_offset);
+    LCL_AccumulateFrequencyAndOffset(our_frequency, our_offset, correction_rate);
     
   } else {
 
@@ -627,7 +803,7 @@ REF_SetReference(int stratum,
     LOG(LOGS_INFO, LOGF_Reference, "Skew %f too large to track, offset=%f", skew, our_offset);
 #endif
     maybe_log_offset(our_offset);
-    LCL_AccumulateOffset(our_offset);
+    LCL_AccumulateOffset(our_offset, correction_rate);
 
     our_residual_freq = frequency;
   }
@@ -639,11 +815,10 @@ REF_SetReference(int stratum,
   write_log(&now,
             our_ref_ip.family != IPADDR_UNSPEC ? UTI_IPToString(&our_ref_ip) : UTI_RefidToString(our_ref_id),
             our_stratum,
+            our_leap_status,
             abs_freq_ppm,
             1.0e6*our_skew,
             our_offset);
-
-  UTI_DiffTimevalsToDouble(&update_interval, &now, &last_ref_update);
 
   if (drift_file) {
     /* Update drift file at most once per hour */
@@ -659,8 +834,17 @@ REF_SetReference(int stratum,
     update_fb_drifts(abs_freq_ppm, update_interval);
   }
 
-  last_ref_update = now;
   last_ref_update_interval = update_interval;
+  last_offset = our_offset;
+
+  /* Update the moving average of squares of offset, quickly on start */
+  if (avg2_moving) {
+    avg2_offset += 0.1 * (our_offset * our_offset - avg2_offset);
+  } else {
+    if (avg2_offset > 0.0 && avg2_offset < our_offset * our_offset)
+      avg2_moving = 1;
+    avg2_offset = our_offset * our_offset;
+  }
 
   /* And now set the freq and offset to zero */
   our_frequency = 0.0;
@@ -691,7 +875,7 @@ REF_SetManualReference
   our_residual_freq = 0.0;
 
   maybe_log_offset(offset);
-  LCL_AccumulateFrequencyAndOffset(frequency, offset);
+  LCL_AccumulateFrequencyAndOffset(frequency, offset, 0.0);
   maybe_make_step();
 
   abs_freq_ppm = LCL_ReadAbsoluteFrequency();
@@ -699,9 +883,10 @@ REF_SetManualReference
   write_log(ref_time,
             "127.127.1.1",
             our_stratum,
+            our_leap_status,
             abs_freq_ppm,
             1.0e6*our_skew,
-            our_offset);
+            offset);
 
   if (drift_file) {
     update_drift_file(abs_freq_ppm, our_skew);
@@ -724,16 +909,16 @@ REF_SetUnsynchronised(void)
     schedule_fb_drift(&now);
   }
 
+  update_leap_status(LEAP_Unsynchronised, 0);
+  are_we_synchronised = 0;
+
   write_log(&now,
             "0.0.0.0",
             0,
+            our_leap_status,
             LCL_ReadAbsoluteFrequency(),
             1.0e6*our_skew,
             0.0);
-
-  are_we_synchronised = 0;
-
-  update_leap_status(LEAP_Unsynchronised);
 }
 
 /* ================================================== */
@@ -873,6 +1058,22 @@ REF_GetTrackingReport(RPT_TrackingReport *rep)
   LCL_GetOffsetCorrection(&now_raw, &correction, NULL);
   UTI_AddDoubleToTimeval(&now_raw, correction, &now_cooked);
 
+  rep->ref_id = 0;
+  rep->ip_addr.family = IPADDR_UNSPEC;
+  rep->stratum = 0;
+  rep->leap_status = our_leap_status;
+  rep->ref_time.tv_sec = 0;
+  rep->ref_time.tv_usec = 0;
+  rep->current_correction = correction;
+  rep->freq_ppm = LCL_ReadAbsoluteFrequency();
+  rep->resid_freq_ppm = 0.0;
+  rep->skew_ppm = 0.0;
+  rep->root_delay = 0.0;
+  rep->root_dispersion = 0.0;
+  rep->last_update_interval = last_ref_update_interval;
+  rep->last_offset = last_offset;
+  rep->rms_offset = sqrt(avg2_offset);
+
   if (are_we_synchronised) {
     
     UTI_DiffTimevalsToDouble(&elapsed, &now_cooked, &our_ref_time);
@@ -882,8 +1083,6 @@ REF_GetTrackingReport(RPT_TrackingReport *rep)
     rep->ip_addr = our_ref_ip;
     rep->stratum = our_stratum;
     rep->ref_time = our_ref_time;
-    rep->current_correction = correction;
-    rep->freq_ppm = LCL_ReadAbsoluteFrequency();
     rep->resid_freq_ppm = 1.0e6 * our_residual_freq;
     rep->skew_ppm = 1.0e6 * our_skew;
     rep->root_delay = our_root_delay;
@@ -895,26 +1094,7 @@ REF_GetTrackingReport(RPT_TrackingReport *rep)
     rep->ip_addr.family = IPADDR_UNSPEC;
     rep->stratum = local_stratum;
     rep->ref_time = now_cooked;
-    rep->current_correction = correction;
-    rep->freq_ppm = LCL_ReadAbsoluteFrequency();
-    rep->resid_freq_ppm = 0.0;
-    rep->skew_ppm = 0.0;
-    rep->root_delay = 0.0;
     rep->root_dispersion = LCL_GetSysPrecisionAsQuantum();
-
-  } else {
-
-    rep->ref_id = 0;
-    rep->ip_addr.family = IPADDR_UNSPEC;
-    rep->stratum = 0;
-    rep->ref_time.tv_sec = 0;
-    rep->ref_time.tv_usec = 0;
-    rep->current_correction = correction;
-    rep->freq_ppm = LCL_ReadAbsoluteFrequency();
-    rep->resid_freq_ppm = 0.0;
-    rep->skew_ppm = 0.0;
-    rep->root_delay = 0.0;
-    rep->root_dispersion = 0.0;
   }
 
 }

@@ -3,7 +3,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009-2011
+ * Copyright (C) Miroslav Lichvar  2009-2012
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -40,7 +40,6 @@
 #include "conf.h"
 #include "logging.h"
 #include "keys.h"
-#include "md5.h"
 #include "addrfilt.h"
 #include "clientlog.h"
 
@@ -212,13 +211,10 @@ struct NCR_Instance_Record {
 
 static ADF_AuthTable access_auth_table;
 
-static int md5_offset_usecs;
-
 /* ================================================== */
 /* Forward prototypes */
 
 static void transmit_timeout(void *arg);
-static void determine_md5_delay(void);
 
 /* ================================================== */
 
@@ -230,9 +226,6 @@ NCR_Initialise(void)
     : -1;
 
   access_auth_table = ADF_CreateTable();
-
-  determine_md5_delay();
-
 }
 
 /* ================================================== */
@@ -363,100 +356,11 @@ NCR_DestroyInstance(NCR_Instance instance)
 
 /* ================================================== */
 
-/* ================================================== */
-
 static int
-generate_packet_auth(NTP_Packet *pkt, unsigned long keyid)
+check_packet_auth(NTP_Packet *pkt, unsigned long keyid, int auth_len)
 {
-  int keylen;
-  char *keytext;
-  int keyok;
-  MD5_CTX ctx;
-
-  keyok = KEY_GetKey(keyid, &keytext, &keylen);
-  if (keyok) {
-    pkt->auth_keyid = htonl(keyid);
-    MD5Init(&ctx);
-    MD5Update(&ctx, (unsigned char *) keytext, keylen);
-    MD5Update(&ctx, (unsigned char *) pkt, offsetof(NTP_Packet, auth_keyid));
-    MD5Final(&ctx);
-    memcpy(&(pkt->auth_data), &ctx.digest, 16);
-    return 1;
-  } else {
-    pkt->auth_keyid = htonl(0);
-    return 0;
-  }
-}
-
-/* ================================================== */
-
-static void
-determine_md5_delay(void)
-{
-  NTP_Packet pkt;
-  struct timeval before, after;
-  unsigned long usecs, min_usecs=0;
-  MD5_CTX ctx;
-  static const char *example_key = "#a0,243asd=-b ds";
-  int slen;
-  int i;
-
-  slen = strlen(example_key);
-
-  for (i=0; i<10; i++) {
-    LCL_ReadRawTime(&before);
-    MD5Init(&ctx);
-    MD5Update(&ctx, (unsigned const char *) example_key, slen);
-    MD5Update(&ctx, (unsigned const char *) &pkt, offsetof(NTP_Packet, auth_keyid));
-    MD5Final(&ctx);
-    LCL_ReadRawTime(&after);
-    
-    usecs = (after.tv_sec - before.tv_sec) * 1000000 + (after.tv_usec - before.tv_usec);
-
-    if (i == 0) {
-      min_usecs = usecs;
-    } else {
-      if (usecs < min_usecs) {
-        min_usecs = usecs;
-      }
-    }          
-
-  }
-
-#ifdef TRACEON
-  LOG(LOGS_INFO, LOGF_NtpCore, "MD5 took %d useconds", min_usecs);
-#endif
-
-  /* Add on a bit extra to allow for copying, conversions etc */
-  md5_offset_usecs = min_usecs + (min_usecs >> 4);
-
-}
-
-/* ================================================== */
-
-static int
-check_packet_auth(NTP_Packet *pkt, unsigned long keyid)
-{
-  int keylen;
-  char *keytext;
-  int keyok;
-  MD5_CTX ctx;
-
-  keyok = KEY_GetKey(keyid, &keytext, &keylen);
-  if (keyok) {
-    pkt->auth_keyid = htonl(keyid);
-    MD5Init(&ctx);
-    MD5Update(&ctx, (unsigned char *) keytext, keylen);
-    MD5Update(&ctx, (unsigned char *) pkt, offsetof(NTP_Packet, auth_keyid));
-    MD5Final(&ctx);
-    if (!memcmp((void *) &ctx.digest, (void *) &(pkt->auth_data), 16)) {
-      return 1;
-    } else {
-      return 0;
-    }
-  } else {
-    return 0;
-  }
+  return KEY_CheckAuth(keyid, (void *)pkt, offsetof(NTP_Packet, auth_keyid), 
+      (void *)&(pkt->auth_data), auth_len);
 }
 
 /* ================================================== */
@@ -515,7 +419,7 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
   /* Parameters read from reference module */
   int are_we_synchronised, our_stratum;
   NTP_Leap leap_status;
-  uint32_t our_ref_id;
+  uint32_t our_ref_id, ts_fuzz;
   struct timeval our_ref_time;
   double our_root_delay, our_root_dispersion;
 
@@ -554,7 +458,7 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
   message.reference_id = htonl((NTP_int32) our_ref_id);
 
   /* Now fill in timestamps */
-  UTI_TimevalToInt64(&our_ref_time, &message.reference_ts);
+  UTI_TimevalToInt64(&our_ref_time, &message.reference_ts, 0);
 
   /* Originate - this comes from the last packet the source sent us */
   message.originate_ts = *orig_ts;
@@ -563,7 +467,10 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
      This timestamp will have been adjusted so that it will now look to
      the source like we have been running on our latest estimate of
      frequency all along */
-  UTI_TimevalToInt64(local_rx, &message.receive_ts);
+  UTI_TimevalToInt64(local_rx, &message.receive_ts, 0);
+
+  /* Prepare random bits which will be added to the transmit timestamp. */
+  ts_fuzz = UTI_GetNTPTsFuzz(message.precision);
 
   /* Transmit - this our local time right now!  Also, we might need to
      store this for our own use later, next time we receive a message
@@ -572,15 +479,23 @@ transmit_packet(NTP_Mode my_mode, /* The mode this machine wants to be */
 
   /* Authenticate */
   if (do_auth) {
+    int auth_len;
     /* Pre-compensate the transmit time by approx. how long it will
-       take to generate the MD5 authentication bytes. */
-    local_transmit.tv_usec += md5_offset_usecs;
+       take to generate the authentication data. */
+    local_transmit.tv_usec += KEY_GetAuthDelay(key_id);
     UTI_NormaliseTimeval(&local_transmit);
-    UTI_TimevalToInt64(&local_transmit, &message.transmit_ts);
-    generate_packet_auth(&message, key_id);
-    NIO_SendAuthenticatedPacket(&message, where_to);
+    UTI_TimevalToInt64(&local_transmit, &message.transmit_ts, ts_fuzz);
+
+    auth_len = KEY_GenerateAuth(key_id, (unsigned char *) &message,
+        offsetof(NTP_Packet, auth_keyid),
+        (unsigned char *)&message.auth_data, sizeof (message.auth_data));
+    if (auth_len > 0) {
+      message.auth_keyid = htonl(key_id);
+      NIO_SendAuthenticatedPacket(&message, where_to,
+          sizeof (message.auth_keyid) + auth_len);
+    }
   } else {
-    UTI_TimevalToInt64(&local_transmit, &message.transmit_ts);
+    UTI_TimevalToInt64(&local_transmit, &message.transmit_ts, ts_fuzz);
     NIO_SendNormalPacket(&message, where_to);
   }
 
@@ -723,7 +638,7 @@ transmit_timeout(void *arg)
 /* ================================================== */
 
 static void
-receive_packet(NTP_Packet *message, struct timeval *now, double now_err, NCR_Instance inst, int do_auth)
+receive_packet(NTP_Packet *message, struct timeval *now, double now_err, NCR_Instance inst, int auth_len)
 {
   int pkt_leap;
   int source_is_synchronized;
@@ -894,7 +809,7 @@ receive_packet(NTP_Packet *message, struct timeval *now, double now_err, NCR_Ins
     sample_time = local_average;
     
     /* Calculate skew */
-    skew = source_freq_hi - source_freq_lo;
+    skew = (source_freq_hi - source_freq_lo) / 2.0;
     
     /* and then calculate peer dispersion */
     epsilon = LCL_GetSysPrecisionAsQuantum() + now_err + skew * local_interval;
@@ -932,7 +847,8 @@ receive_packet(NTP_Packet *message, struct timeval *now, double now_err, NCR_Ins
      round trip delay to the minimum one currently in the stats data
      register is less than an administrator-defined value */
 
-  if (fabs(delta/SRC_MinRoundTripDelay(inst->source)) > inst->max_delay_ratio) {
+  if (inst->max_delay_ratio > 1.0 &&
+      fabs(delta/SRC_MinRoundTripDelay(inst->source)) > inst->max_delay_ratio) {
     test4b = 0; /* Failed */
   } else {
     test4b = 1; /* Success */
@@ -952,12 +868,12 @@ receive_packet(NTP_Packet *message, struct timeval *now, double now_err, NCR_Ins
 
   /* Test 5 relates to authentication. */
   if (inst->do_auth) {
-    if (do_auth) {
+    if (auth_len > 0) {
       auth_key_id = ntohl(message->auth_keyid);
       if (!KEY_KeyKnown(auth_key_id)) {
         test5 = 0;
       } else {
-        test5 = check_packet_auth(message, auth_key_id);
+        test5 = check_packet_auth(message, auth_key_id, auth_len);
       }
     } else {
       /* If we expect authenticated info from this peer/server and the packet
@@ -1313,21 +1229,22 @@ receive_packet(NTP_Packet *message, struct timeval *now, double now_err, NCR_Ins
  */
 
 /* ================================================== */
+/* This routine is called when a new packet arrives off the network,
+   and it relates to a source we have an ongoing protocol exchange with */
 
-static void
-process_known
+void
+NCR_ProcessKnown
 (NTP_Packet *message,           /* the received message */
  struct timeval *now,           /* timestamp at time of receipt */
  double now_err,
  NCR_Instance inst,             /* the instance record for this peer/server */
- int do_auth                   /* whether the received packet allegedly contains
-                                   authentication info*/
+ int length                     /* the length of the received packet */
  )
 {
   int pkt_mode;
   int version;
   int valid_auth, valid_key;
-  int authenticate_reply;
+  int authenticate_reply, auth_len;
   unsigned long auth_key_id;
   unsigned long reply_auth_key_id;
 
@@ -1340,6 +1257,12 @@ process_known
 
   /* Perform tests mentioned in RFC1305 to validate packet contents */
   pkt_mode = (message->lvm >> 0) & 0x7;
+
+  /* Length of the authentication data, if any */
+  auth_len = length - (NTP_NORMAL_PACKET_SIZE + sizeof (message->auth_keyid));
+  if (auth_len < 0) {
+    auth_len = 0;
+  }
 
   /* Now, depending on the mode we decide what to do */
   switch (pkt_mode) {
@@ -1364,11 +1287,11 @@ process_known
 
         CLG_LogNTPClientAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
 
-        if (do_auth) {
+        if (auth_len > 0) {
           auth_key_id = ntohl(message->auth_keyid);
           valid_key = KEY_KeyKnown(auth_key_id);
           if (valid_key) {
-            valid_auth = check_packet_auth(message, auth_key_id);
+            valid_auth = check_packet_auth(message, auth_key_id, auth_len);
           } else {
             valid_auth = 0;
           }
@@ -1407,7 +1330,7 @@ process_known
         case MODE_ACTIVE:
           /* Ordinary symmetric peering */
           CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
-          receive_packet(message, now, now_err, inst, do_auth);
+          receive_packet(message, now, now_err, inst, auth_len);
           break;
         case MODE_PASSIVE:
           /* In this software this case should not arise, we don't
@@ -1417,7 +1340,7 @@ process_known
           /* This is where we have the remote configured as a server and he has
              us configured as a peer - fair enough. */
           CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
-          receive_packet(message, now, now_err, inst, do_auth);
+          receive_packet(message, now, now_err, inst, auth_len);
           break;
         case MODE_SERVER:
           /* Nonsense - we can't have a preconfigured server */
@@ -1438,14 +1361,14 @@ process_known
         case MODE_ACTIVE:
           /* Slightly bizarre combination, but we can still process it */
           CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
-          receive_packet(message, now, now_err, inst, do_auth);
+          receive_packet(message, now, now_err, inst, auth_len);
           break;
         case MODE_PASSIVE:
           /* We have no passive peers in this software */
           break;
         case MODE_CLIENT:
           /* Standard case where he's a server and we're the client */
-          receive_packet(message, now, now_err, inst, do_auth);
+          receive_packet(message, now, now_err, inst, auth_len);
           break;
         case MODE_SERVER:
           /* RFC1305 error condition. */
@@ -1466,7 +1389,7 @@ process_known
           /* This would arise if we have the remote configured as a peer and
              he does not have us configured */
           CLG_LogNTPPeerAccess(&inst->remote_addr.ip_addr, (time_t) now->tv_sec);
-          receive_packet(message, now, now_err, inst, do_auth);
+          receive_packet(message, now, now_err, inst, auth_len);
           break;
         case MODE_PASSIVE:
           /* Error condition in RFC1305.  Also, we can't have any
@@ -1475,7 +1398,7 @@ process_known
           break;
         case MODE_CLIENT:
           /* This is a wierd combination - how could it arise? */
-          receive_packet(message, now, now_err, inst, do_auth);
+          receive_packet(message, now, now_err, inst, auth_len);
           break;
         case MODE_SERVER:
           /* Error condition in RFC1305 */
@@ -1498,9 +1421,6 @@ process_known
       break;
       
   }
-
-
-
 }
 
 /* ================================================== */
@@ -1508,100 +1428,18 @@ process_known
    and it relates to a source we have an ongoing protocol exchange with */
 
 void
-NCR_ProcessNoauthKnown(NTP_Packet *message, struct timeval *now, double now_err, NCR_Instance inst)
+NCR_ProcessUnknown
+(NTP_Packet *message,           /* the received message */
+ struct timeval *now,           /* timestamp at time of receipt */
+ double now_err,                /* assumed error in the timestamp */
+ NTP_Remote_Address *remote_addr,
+ int length                     /* the length of the received packet */
+ )
 {
-
-  process_known(message, now, now_err, inst, 0);
-
-}
-
-/* ================================================== */
-/* This routine is called when a new packet arrives off the network,
-   and we do not recognize its source */
-
-void
-NCR_ProcessNoauthUnknown(NTP_Packet *message, struct timeval *now, double now_err, NTP_Remote_Address *remote_addr)
-{
-
   NTP_Mode his_mode;
   NTP_Mode my_mode;
   int my_poll, version;
-
-  /* Check version */
-  version = (message->lvm >> 3) & 0x7;
-  if (version < NTP_MIN_COMPAT_VERSION || version > NTP_MAX_COMPAT_VERSION) {
-    /* Ignore packet, but might want to log it */
-    return;
-  }
-
-  if (ADF_IsAllowed(access_auth_table, &remote_addr->ip_addr)) {
-
-    his_mode = message->lvm & 0x07;
-
-    if (his_mode == MODE_CLIENT) {
-      /* We are server */
-      my_mode = MODE_SERVER;
-      CLG_LogNTPClientAccess(&remote_addr->ip_addr, (time_t) now->tv_sec);
-
-    } else if (his_mode == MODE_ACTIVE) {
-      /* We are symmetric passive, even though we don't ever lock to him */
-      my_mode = MODE_PASSIVE;
-      CLG_LogNTPPeerAccess(&remote_addr->ip_addr, (time_t) now->tv_sec);
-
-    } else {
-      my_mode = MODE_UNDEFINED;
-    }
-    
-    /* If we can't determine a sensible mode to reply with, it means
-       he has supplied a wierd mode in his request, so ignore it. */
-    
-    if (my_mode != MODE_UNDEFINED) {
-      
-      my_poll = message->poll; /* What should this be set to?  Does the client actually care? */
-      
-      transmit_packet(my_mode, my_poll,
-                      0, 0UL,
-                      &message->transmit_ts, /* Originate (for us) is the transmit time for the client */
-                      now, /* Time we received the packet */
-                      NULL, /* Don't care when we send reply, we aren't maintaining state about this client */
-                      NULL, /* Ditto */
-                      remote_addr);
-      
-    }
-  } else if (!LOG_RateLimited()) {
-    LOG(LOGS_WARN, LOGF_NtpCore, "NTP packet received from unauthorised host %s port %d",
-        UTI_IPToString(&remote_addr->ip_addr),
-        remote_addr->port);
-  }
-
-  return;
-
-}
-
-/* ================================================== */
-/* This routine is called when a new authenticated packet arrives off
-   the network, and it relates to a source we have an ongoing protocol
-   exchange with */
-
-void
-NCR_ProcessAuthKnown(NTP_Packet *message, struct timeval *now, double now_err, NCR_Instance data)
-{
-  process_known(message, now, now_err, data, 1);
-
-}
-
-/* ================================================== */
-/* This routine is called when a new authenticated packet arrives off
-   the network, and we do not recognize its source */
-
-void
-NCR_ProcessAuthUnknown(NTP_Packet *message, struct timeval *now, double now_err, NTP_Remote_Address *remote_addr)
-{
-
-  NTP_Mode his_mode;
-  NTP_Mode my_mode;
-  int my_poll, version;
-  int valid_key, valid_auth;
+  int valid_key, valid_auth, auth_len;
   unsigned long key_id;
 
   /* Check version */
@@ -1633,23 +1471,28 @@ NCR_ProcessAuthUnknown(NTP_Packet *message, struct timeval *now, double now_err,
        he has supplied a wierd mode in his request, so ignore it. */
 
     if (my_mode != MODE_UNDEFINED) {
+      int do_auth = 0;
+      auth_len = length - (NTP_NORMAL_PACKET_SIZE + sizeof (message->auth_keyid));
 
-      /* Only reply if we know the key and the packet authenticates
-         properly. */
-      key_id = ntohl(message->auth_keyid);
-      valid_key = KEY_KeyKnown(key_id);
+      if (auth_len > 0) {
+        /* Only reply if we know the key and the packet authenticates
+           properly. */
+        key_id = ntohl(message->auth_keyid);
+        valid_key = KEY_KeyKnown(key_id);
+        do_auth = 1;
 
-      if (valid_key) {
-        valid_auth = check_packet_auth(message, key_id);
-      } else {
-        valid_auth = 0;
+        if (valid_key) {
+          valid_auth = check_packet_auth(message, key_id, auth_len);
+        } else {
+          valid_auth = 0;
+        }
       }
 
-      if (valid_key && valid_auth) {
+      if (!do_auth || (valid_key && valid_auth)) {
         my_poll = message->poll; /* What should this be set to?  Does the client actually care? */
 
         transmit_packet(my_mode, my_poll,
-                        1, key_id,
+                        do_auth, do_auth ? key_id : 0,
                         &message->transmit_ts, /* Originate (for us) is the transmit time for the client */
                         now, /* Time we received the packet */
                         NULL, /* Don't care when we send reply, we aren't maintaining state about this client */
@@ -1657,10 +1500,12 @@ NCR_ProcessAuthUnknown(NTP_Packet *message, struct timeval *now, double now_err,
                         remote_addr);
       }
     }
+  } else if (!LOG_RateLimited()) {
+    LOG(LOGS_WARN, LOGF_NtpCore, "NTP packet received from unauthorised host %s port %d",
+        UTI_IPToString(&remote_addr->ip_addr),
+        remote_addr->port);
   }
   return;
-
-
 }
 
 /* ================================================== */
@@ -1831,34 +1676,22 @@ NCR_InitiateSampleBurst(NCR_Instance inst, int n_good_samples, int n_total_sampl
         break;
 
       case MD_ONLINE:
-        inst->opmode = MD_BURST_WAS_ONLINE;
-        inst->burst_good_samples_to_go = n_good_samples;
-        inst->burst_total_samples_to_go = n_total_samples;
-        if (inst->timer_running) {
-          SCH_RemoveTimeout(inst->timeout_id);
-        }
-        inst->timer_running = 1;
-        inst->timeout_id = SCH_AddTimeoutInClass(0.0, SAMPLING_SEPARATION,
-                                                 SAMPLING_RANDOMNESS,
-                                                 SCH_NtpSamplingClass,
-                                                 transmit_timeout, (void *) inst);
-        break;
-
       case MD_OFFLINE:
-        inst->opmode = MD_BURST_WAS_OFFLINE;
+        if (inst->opmode == MD_ONLINE)
+          inst->opmode = MD_BURST_WAS_ONLINE;
+        else
+          inst->opmode = MD_BURST_WAS_OFFLINE;
         inst->burst_good_samples_to_go = n_good_samples;
         inst->burst_total_samples_to_go = n_total_samples;
         if (inst->timer_running) {
           SCH_RemoveTimeout(inst->timeout_id);
         }
         inst->timer_running = 1;
-        inst->timeout_id = SCH_AddTimeoutInClass(0.0, SAMPLING_SEPARATION,
+        inst->timeout_id = SCH_AddTimeoutInClass(INITIAL_DELAY, SAMPLING_SEPARATION,
                                                  SAMPLING_RANDOMNESS,
                                                  SCH_NtpSamplingClass,
                                                  transmit_timeout, (void *) inst);
         break;
-
-
       default:
         assert(0);
         break;

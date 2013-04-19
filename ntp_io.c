@@ -355,7 +355,7 @@ read_from_socket(void *anything)
       }
 #endif
 
-#ifdef IPV6_PKTINFO
+#if defined(IPV6_PKTINFO) && defined(HAVE_IN6_PKTINFO)
       if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
         struct in6_pktinfo ipi;
 
@@ -376,13 +376,9 @@ read_from_socket(void *anything)
 #endif
     }
 
-    if (status == NTP_NORMAL_PACKET_SIZE) {
+    if (status >= NTP_NORMAL_PACKET_SIZE && status <= sizeof(NTP_Packet)) {
 
-      NSR_ProcessReceive((NTP_Packet *) &message.ntp_pkt, &now, now_err, &remote_addr);
-
-    } else if (status == sizeof(NTP_Packet)) {
-
-      NSR_ProcessAuthenticatedReceive((NTP_Packet *) &message.ntp_pkt, &now, now_err, &remote_addr);
+      NSR_ProcessReceive((NTP_Packet *) &message.ntp_pkt, &now, now_err, &remote_addr, status);
 
     } else {
 
@@ -466,7 +462,7 @@ send_packet(void *packet, int packetlen, NTP_Remote_Address *remote_addr)
   }
 #endif
 
-#ifdef IPV6_PKTINFO
+#if defined(IPV6_PKTINFO) && defined(HAVE_IN6_PKTINFO)
   if (remote_addr->local_ip_addr.family == IPADDR_INET6) {
     struct cmsghdr *cmsg;
     struct in6_pktinfo *ipi;
@@ -523,9 +519,9 @@ NIO_SendNormalPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr)
 /* Send an authenticated packet to a given address */
 
 void
-NIO_SendAuthenticatedPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr)
+NIO_SendAuthenticatedPacket(NTP_Packet *packet, NTP_Remote_Address *remote_addr, int auth_len)
 {
-  send_packet((void *) packet, sizeof(NTP_Packet), remote_addr);
+  send_packet((void *) packet, NTP_NORMAL_PACKET_SIZE + auth_len, remote_addr);
 }
 
 /* ================================================== */

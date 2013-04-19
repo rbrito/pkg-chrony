@@ -31,6 +31,7 @@
 
 #include "sysincl.h"
 #include "addressing.h"
+#include "hash.h"
 
 /* This is the default port to use for CANDM, if no alternative is
    defined */
@@ -368,9 +369,11 @@ typedef struct {
    and used also instead of integer microseconds, new commands: modify stratum,
    modify polltarget, modify maxdelaydevratio, reselect, reselectdistance
 
+   Version 5 : auth data moved to the end of the packet to allow hashes with
+   different sizes, extended sources, tracking and activity reports
  */
 
-#define PROTO_VERSION_NUMBER 4
+#define PROTO_VERSION_NUMBER 5
 
 /* The oldest protocol version that is compatible enough with
    the current version to report a version mismatch */
@@ -390,7 +393,6 @@ typedef struct {
   uint32_t sequence; /* Client's sequence number */
   uint32_t utoken; /* Unique token per incarnation of daemon */
   uint32_t token; /* Command token (to prevent replay attack) */
-  uint32_t auth[4]; /* MD5 authentication of the packet */
 
   union {
     REQ_Online online;
@@ -434,6 +436,10 @@ typedef struct {
     REQ_Reselect reselect;
     REQ_ReselectDistance reselect_distance;
   } data; /* Command specific parameters */
+
+  /* authentication of the packet, there is no hole after the actual data
+     from the data union, this field only sets the maximum auth size */
+  uint8_t auth[MAX_HASH_LENGTH];
 
 } CMD_Request;
 
@@ -503,12 +509,17 @@ typedef struct {
 #define RPY_SD_ST_CANDIDATE 4
 #define RPY_SD_ST_OUTLYER 5
 
+#define RPY_SD_FLAG_NOSELECT 0x1
+#define RPY_SD_FLAG_PREFER 0x2
+
 typedef struct {
   IPAddr ip_addr;
   uint16_t poll;
   uint16_t stratum;
   uint16_t state;
   uint16_t mode;
+  uint16_t flags;
+  uint16_t reachability;
   uint32_t  since_sample;
   Float orig_latest_meas;
   Float latest_meas;
@@ -519,14 +530,18 @@ typedef struct {
 typedef struct {
   uint32_t ref_id;
   IPAddr ip_addr;
-  uint32_t stratum;
+  uint16_t stratum;
+  uint16_t leap_status;
   Timeval ref_time;
   Float current_correction;
+  Float last_offset;
+  Float rms_offset;
   Float freq_ppm;
   Float resid_freq_ppm;
   Float skew_ppm;
   Float root_delay;
   Float root_dispersion;
+  Float last_update_interval;
   int32_t EOR;
 } RPY_Tracking;
 
@@ -614,6 +629,7 @@ typedef struct {
   int32_t offline;
   int32_t burst_online;
   int32_t burst_offline;
+  int32_t unresolved;
   int32_t EOR;
 } RPY_Activity;
 
@@ -632,8 +648,6 @@ typedef struct {
   uint32_t utoken; /* Unique token per incarnation of daemon */
   uint32_t token; /* New command token (only if command was successfully
                           authenticated) */
-  uint32_t auth[4]; /* MD5 authentication of the packet */
-
   union {
     RPY_Null null;
     RPY_N_Sources n_sources;
@@ -648,6 +662,10 @@ typedef struct {
     RPY_ManualList manual_list;
     RPY_Activity activity;
   } data; /* Reply specific parameters */
+
+  /* authentication of the packet, there is no hole after the actual data
+     from the data union, this field only sets the maximum auth size */
+  uint8_t auth[MAX_HASH_LENGTH];
 
 } CMD_Reply;
 

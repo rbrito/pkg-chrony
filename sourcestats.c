@@ -3,7 +3,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2011
+ * Copyright (C) Miroslav Lichvar  2011-2012
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -239,8 +239,17 @@ SST_AccumulateSample(SST_Stats inst, struct timeval *sample_time,
 {
   int n, m;
 
+  /* Make room for the new sample */
   if (inst->n_samples == MAX_SAMPLES) {
     prune_register(inst, 1);
+  }
+
+  /* Make sure it's newer than the last sample */
+  if (inst->n_samples &&
+      UTI_CompareTimevals(&inst->sample_times[inst->last_sample], sample_time) >= 0) {
+    LOG(LOGS_WARN, LOGF_SourceStats, "Out of order sample detected, discarding history for %s",
+        inst->ip_addr ? UTI_IPToString(inst->ip_addr) : UTI_RefidToString(inst->refid));
+    prune_register(inst, inst->n_samples);
   }
 
   n = inst->last_sample = (inst->last_sample + 1) %
@@ -528,6 +537,14 @@ SST_GetFrequencyRange(SST_Stats inst,
   skew = inst->skew;
   *lo = freq - skew;
   *hi = freq + skew;
+
+  /* This function is currently used only to determine the values of delta
+     and epsilon in the ntp_core module. Limit the skew to a reasonable maximum
+     to avoid failing the dispersion test too easily. */
+  if (skew > WORST_CASE_FREQ_BOUND) {
+    *lo = -WORST_CASE_FREQ_BOUND;
+    *hi = WORST_CASE_FREQ_BOUND;
+  }
 }
 
 /* ================================================== */

@@ -3,7 +3,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2011
+ * Copyright (C) Miroslav Lichvar  2011-2012
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -40,6 +40,8 @@
 static int initialised = 0;
 
 static int system_log = 0;
+
+static int parent_fd = 0;
 
 static time_t last_limited = 0;
 
@@ -154,6 +156,10 @@ LOG_Fatal_Function(LOG_Facility facility, const char *format, ...)
   } else {
     fprintf(stderr, "Fatal error : %s\n", buf);
   }
+  if (parent_fd) {
+    if (write(parent_fd, buf, strlen(buf) + 1) < 0)
+      ; /* Not much we can do here */
+  }
 #endif
 
   MAI_CleanupAndExit();
@@ -192,6 +198,23 @@ LOG_OpenSystemLog(void)
   system_log = 1;
   openlog("chronyd", LOG_PID, LOG_DAEMON);
 #endif
+}
+
+/* ================================================== */
+
+void
+LOG_SetParentFd(int fd)
+{
+  parent_fd = fd;
+}
+
+/* ================================================== */
+
+void
+LOG_CloseParentFd()
+{
+  if (parent_fd > 0)
+    close(parent_fd);
 }
 
 /* ================================================== */
@@ -282,14 +305,10 @@ LOG_CreateLogFileDir(void)
 {
   const char *logdir;
 
-  if (n_filelogs <= 0)
-    return;
-
   logdir = CNF_GetLogDir();
 
   if (!mkdir_and_parents(logdir)) {
     LOG(LOGS_ERR, LOGF_Logging, "Could not create directory %s", logdir);
-    n_filelogs = 0;
   }
 }
 

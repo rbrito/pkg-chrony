@@ -1238,7 +1238,36 @@ its default (323/udp).
 (`chronyc' would need to be run with the `-p 257' switch to
 inter-operate correctly).
 
-4.2.11 deny
+4.2.11 corrtimeratio
+--------------------
+
+When `chronyd' makes a time correction, it controls how quickly the
+system clock is slewed (so far only on Linux).  This rate temporarily
+affects the frequency error of the system clock.
+
+   The `corrtimeratio' directive controls the ratio between the
+duration in which the clock is slewed for an average correction
+according to the source history and the interval in which the
+corrections are done (usually the NTP polling interval).  Corrections
+larger than the average take less time and smaller corrections take
+more time, the amount of the correction and the correction time are
+inversely proportional.
+
+   Increasing `corrtimeratio' makes the overall frequency error of the
+system clock smaller, but increases the overall time error as the
+corrections will take longer.
+
+   By default, the ratio is 1, which means the duration of an average
+correction will be close to the update interval.
+
+   The syntax is
+
+     corrtimeratio 10
+
+   The current remaining correction is shown in the `tracking' report
+(*note tracking command::) as the `System time' value.
+
+4.2.12 deny
 -----------
 
 This is similar to the `allow' directive (*note allow directive::),
@@ -1250,7 +1279,7 @@ rather than allowing it.
    There is also a `deny all' directive with similar behaviour to the
 `allow all' directive.
 
-4.2.12 driftfile
+4.2.13 driftfile
 ----------------
 
 One of the main activities of the `chronyd' program is to work out the
@@ -1278,7 +1307,7 @@ rate actually lies.
 
      driftfile /etc/chrony.drift
 
-4.2.13 dumpdir
+4.2.14 dumpdir
 --------------
 
 To compute the rate of gain or loss of time, `chronyd' has to store a
@@ -1306,14 +1335,14 @@ directory where the measurement histories are saved.
 1.2.3.4 would have its measurement history saved in the file
 `/var/log/chrony/1.2.3.4.dat'.
 
-4.2.14 dumponexit
+4.2.15 dumponexit
 -----------------
 
 If this command is present, it indicates that `chronyd' should save the
 measurement history for each of its time sources recorded whenever the
 program exits.  (See the dumpdir command above).
 
-4.2.15 fallbackdrift
+4.2.16 fallbackdrift
 --------------------
 
 Fallback drifts are long-term averages of the system clock drift
@@ -1339,7 +1368,7 @@ daily and weekly temperature fluctuations.
 fallbacks will be used and the clock frequency will stay at the last
 value calculated before synchronisation was lost.
 
-4.2.16 include
+4.2.17 include
 --------------
 
 The `include' directive includes a specified configuration file.  This
@@ -1348,7 +1377,7 @@ differences in a separate file.
 
      include /etc/chrony/local.conf
 
-4.2.17 initstepslew
+4.2.18 initstepslew
 -------------------
 
 In normal operation, `chronyd' always slews the time when it needs to
@@ -1404,7 +1433,7 @@ references some or all of the slaves.  Then, if the master machine has
 to be rebooted, the slaves can be relied on to 'flywheel' the time for
 the master.
 
-4.2.18 keyfile
+4.2.19 keyfile
 --------------
 
 This command is used to specify the location of the file containing
@@ -1423,22 +1452,45 @@ pairs.  The format of the file is shown below
 
      10 tulip
      11 hyacinth
-     20 crocus
-     25 iris
+     20 MD5 ASCII:crocus
+     25 SHA1 HEX:1dc764e0791b11fa67efc7ecbc4b0d73f68a070c
       ...
 
-   Each line consists of an ID and a password.  The ID can be any
-unsigned integer in the range 0 through 2**32-1.  The password can be
-any string of characters not containing a space.
-
-   For NTP use, the MD5 authentication scheme is always used.  This
-must be borne in mind if `chronyd' is to inter-operate in authenticated
-mode with `xntpd' running on other computers.
+   Each line consists of an ID, a name of authentication hash function
+(optional) and a password. The ID can be any unsigned integer in the
+range 0 through 2**32-1.  The hash function is MD5 by default,
+depending on how was `chronyd' compiled other allowed hash functions
+may be SHA1, SHA256, SHA384, SHA512, RMD128, RMD160, RMD256, RMD320,
+TIGER and WHIRLPOOL.  The password can be encoded as a string of
+characters not containing a space with optional `ASCII:' prefix or as a
+hexadecimal number with `HEX:' prefix.
 
    The ID for the chronyc authentication key is specified with the
 commandkey command (see earlier).
 
-4.2.19 local
+4.2.20 leapsectz
+----------------
+
+This directive is used to set the name of the timezone in the system tz
+database which `chronyd' can use to find out when will the next leap
+second occur.  It will periodically check if the times 23:59:59 and
+23:59:60 are valid on Jun 30 and Dec 31 in the timezone.  A useful
+timezone is `right/UTC'.  This is mainly useful with reference clocks
+which don't provide the leap second information.  It is not necessary
+to restart `chronyd' if the tz database is updated with a new leap
+second at least 12 hours before the event.
+
+   An example of the command is
+
+     leapsectz right/UTC
+
+   The following shell command verifies that the timezone contains leap
+seconds and can be used with this directive
+
+     $ TZ=right/UTC date -d 'Dec 31 2008 23:59:60'
+     Wed Dec 31 23:59:60 UTC 2008
+
+4.2.21 local
 ------------
 
 The local keyword is used to allow `chronyd' to appear synchronised to
@@ -1470,7 +1522,7 @@ like 10 for the local command prevents the machine's own time from ever
 being confused with real time, were it ever to leak out to clients that
 have visibility of real servers.
 
-4.2.20 linux_hz
+4.2.22 linux_hz
 ---------------
 
 (This option only applies to Linux).
@@ -1489,7 +1541,7 @@ from the default value.
 
      linux_hz 100
 
-4.2.21 linux_freq_scale
+4.2.23 linux_freq_scale
 -----------------------
 
 (This option only applies to Linux).
@@ -1511,7 +1563,7 @@ differ from those on the system where chronyd was built.
 
      linux_freq_scale 0.99902439
 
-4.2.22 log
+4.2.24 log
 ----------
 
 The log command indicates that certain information is to be logged.
@@ -1546,7 +1598,7 @@ command.
 
      log measurements statistics tracking
 
-4.2.22.1 Measurements log file format
+4.2.24.1 Measurements log file format
 .....................................
 
 An example line (which actually appears as a single line in the file)
@@ -1567,9 +1619,9 @@ values from the example line above) :
      [158.152.1.76]
 
   4. Leap status (`N' means normal, `+' means that the last minute of
-     today has 61 seconds, `-' means that the last minute of the day
-     has 59 seconds, `?' means the remote computer is not currently
-     synchronised.) [N]
+     the current month has 61 seconds, `-' means that the last minute
+     of the month has 59 seconds, `?' means the remote computer is not
+     currently synchronised.) [N]
 
   5. Stratum of remote computer. [2]
 
@@ -1603,7 +1655,7 @@ values from the example line above) :
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.22.2 Statistics log file format
+4.2.24.2 Statistics log file format
 ...................................
 
 An example line (which actually appears as a single line in the file)
@@ -1664,18 +1716,18 @@ values from the example line above) :
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.22.3 Tracking log file format
+4.2.24.3 Tracking log file format
 .................................
 
 An example line (which actually appears as a single line in the file)
 from the tracking log file is shown below.
 
-     1998-07-22 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03
+     2012-02-23 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03 N
 
    The columns are as follows (the quantities in square brackets are the
 values from the example line above) :
 
-  1. Date [1998-07-22]
+  1. Date [2012-02-03]
 
   2. Hour:Minute:Second [05:40:50].  Note that the date/time pair is
      expressed in UTC, not the local time zone.
@@ -1694,10 +1746,15 @@ values from the example line above) :
      corrected by slewing the local clock.  (In seconds, positive
      indicates the local system is fast of UTC). [1.046e-3]
 
+  8. Leap status (`N' means normal, `+' means that the last minute of
+     this month has 61 seconds, `-' means that the last minute of the
+     month has 59 seconds, `?' means the clock is not currently
+     synchronised.) [N]
+
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.22.4 Real-time clock log file format
+4.2.24.4 Real-time clock log file format
 ........................................
 
 An example line (which actually appears as a single line in the file)
@@ -1743,7 +1800,7 @@ values from the example line above) :
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.22.5 Refclocks log file format
+4.2.24.5 Refclocks log file format
 ..................................
 
 An example line (which actually appears as a single line in the file)
@@ -1765,8 +1822,8 @@ values from the example line above) :
      samples, or `-' for filtered samples. [7]
 
   5. Leap status (`N' means normal, `+' means that the last minute of
-     today has 61 seconds, `-' means that the last minute of the day
-     has 59 seconds). [N]
+     the current month has 61 seconds, `-' means that the last minute
+     of the month has 59 seconds). [N]
 
   6. Flag indicating whether the sample comes from PPS source. (1 for
      yes, 0 for no, or `-' for filtered sample). [1]
@@ -1782,7 +1839,7 @@ values from the example line above) :
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.22.6 Tempcomp log file format
+4.2.24.6 Tempcomp log file format
 .................................
 
 An example line (which actually appears as a single line in the file)
@@ -1807,7 +1864,7 @@ values from the example line above) :
    A banner is periodically written to the log file to indicate the
 meanings of the columns.
 
-4.2.23 logbanner
+4.2.25 logbanner
 ----------------
 
 A banner is periodically written to the log files enabled by the `log'
@@ -1817,7 +1874,7 @@ directive to indicate the meanings of the columns.
 log file should be the banner written. The default is 32, and 0 can be
 used to disable it entirely.
 
-4.2.24 logchange
+4.2.26 logchange
 ----------------
 
 This directive forces `chronyd' to send a message to syslog if it makes
@@ -1837,7 +1894,7 @@ somebody can see them.  This allows that person to see if a large error
 has arisen, e.g. because of a fault, or because of faulty timezone
 handling, for example when summer time (daylight saving) starts or ends.
 
-4.2.25 logdir
+4.2.27 logdir
 -------------
 
 This directive allows the directory where log files are written to be
@@ -1847,7 +1904,7 @@ specified.
 
      logdir /var/log/chrony
 
-4.2.26 mailonchange
+4.2.28 mailonchange
 -------------------
 
 This directive defines an email address to which mail should be sent if
@@ -1861,7 +1918,7 @@ system clock.
    This would send a mail message to root if a change of more than 0.5
 seconds were applied to the system clock.
 
-4.2.27 makestep
+4.2.29 makestep
 ---------------
 
 Normally chronyd will cause the system to gradually correct any time
@@ -1885,7 +1942,26 @@ with NTP sources.
    This would step system clock if the adjustment is larger than 1000
 seconds, but only in the first ten clock updates.
 
-4.2.28 manual
+4.2.30 maxchange
+----------------
+
+This directive sets the maximum allowed offset corrected on a clock
+update.  The check is performed only after the specified number of
+updates to allow a large initial adjustment of the system clock.  When
+an offset larger than the specified maximum occurs, it will be ignored
+for the specified number of times and then `chronyd' will give up and
+exit (a negative value can be used to never exit).  In both cases a
+message is sent to syslog.
+
+   An example of the use of this directive is
+
+     maxchange 1000 1 2
+
+   After the first clock update, `chronyd' will check the offset on
+every clock update, it will ignore two adjustments larger than 1000
+seconds and exit on another one.
+
+4.2.31 manual
 -------------
 
 The `manual' directive enables support at run-time for the `settime'
@@ -1899,7 +1975,7 @@ two commands is that the `manual' command controls the manual clock
 driver's behaviour, whereas the `settime' command allows samples of
 manually entered time to be provided).
 
-4.2.29 maxclockerror
+4.2.32 maxclockerror
 --------------------
 
 The `maxclockerror' directive sets the maximum assumed frequency error
@@ -1916,7 +1992,7 @@ absolute frequency error.
 to 0.1 for a high quality clock using a temperature compensated crystal
 oscillator.
 
-4.2.30 maxupdateskew
+4.2.33 maxupdateskew
 --------------------
 
 One of `chronyd's' tasks is to work out how fast or slow the computer's
@@ -1949,14 +2025,14 @@ highly-reliable master estimate and a new estimate is generated which
 has large error bounds, the existing master estimate will dominate in
 the new master estimate.
 
-4.2.31 noclientlog
+4.2.34 noclientlog
 ------------------
 
 This directive, which takes no arguments, specifies that client accesses
 are not to be logged.  Normally they are logged, allowing statistics to
 be reported using the `clients' command in `chronyc'.
 
-4.2.32 clientloglimit
+4.2.35 clientloglimit
 ---------------------
 
 This directive specifies the maximum size of the memory allocated to
@@ -1969,14 +2045,14 @@ bytes.
 
      clientloglimit 1048576
 
-4.2.33 peer
+4.2.36 peer
 -----------
 
 The syntax of this directive is identical to that for the `server'
 directive (*note server directive::), except that it is used to specify
 an NTP peer rather than an NTP server.
 
-4.2.34 pidfile
+4.2.37 pidfile
 --------------
 
 chronyd always writes its process ID (pid) to a file, and checks this
@@ -1986,7 +2062,7 @@ system.  By default, the file used is `/var/run/chronyd.pid'.  The
 
      pidfile /var/tmp/chronyd.pid
 
-4.2.35 port
+4.2.38 port
 -----------
 
 This option allows you to configure the port used for the NTP service
@@ -2004,7 +2080,7 @@ mode and never be available as a server to xntpd clients.
    This would change the NTP port served by chronyd on the computer to
 udp/11123.
 
-4.2.36 refclock
+4.2.39 refclock
 ---------------
 
 Reference clocks allows very accurate synchronisation and `chronyd' can
@@ -2045,18 +2121,17 @@ a driver specific parameter.
 `SOCK'
      Unix domain socket driver.  It is similar to the SHM driver, but
      uses a different format and uses a socket instead of shared
-     memory.  It does not require polling, the offset resolution is not
-     limited to microseconds and it supports transmitting of PPS data.
-     The parameter is a path to the socket which will be created by
-     `chronyd' and used to receive the messages.  The format of
-     messages sent over the socket is described in the
+     memory.  It does not require polling and it supports transmitting
+     of PPS data.  The parameter is a path to the socket which will be
+     created by `chronyd' and used to receive the messages.  The format
+     of messages sent over the socket is described in the
      `refclock_sock.c' file.
 
      Recent versions of the `gpsd' daemon include support for the SOCK
      protocol.  The path where the socket should be created is
      described in the `gpsd(8)' man page.  For example:
 
-          refclock SOCK /tmp/chrony.tty0.sock
+          refclock SOCK /var/run/chrony.ttyS0.sock
 
 
    The `refclock' command also supports a number of subfields (which
@@ -2127,7 +2202,7 @@ may be defined in any order):
      sources which are not very accurate, but are locked with a PPS
      refclock.
 
-4.2.37 reselectdist
+4.2.40 reselectdist
 -------------------
 
 When `chronyd' selects synchronisation source from available sources, it
@@ -2141,7 +2216,7 @@ option.  By default, the distance is 100 microseconds.
 
      reselectdist <dist-in-seconds>
 
-4.2.38 rtcdevice
+4.2.41 rtcdevice
 ----------------
 
 The `rtcdevice' directive defines the name of the device file for
@@ -2151,7 +2226,7 @@ systems with devfs.  An example of use is
 
      rtcdevice /dev/misc/rtc
 
-4.2.39 rtcfile
+4.2.42 rtcfile
 --------------
 
 The `rtcfile' directive defines the name of the file in which `chronyd'
@@ -2183,7 +2258,7 @@ conditions apply:
      `/dev/rtc' at all.
 
 
-4.2.40 rtconutc
+4.2.43 rtconutc
 ---------------
 
 `chronyd' assumes by default that the real time clock (RTC) keeps local
@@ -2203,7 +2278,7 @@ saving starts or ends.
 keep UTC.  The directive takes no arguments.  It is equivalent to
 specifying the `-u' switch to the Linux `/sbin/clock' program.
 
-4.2.41 rtcsync
+4.2.44 rtcsync
 --------------
 
 The `rtcsync' directive will enable a kernel mode where the system time
@@ -2213,7 +2288,7 @@ is copied to the real time clock (RTC) every 11 minutes.
 normal RTC tracking is enabled, i.e. when the `rtcfile' directive is
 used.
 
-4.2.42 sched_priority
+4.2.45 sched_priority
 ---------------------
 
 The `sched_priority' directive will select the SCHED_FIFO real-time
@@ -2231,7 +2306,7 @@ consistent latency since Chronyd will not need to wait for the
 scheduler to get around to running it.  You should not use this unless
 you really need it.  The sched_setscheduler man page has more details.
 
-4.2.43 stratumweight
+4.2.46 stratumweight
 --------------------
 
 The `stratumweight' directive sets how much distance should be added
@@ -2247,7 +2322,7 @@ lower stratum will be preferred to sources with higher stratum even
 when their distance is significantly worse.  Setting `stratumweight' to
 0 makes `chronyd' ignore stratum when selecting the source.
 
-4.2.44 lock_all
+4.2.47 lock_all
 ---------------
 
 The `lock_all' directive will lock chronyd into RAM so that it will
@@ -2258,7 +2333,7 @@ consistent latency.  It should not have significant impact on
 performance as Chronyd's memory usage is modest.  The mlockall man page
 has more details.
 
-4.2.45 server
+4.2.48 server
 -------------
 
 The `server' directive allows NTP servers to be specified.  The
@@ -2348,7 +2423,8 @@ number of subfields (which may be defined in any order):
      The NTP protocol supports the inclusion of checksums in the
      packets, to prevent computers having their system time upset by
      rogue packets being sent to them.  The checksums are generated as
-     a function of a password, using the MD5 algorithm.
+     a function of a password, using the cryptographic hash function
+     set in the key file.
 
      The association between key numbers and passwords is contained in
      the keys file, defined by the keyfile command.
@@ -2402,7 +2478,7 @@ number of subfields (which may be defined in any order):
      monitoring.
 
 
-4.2.46 tempcomp
+4.2.49 tempcomp
 ---------------
 
 Normally, changes in rate of drift of the system clock are caused
@@ -2536,6 +2612,8 @@ password:
 
    * `activity'
 
+   * `authhash'
+
    * `dns'
 
    * `exit'
@@ -2592,7 +2670,7 @@ servers/peers, the `activity' command may be useful for detecting when
 all of them have entered the offline state after the PPP link has been
 disconnected.
 
-   The report shows the number of servers/peers in 4 states:
+   The report shows the number of servers/peers in 5 states:
    * `online' : the server/peer is currently online (i.e. assumed by
      chronyd to be reachable)
 
@@ -2607,6 +2685,10 @@ disconnected.
    * `burst_offline' : a burst command has been initiated for the
      server/peer and is being performed; after the burst is complete,
      the server/peer will be returned to the offline state.
+
+   * `unresolved' : the name of the server/peer wasn't resolved to an
+     address yet; this server is not visible in the `sources' and
+     `sourcestats' reports.
 
 4.3.4.3 add peer
 ................
@@ -2663,7 +2745,20 @@ the configuration file (*note allow directive::).
 The effect of the allow command is identical to the `allow all'
 directive in the configuration file (*note allow directive::).
 
-4.3.4.7 burst
+4.3.4.7 authhash
+................
+
+This command sets the hash function used for authenticating user
+commands.  For successful authentication the hash function has to be
+the same as the one set for the command key in the keys file on the
+server.  It needs to be set before the `password' command is used.  The
+default hash function is MD5.
+
+   An example is
+
+     authhash SHA1
+
+4.3.4.8 burst
 .............
 
 The `burst' command tells `chronyd' to make a set of measurements to
@@ -2734,7 +2829,7 @@ are arbitrary. In the second case, the sampling will be applied to
 sources whose IPv6 addresses have first 48 bits equal to
 `2001:db8:789a'.
 
-4.3.4.8 clients
+4.3.4.9 clients
 ...............
 
 This command shows a list of all clients that have accessed the server,
@@ -2780,8 +2875,8 @@ and `cmddeny' commands or configuration file directives) are logged.
    The last two entries will be shown as the time since 1970 if no
 packet of that type has ever been received.
 
-4.3.4.9 cmdaccheck
-..................
+4.3.4.10 cmdaccheck
+...................
 
 This command is similar to the `accheck' command, except that it is
 used to check whether command access is permitted from a named host.
@@ -2792,35 +2887,35 @@ used to check whether command access is permitted from a named host.
      cmdaccheck 1.2.3.4
      cmdaccheck 2001:db8::1
 
-4.3.4.10 cmdallow
+4.3.4.11 cmdallow
 .................
 
 This is similar to the `allow' command, except that it is used to allow
 particular hosts or subnets to use the chronyc program to interact with
 `chronyd' on the current host.
 
-4.3.4.11 cmdallow all
+4.3.4.12 cmdallow all
 .....................
 
 This is similar to the `allow all' command, except that it is used
 toallow particular hosts or subnets to use the chronyc program to
 interactwith `chronyd' on the current host.
 
-4.3.4.12 cmddeny
+4.3.4.13 cmddeny
 ................
 
 This is similar to the `deny' command, except that it is used to allow
 particular hosts or subnets to use the chronyc program to interact with
 `chronyd' on the current host.
 
-4.3.4.13 cmddeny all
+4.3.4.14 cmddeny all
 ....................
 
 This is similar to the `deny all' command, except that it is used to
 allow particular hosts or subnets to use the chronyc program to
 interact with `chronyd' on the current host.
 
-4.3.4.14 cyclelogs
+4.3.4.15 cyclelogs
 ..................
 
 The `cyclelogs' command causes all of `chronyd's' open log files to be
@@ -2839,7 +2934,7 @@ be periodically purged.  An example of how to do this is shown below.
      -rw-r--r--   1 root     root        12345 Jun  8 18:17 measurements1.log
      % rm -f measurements1.log
 
-4.3.4.15 delete
+4.3.4.16 delete
 ...............
 
 The `delete' command allows an NTP server or peer to be removed from
@@ -2854,7 +2949,7 @@ the current set of sources.
    There is one parameter, the name or IP address of the server or peer
 to be deleted.
 
-4.3.4.16 deny
+4.3.4.17 deny
 .............
 
 The effect of the allow command is identical to the `deny' directive in
@@ -2872,13 +2967,13 @@ the configuration file (*note deny directive::).
      deny ::/0
      deny
 
-4.3.4.17 deny all
+4.3.4.18 deny all
 .................
 
 The effect of the allow command is identical to the `deny all'
 directive in the configuration file (*note deny directive::).
 
-4.3.4.18 dns
+4.3.4.19 dns
 ............
 
 The `dns' command configures how are hostnames and IP addresses
@@ -2907,7 +3002,7 @@ argument.
      Resolves hostnames to both address families.  This is the default
      unless `chronyc' was started with `-4' or `-6' option.
 
-4.3.4.19 dump
+4.3.4.20 dump
 .............
 
 The `dump' command causes `chronyd' to write its current history of
@@ -2922,18 +3017,18 @@ directive::.
 directory into which the dump files will be written.  This can only be
 done in the configuration file, see *note dumpdir directive::.
 
-4.3.4.20 exit
+4.3.4.21 exit
 .............
 
 The exit command exits from chronyc and returns the user to the shell
 (same as the quit command).
 
-4.3.4.21 help
+4.3.4.22 help
 .............
 
 The help command displays a summary of the commands and their arguments.
 
-4.3.4.22 local
+4.3.4.23 local
 ..............
 
 The `local' command allows `chronyd' to be told that it is to appear as
@@ -2953,7 +3048,7 @@ sets the stratum at which it should claim to be synchronised.
 
    The second example disables the local reference mode.
 
-4.3.4.23 makestep
+4.3.4.24 makestep
 .................
 
 Normally chronyd will cause the system to gradually correct any time
@@ -2973,7 +3068,7 @@ normally.)
 step the clock automatically when the adjustment is larger than a
 specified threshold, see *note makestep directive::.
 
-4.3.4.24 manual
+4.3.4.25 manual
 ...............
 
 The manual command enables and disables use of the `settime' command
@@ -3028,7 +3123,7 @@ administrator realises he/she has entered a very poor timestamp.
    The `reset' form of the command deletes all samples at once.  The
 system clock is left running as it was before the command was entered.
 
-4.3.4.25 maxdelay
+4.3.4.26 maxdelay
 .................
 
 This allows the `maxdelay' option for one of the sources to be
@@ -3050,7 +3145,7 @@ host with IPv4 address `1.2.3.4' and the host with IPv6 address
    (Any measurement whose network delay exceeds the specified value is
 discarded.)
 
-4.3.4.26 maxdelayratio
+4.3.4.27 maxdelayratio
 ......................
 
 This allows the `maxdelayratio' option for one of the sources to be
@@ -3074,7 +3169,7 @@ host with IPv4 address `1.2.3.4' and the host with IPv6 address
    As for `maxdelay', any measurement whose network delay is too large
 will be discarded.
 
-4.3.4.27 maxdelaydevratio
+4.3.4.28 maxdelaydevratio
 .........................
 
 This allows the `maxdelaydevratio' option for one of the sources to be
@@ -3088,7 +3183,7 @@ directive::).
      maxdelaydevratio 1.2.3.4 1.0
      maxdelaydevratio 2001:db8::1 100.0
 
-4.3.4.28 maxpoll
+4.3.4.29 maxpoll
 ................
 
 The `maxpoll' command is used to modify the minimum polling interval
@@ -3115,13 +3210,13 @@ to 1024 seconds.
    Note that the new maximum polling interval only takes effect after
 the next measurement has been made.
 
-4.3.4.29 maxupdateskew
+4.3.4.30 maxupdateskew
 ......................
 
 This command has the same effect as the `maxupdateskew' directive in
 the configuration file, see *note maxupdateskew directive::.
 
-4.3.4.30 minpoll
+4.3.4.31 minpoll
 ................
 
 The `minpoll' command is used to modify the minimum polling interval
@@ -3148,7 +3243,7 @@ to 32 seconds.
    Note that the new minimum polling interval only takes effect after
 the next measurement has been made.
 
-4.3.4.31 minstratum
+4.3.4.32 minstratum
 ...................
 
 The `minstratum' command is used to modify the minimum stratum for one
@@ -3172,7 +3267,7 @@ address.
    Note that the new minimum stratum only takes effect after the next
 measurement has been made.
 
-4.3.4.32 offline
+4.3.4.33 offline
 ................
 
 The `offline' command is used to warn `chronyd' that the network
@@ -3237,7 +3332,7 @@ command is to be applied to all sources whose IPv6 addresses have first
      offline 0.0.0.0/0.0.0.0
      offline ::/0
 
-4.3.4.33 online
+4.3.4.34 online
 ...............
 
 The `online' command is opposite in function to the `offline' command.
@@ -3247,7 +3342,7 @@ particular source or sources has been restored.
    The syntax is identical to that of the `offline' command, see *note
 offline command::.
 
-4.3.4.34 password
+4.3.4.35 password
 .................
 
 The password command is used to allow chronyc to send privileged
@@ -3256,6 +3351,8 @@ command line, or can be entered without echoing.  The syntax for
 entering the password on the command line is as follows
 
      password xyzzy
+     password ASCII:xyzzy
+     password HEX:78797a7a79
 
    To enter the password without it being echoed, enter
 
@@ -3266,11 +3363,12 @@ should enter the password and press return.  (Note that the no-echo mode
 is limited to 8 characters on SunOS 4.1 due to limitations in the system
 library.  Other systems do not have this restriction.)
 
-   The password is any string of characters not containing whitespace.
-It has to match `chronyd's' currently defined command key (*note
-commandkey directive::).
+   The password can be encoded as a string of characters not containing
+a space with optional `ASCII:' prefix or as a hexadecimal number with
+`HEX:' prefix.  It has to match `chronyd's' currently defined command
+key (*note commandkey directive::).
 
-4.3.4.35 polltarget
+4.3.4.36 polltarget
 ...................
 
 The `polltarget' command is used to modify the poll target for one of
@@ -3291,13 +3389,13 @@ address.
 
    which sets the poll target for the host `foo.bar.com' to 12.
 
-4.3.4.36 quit
+4.3.4.37 quit
 .............
 
 The quit command exits from chronyc and returns the user to the shell
 (same as the exit command).
 
-4.3.4.37 reselect
+4.3.4.38 reselect
 .................
 
 To avoid excessive switching between sources, `chronyd' may stay
@@ -3307,14 +3405,14 @@ among the available sources.
    The `reselect' command can be used to force `chronyd' to reselect
 the best synchronisation source.
 
-4.3.4.38 reselectdist
+4.3.4.39 reselectdist
 .....................
 
 The `reselectdist' command sets the reselect distance.  It is equivalent
 to the `reselectdist' directive in the configuration file (*note
 reselectdist directive::).
 
-4.3.4.39 retries
+4.3.4.40 retries
 ................
 
 The `retries' command sets the maximum number of retries for `chronyc'
@@ -3323,7 +3421,7 @@ requests before giving up.  The response timeout is controlled by
 
    The default is 2.
 
-4.3.4.40 rtcdata
+4.3.4.41 rtcdata
 ................
 
 The `rtcdata' command displays the current real time clock RTC
@@ -3376,7 +3474,7 @@ parameters.
      boundary.  Then it would be 1 microsecond fast when it crosses its
      next second boundary.
 
-4.3.4.41 settime
+4.3.4.42 settime
 ................
 
 The `settime' command allows the current time to be entered manually,
@@ -3419,7 +3517,7 @@ Consequently, you can only specify time to the nearest second.
    For a full description of `getdate', get hold of the getdate
 documentation (bundled, for example, with the source for GNU tar).
 
-4.3.4.42 sources
+4.3.4.43 sources
 ................
 
 This command displays information about the current time sources that
@@ -3430,11 +3528,11 @@ this case, extra caption lines are shown as a reminder of the meanings
 of the columns.
 
      210 Number of sources = 3
-     MS Name/IP address      Stratum Poll LastRx Last sample
-     =======================================================================
-     ^+ a.b.c                    3     6    47m  -9491us[-6983us] +/-  159ms
-     ^+ d.e.f                    3     6    47m    +32ms[  +35ms] +/-  274ms
-     ^* g.h.i                    2     6    47m  +8839us[  +11ms] +/-  214ms
+     MS Name/IP address         Stratum Poll Reach LastRx Last sample
+     ===============================================================================
+     #* GPS0                          0   4   377    11   -479ns[ -621ns] +/-  134ns
+     ^? a.b.c                         2   6   377    23   -923us[ -924us] +/-   43ms
+     ^+ d.e.f                         1   6   377    21  -2629us[-2619us] +/-   86ms
 
    The columns are as follows:
 
@@ -3472,10 +3570,18 @@ of the columns.
      `chronyd' automatically varies the polling rate in response to
      prevailing conditions.
 
+`Reach'
+     This shows the source's reachability register printed as octal
+     number.  The register has 8 bits and is updated on every received
+     or missed packet from the source.  A value of 377 indicates that a
+     valid reply was received for all from the last eight transmissions.
+
 `LastRx'
      This column shows how long ago the last sample was received from
      the source.  This is normally in seconds.  The letters `m', `h',
-     `d' or `y' indicate minutes, hours, days or years.
+     `d' or `y' indicate minutes, hours, days or years.  A value of 10
+     years indicates there were no samples received from this source
+     yet.
 
 `Last sample'
      This column shows the offset between the local clock and the
@@ -3492,7 +3598,7 @@ of the columns.
      source.
 
 
-4.3.4.43 sourcestats
+4.3.4.44 sourcestats
 ....................
 
 The `sourcestats' command displays information about the drift rate and
@@ -3550,7 +3656,7 @@ of the columns.
      This is the estimated sample standard deviation.
 
 
-4.3.4.44 timeout
+4.3.4.45 timeout
 ................
 
 The `timeout' command sets the initial timeout for `chronyc' requests
@@ -3561,7 +3667,7 @@ command::).
 
    The default is 1000 milliseconds.
 
-4.3.4.45 tracking
+4.3.4.46 tracking
 .................
 
 The `tracking' command displays parameters about the system's clock
@@ -3569,13 +3675,17 @@ performance.  An example of the output is shown below.
 
      Reference ID    : 1.2.3.4 (a.b.c)
      Stratum         : 3
-     Ref time (UTC)  : Sun May 17 06:13:11 1998
-     System time     : 0.000000000 seconds fast of NTP time
+     Ref time (UTC)  : Fri Feb  3 15:00:29 2012
+     System time     : 0.000001501 seconds slow of NTP time
+     Last offset     : -0.000001632 seconds
+     RMS offset      : 0.000002360 seconds
      Frequency       : 331.898 ppm fast
      Residual freq   : 0.004 ppm
      Skew            : 0.154 ppm
      Root delay      : 0.373169 seconds
      Root dispersion : 0.024780 seconds
+     Update interval : 64.2 seconds
+     Leap status     : Normal
 
    The fields are explained as follows.
 
@@ -3595,7 +3705,7 @@ performance.  An example of the output is shown below.
      `a.b.c' is a stratum-2 and is synchronised from a stratum-1).
 
 `Ref time'
-     This is the time (GMT) at which the last measurement from the
+     This is the time (UTC) at which the last measurement from the
      reference source was processed.
 
 `System time'
@@ -3616,10 +3726,13 @@ performance.  An example of the output is shown below.
      adjust the fundamental rate of the system clock, so keeps the
      system time correct by periodically making offsets to it as though
      an error had been measured.  The build up of these offsets will be
-     observed in this report.  On systems such as Linux where `chronyd'
-     can adjust the fundamental rate of the system clock, this value
-     will show zero unless a very recent measurement has shown the
-     system to be error.
+     observed in this report.
+
+`Last offset'
+     This is the estimated local offset on the last clock update.
+
+`RMS offset'
+     This is a long-term average of the offset value.
 
 `Frequency'
      The `frequency' is the rate by which the system's clock would be
@@ -3673,8 +3786,15 @@ performance.  An example of the output is shown below.
 
           clock_error <= root_dispersion + (0.5 * |root_delay|)
 
+`Update interval'
+     This is the interval between the last two clock updates.
 
-4.3.4.46 trimrtc
+`Leap status'
+     This is the leap status, which can be `Normal', `Insert second',
+     `Delete second' or `Not synchronised'.
+
+
+4.3.4.47 trimrtc
 ................
 
 The `trimrtc' command is used to correct the system's real time clock
@@ -3710,7 +3830,7 @@ command is provided as a method by which it can be corrected, in a
 manner compatible with `chronyd' using it to maintain accurate time
 across machine reboots.
 
-4.3.4.47 waitsync
+4.3.4.48 waitsync
 .................
 
 The `waitsync' command waits for `chronyd' to synchronise.
@@ -3734,7 +3854,7 @@ will not be checked.
 to a source and the remaining correction to be less than 10
 milliseconds.
 
-4.3.4.48 writertc
+4.3.4.49 writertc
 .................
 
 The `writertc' command writes the currently estimated error and
@@ -4216,48 +4336,51 @@ User guide for the chrony suite
     4.2.8 cmddeny
     4.2.9 commandkey
     4.2.10 cmdport
-    4.2.11 deny
-    4.2.12 driftfile
-    4.2.13 dumpdir
-    4.2.14 dumponexit
-    4.2.15 fallbackdrift
-    4.2.16 include
-    4.2.17 initstepslew
-    4.2.18 keyfile
-    4.2.19 local
-    4.2.20 linux_hz
-    4.2.21 linux_freq_scale
-    4.2.22 log
-      4.2.22.1 Measurements log file format
-      4.2.22.2 Statistics log file format
-      4.2.22.3 Tracking log file format
-      4.2.22.4 Real-time clock log file format
-      4.2.22.5 Refclocks log file format
-      4.2.22.6 Tempcomp log file format
-    4.2.23 logbanner
-    4.2.24 logchange
-    4.2.25 logdir
-    4.2.26 mailonchange
-    4.2.27 makestep
-    4.2.28 manual
-    4.2.29 maxclockerror
-    4.2.30 maxupdateskew
-    4.2.31 noclientlog
-    4.2.32 clientloglimit
-    4.2.33 peer
-    4.2.34 pidfile
-    4.2.35 port
-    4.2.36 refclock
-    4.2.37 reselectdist
-    4.2.38 rtcdevice
-    4.2.39 rtcfile
-    4.2.40 rtconutc
-    4.2.41 rtcsync
-    4.2.42 sched_priority
-    4.2.43 stratumweight
-    4.2.44 lock_all
-    4.2.45 server
-    4.2.46 tempcomp
+    4.2.11 corrtimeratio
+    4.2.12 deny
+    4.2.13 driftfile
+    4.2.14 dumpdir
+    4.2.15 dumponexit
+    4.2.16 fallbackdrift
+    4.2.17 include
+    4.2.18 initstepslew
+    4.2.19 keyfile
+    4.2.20 leapsectz
+    4.2.21 local
+    4.2.22 linux_hz
+    4.2.23 linux_freq_scale
+    4.2.24 log
+      4.2.24.1 Measurements log file format
+      4.2.24.2 Statistics log file format
+      4.2.24.3 Tracking log file format
+      4.2.24.4 Real-time clock log file format
+      4.2.24.5 Refclocks log file format
+      4.2.24.6 Tempcomp log file format
+    4.2.25 logbanner
+    4.2.26 logchange
+    4.2.27 logdir
+    4.2.28 mailonchange
+    4.2.29 makestep
+    4.2.30 maxchange
+    4.2.31 manual
+    4.2.32 maxclockerror
+    4.2.33 maxupdateskew
+    4.2.34 noclientlog
+    4.2.35 clientloglimit
+    4.2.36 peer
+    4.2.37 pidfile
+    4.2.38 port
+    4.2.39 refclock
+    4.2.40 reselectdist
+    4.2.41 rtcdevice
+    4.2.42 rtcfile
+    4.2.43 rtconutc
+    4.2.44 rtcsync
+    4.2.45 sched_priority
+    4.2.46 stratumweight
+    4.2.47 lock_all
+    4.2.48 server
+    4.2.49 tempcomp
   4.3 Running chronyc
     4.3.1 Basic use
     4.3.2 Command line options
@@ -4269,48 +4392,49 @@ User guide for the chrony suite
       4.3.4.4 add server
       4.3.4.5 allow
       4.3.4.6 allow all
-      4.3.4.7 burst
-      4.3.4.8 clients
-      4.3.4.9 cmdaccheck
-      4.3.4.10 cmdallow
-      4.3.4.11 cmdallow all
-      4.3.4.12 cmddeny
-      4.3.4.13 cmddeny all
-      4.3.4.14 cyclelogs
-      4.3.4.15 delete
-      4.3.4.16 deny
-      4.3.4.17 deny all
-      4.3.4.18 dns
-      4.3.4.19 dump
-      4.3.4.20 exit
-      4.3.4.21 help
-      4.3.4.22 local
-      4.3.4.23 makestep
-      4.3.4.24 manual
-      4.3.4.25 maxdelay
-      4.3.4.26 maxdelayratio
-      4.3.4.27 maxdelaydevratio
-      4.3.4.28 maxpoll
-      4.3.4.29 maxupdateskew
-      4.3.4.30 minpoll
-      4.3.4.31 minstratum
-      4.3.4.32 offline
-      4.3.4.33 online
-      4.3.4.34 password
-      4.3.4.35 polltarget
-      4.3.4.36 quit
-      4.3.4.37 reselect
-      4.3.4.38 reselectdist
-      4.3.4.39 retries
-      4.3.4.40 rtcdata
-      4.3.4.41 settime
-      4.3.4.42 sources
-      4.3.4.43 sourcestats
-      4.3.4.44 timeout
-      4.3.4.45 tracking
-      4.3.4.46 trimrtc
-      4.3.4.47 waitsync
-      4.3.4.48 writertc
+      4.3.4.7 authhash
+      4.3.4.8 burst
+      4.3.4.9 clients
+      4.3.4.10 cmdaccheck
+      4.3.4.11 cmdallow
+      4.3.4.12 cmdallow all
+      4.3.4.13 cmddeny
+      4.3.4.14 cmddeny all
+      4.3.4.15 cyclelogs
+      4.3.4.16 delete
+      4.3.4.17 deny
+      4.3.4.18 deny all
+      4.3.4.19 dns
+      4.3.4.20 dump
+      4.3.4.21 exit
+      4.3.4.22 help
+      4.3.4.23 local
+      4.3.4.24 makestep
+      4.3.4.25 manual
+      4.3.4.26 maxdelay
+      4.3.4.27 maxdelayratio
+      4.3.4.28 maxdelaydevratio
+      4.3.4.29 maxpoll
+      4.3.4.30 maxupdateskew
+      4.3.4.31 minpoll
+      4.3.4.32 minstratum
+      4.3.4.33 offline
+      4.3.4.34 online
+      4.3.4.35 password
+      4.3.4.36 polltarget
+      4.3.4.37 quit
+      4.3.4.38 reselect
+      4.3.4.39 reselectdist
+      4.3.4.40 retries
+      4.3.4.41 rtcdata
+      4.3.4.42 settime
+      4.3.4.43 sources
+      4.3.4.44 sourcestats
+      4.3.4.45 timeout
+      4.3.4.46 tracking
+      4.3.4.47 trimrtc
+      4.3.4.48 waitsync
+      4.3.4.49 writertc
 Appendix A Porting guide
   A.1 System driver files
   A.2 Quirks of particular systems

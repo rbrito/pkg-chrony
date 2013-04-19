@@ -1,6 +1,6 @@
 Summary: An NTP client/server
 Name: chrony
-Version: 1.26
+Version: 1.27
 Release: 1
 Source: chrony-%{version}.tar.gz
 Copyright: GPL

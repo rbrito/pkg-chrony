@@ -4,6 +4,7 @@
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
  * Copyright (C) John G. Hasler  2009
+ * Copyright (C) Miroslav Lichvar  2012
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -124,6 +125,8 @@ signal_cleanup(int x)
 static void
 post_acquire_hook(void *anything)
 {
+  /* Close the pipe to the foreground process so it can exit */
+  LOG_CloseParentFd();
 
   CNF_AddSources();
   CNF_AddBroadcasts();
@@ -214,7 +217,13 @@ go_daemon(void)
 
 #else
 
-  int pid, fd;
+  int pid, fd, pipefd[2];
+
+  /* Create pipe which will the daemon use to notify the grandparent
+     when it's initialised or send an error message */
+  if (pipe(pipefd)) {
+    LOG(LOGS_ERR, LOGF_Logging, "Could not detach, pipe failed : %s", strerror(errno));
+  }
 
   /* Does this preserve existing signal handlers? */
   pid = fork();
@@ -222,8 +231,22 @@ go_daemon(void)
   if (pid < 0) {
     LOG(LOGS_ERR, LOGF_Logging, "Could not detach, fork failed : %s", strerror(errno));
   } else if (pid > 0) {
-    exit(0); /* In the 'grandparent' */
+    /* In the 'grandparent' */
+    char message[1024];
+    int r;
+
+    close(pipefd[1]);
+    r = read(pipefd[0], message, sizeof (message));
+    if (r) {
+      if (r > 0) {
+        /* Print the error message from the child */
+        fprintf(stderr, "%.1024s\n", message);
+      }
+      exit(1);
+    } else
+      exit(0);
   } else {
+    close(pipefd[0]);
 
     setsid();
 
@@ -237,10 +260,19 @@ go_daemon(void)
     } else {
       /* In the child we want to leave running as the daemon */
 
-      /* Don't keep stdin/out/err from before. */
-      for (fd=0; fd<1024; fd++) {
-        close(fd);
+      /* Change current directory to / */
+      if (chdir("/") < 0) {
+        LOG(LOGS_ERR, LOGF_Logging, "Could not chdir to / : %s", strerror(errno));
       }
+
+      /* Don't keep stdin/out/err from before. But don't close
+         the parent pipe yet. */
+      for (fd=0; fd<1024; fd++) {
+        if (fd != pipefd[1])
+          close(fd);
+      }
+
+      LOG_SetParentFd(pipefd[1]);
     }
   }
 
@@ -303,9 +335,6 @@ int main
     }
   }
 
-  CNF_ReadFile(conf_file);
-
-#ifndef SYS_WINNT
   if (getuid() != 0) {
     /* This write to the terminal is OK, it comes before we turn into a daemon */
     fprintf(stderr,"Not superuser\n");
@@ -323,19 +352,19 @@ int main
   
   LOG(LOGS_INFO, LOGF_Main, "chronyd version %s starting", CHRONY_VERSION);
 
+  CNF_ReadFile(conf_file);
+
   /* Check whether another chronyd may already be running.  Do this after
    * forking, so that message logging goes to the right place (i.e. syslog), in
    * case this chronyd is being run from a boot script. */
   if (maybe_another_chronyd_running(&other_pid)) {
     LOG_FATAL(LOGF_Main, "Another chronyd may already be running (pid=%d), check lockfile (%s)",
               other_pid, CNF_GetPidFile());
-    exit(1);
   }
 
   /* Write our lockfile to prevent other chronyds running.  This has *GOT* to
    * be done *AFTER* the daemon-creation fork() */
   write_lockfile();
-#endif
 
   if (do_init_rtc) {
     RTC_TimePreInit();

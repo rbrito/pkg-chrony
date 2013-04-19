@@ -3,7 +3,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2011
+ * Copyright (C) Miroslav Lichvar  2011-2012
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -857,6 +857,7 @@ SRC_SelectSource(uint32_t match_refid)
                            sources[selected_source_index]->ip_addr,
                            &ref_time,
                            src_offset,
+                           src_offset_sd,
                            src_frequency,
                            src_skew,
                            src_root_delay,
@@ -1109,6 +1110,23 @@ SRC_ReportSource(int index, RPT_SourceReport *report, struct timeval *now)
         assert(0);
         break;
     }
+
+    switch (src->sel_option) {
+      case SRC_SelectNormal:
+        report->sel_option = RPT_NOSELECT;
+        break;
+      case SRC_SelectPrefer:
+        report->sel_option = RPT_PREFER;
+        break;
+      case SRC_SelectNoselect:
+        report->sel_option = RPT_NOSELECT;
+        break;
+      default:
+        assert(0);
+    }
+
+    report->reachability = src->reachability;
+
     /* Call stats module to fill out estimates */
     SST_DoSourceReport(src->stats, report, now);
 

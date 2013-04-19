@@ -3,7 +3,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009
+ * Copyright (C) Miroslav Lichvar  2009, 2012
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
 #include "sysincl.h"
 
 #include "util.h"
-#include "md5.h"
+#include "hash.h"
 
 /* ================================================== */
 
@@ -336,16 +336,24 @@ UTI_StringToIP(const char *addr, IPAddr *ip)
 uint32_t
 UTI_IPToRefid(IPAddr *ip)
 {
-  MD5_CTX ctx;
+  static int MD5_hash = -1;
+  unsigned char buf[16];
 
   switch (ip->family) {
     case IPADDR_INET4:
       return ip->addr.in4;
     case IPADDR_INET6:
-      MD5Init(&ctx);
-      MD5Update(&ctx, (unsigned const char *) ip->addr.in6, sizeof (ip->addr.in6));
-      MD5Final(&ctx);
-      return ctx.digest[0] << 24 | ctx.digest[1] << 16 | ctx.digest[2] << 8 | ctx.digest[3];
+      if (MD5_hash < 0) {
+        MD5_hash = HSH_GetHashId("MD5");
+        assert(MD5_hash >= 0);
+      }
+
+      if (HSH_Hash(MD5_hash, (unsigned const char *)ip->addr.in6, sizeof
+            (ip->addr.in6), NULL, 0, buf, 16) != 16) {
+        assert(0);
+        return 0;
+      };
+      return buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
   }
   return 0;
 }
@@ -451,16 +459,31 @@ UTI_AdjustTimeval(struct timeval *old_tv, struct timeval *when, struct timeval *
 
 /* ================================================== */
 
+uint32_t
+UTI_GetNTPTsFuzz(int precision)
+{
+  uint32_t fuzz;
+  int fuzz_bits;
+  
+  fuzz_bits = 32 - 1 + precision;
+  fuzz = random() % (1 << fuzz_bits);
+
+  return fuzz;
+}
+
+/* ================================================== */
+
 /* Seconds part of RFC1305 timestamp correponding to the origin of the
    struct timeval format. */
 #define JAN_1970 0x83aa7e80UL
 
 void
 UTI_TimevalToInt64(struct timeval *src,
-                   NTP_int64 *dest)
+                   NTP_int64 *dest, uint32_t fuzz)
 {
   unsigned long usec = src->tv_usec;
   unsigned long sec = src->tv_sec;
+  uint32_t lo;
 
   /* Recognize zero as a special case - it always signifies
      an 'unknown' value */
@@ -470,7 +493,12 @@ UTI_TimevalToInt64(struct timeval *src,
     dest->hi = htonl(src->tv_sec + JAN_1970);
 
     /* This formula gives an error of about 0.1us worst case */
-    dest->lo = htonl(4295 * usec - (usec>>5) - (usec>>9));
+    lo = 4295 * usec - (usec>>5) - (usec>>9);
+
+    /* Add the fuzz */
+    lo ^= fuzz;
+
+    dest->lo = htonl(lo);
   }
 }
 
@@ -612,3 +640,52 @@ UTI_FdSetCloexec(int fd)
 }
 
 /* ================================================== */
+
+int
+UTI_GenerateNTPAuth(int hash_id, const unsigned char *key, int key_len,
+    const unsigned char *data, int data_len, unsigned char *auth, int auth_len)
+{
+  return HSH_Hash(hash_id, key, key_len, data, data_len, auth, auth_len);
+}
+
+/* ================================================== */
+
+int
+UTI_CheckNTPAuth(int hash_id, const unsigned char *key, int key_len,
+    const unsigned char *data, int data_len, const unsigned char *auth, int auth_len)
+{
+  unsigned char buf[MAX_HASH_LENGTH];
+
+  return UTI_GenerateNTPAuth(hash_id, key, key_len, data, data_len,
+        buf, sizeof (buf)) == auth_len && !memcmp(buf, auth, auth_len);
+}
+
+/* ================================================== */
+
+int
+UTI_DecodePasswordFromText(char *key)
+{
+  int i, j, len = strlen(key);
+  char buf[3], *p;
+
+  if (!strncmp(key, "ASCII:", 6)) {
+    memmove(key, key + 6, len - 6);
+    return len - 6;
+  } else if (!strncmp(key, "HEX:", 4)) {
+    if ((len - 4) % 2)
+      return 0;
+
+    for (i = 0, j = 4; j + 1 < len; i++, j += 2) {
+      buf[0] = key[j], buf[1] = key[j + 1], buf[2] = '\0';
+      key[i] = strtol(buf, &p, 16);
+
+      if (p != buf + 2)
+        return 0;
+    }
+
+    return i;
+  } else {
+    /* assume ASCII */
+    return len;
+  }
+}

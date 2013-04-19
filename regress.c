@@ -300,9 +300,9 @@ RGR_FindBestRegression
     nruns = n_runs_from_residuals(resid, n - resid_start); 
 
     if (nruns > critical_runs[n - resid_start] || n - start <= MIN_SAMPLES_FOR_REGRESS) {
-      if (resid_start < 0) {
+      if (start != resid_start) {
         /* Ignore extra samples in returned nruns */
-        nruns = n_runs_from_residuals(resid - resid_start, n); 
+        nruns = n_runs_from_residuals(resid - resid_start + start, n - start);
       }
       break;
     } else {
@@ -588,7 +588,7 @@ RGR_FindBestRobustRegression
        Estimate standard deviation of b and expand range about b based
        on that. */
     sb = sqrt(s2 * W/V);
-    if (sb > 0.0) {
+    if (sb > tol) {
       incr = 3.0 * sb;
     } else {
       incr = 3.0 * tol;
@@ -598,6 +598,11 @@ RGR_FindBestRobustRegression
     bhi = b;
 
     do {
+      /* Make sure incr is significant to blo and bhi */
+      while (bhi + incr == bhi || blo - incr == blo) {
+        incr *= 2;
+      }
+
       blo -= incr;
       bhi += incr;
       
@@ -605,8 +610,8 @@ RGR_FindBestRobustRegression
       eval_robust_residual(x + start, y + start, n_points, blo, &a, &rlo);
       eval_robust_residual(x + start, y + start, n_points, bhi, &a, &rhi);
 
-    } while (rlo * rhi > 0.0); /* fn vals have same sign, i.e. root not
-                                  in interval. */
+    } while (rlo * rhi >= 0.0); /* fn vals have same sign or one is zero,
+                                   i.e. root not in interval (rlo, rhi). */
 
     /* OK, so the root for b lies in (blo, bhi). Start bisecting */
     do {
@@ -623,7 +628,7 @@ RGR_FindBestRobustRegression
       } else {
         assert(0);
       }
-    } while ((bhi - blo) > tol);
+    } while ((bhi - blo) > tol && (bmid - blo) * (bhi - bmid) > 0.0);
 
     *b0 = a;
     *b1 = bmid;
