@@ -3,7 +3,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009-2011
+ * Copyright (C) Miroslav Lichvar  2009-2012
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
 
 #include "candm.h"
 #include "nameserv.h"
-#include "md5.h"
+#include "hash.h"
 #include "getdate.h"
 #include "cmdparse.h"
 #include "pktlength.h"
@@ -127,7 +127,7 @@ read_line(void)
     }
     return( line );
 #else
-    printf(prompt);
+    printf("%s", prompt);
 #endif
   }
   if (fgets(line, sizeof(line), stdin)) {
@@ -960,17 +960,18 @@ process_cmd_add_server_or_peer(CMD_Request *msg, char *line)
 {
   CPS_NTP_Source data;
   CPS_Status status;
+  IPAddr ip_addr;
   int result = 0;
   
   status = CPS_ParseNTPSourceAdd(line, &data);
   switch (status) {
     case CPS_Success:
-      /* Don't retry name resolving */
-      if (data.ip_addr.family == IPADDR_UNSPEC) {
+      if (DNS_Name2IPAddress(data.name, &ip_addr) != DNS_Success) {
         Free(data.name);
         fprintf(stderr, "Invalid host/IP address\n");
         break;
       }
+      Free(data.name);
 
       if (data.params.min_stratum != SRC_DEFAULT_MINSTRATUM) {
         fprintf(stderr, "Option minstratum not supported\n");
@@ -988,7 +989,7 @@ process_cmd_add_server_or_peer(CMD_Request *msg, char *line)
       }
 
       msg->data.ntp_source.port = htonl((unsigned long) data.port);
-      UTI_IPHostToNetwork(&data.ip_addr, &msg->data.ntp_source.ip_addr);
+      UTI_IPHostToNetwork(&ip_addr, &msg->data.ntp_source.ip_addr);
       msg->data.ntp_source.minpoll = htonl(data.params.minpoll);
       msg->data.ntp_source.maxpoll = htonl(data.params.maxpoll);
       msg->data.ntp_source.presend_minpoll = htonl(data.params.presend_minpoll);
@@ -1093,8 +1094,9 @@ process_cmd_delete(CMD_Request *msg, char *line)
 
 /* ================================================== */
 
-static int password_seen = 0;
-static MD5_CTX md5_after_just_password;
+static char *password = NULL;
+static int password_length;
+static int auth_hash_id;
 
 /* ================================================== */
 
@@ -1102,8 +1104,16 @@ static int
 process_cmd_password(CMD_Request *msg, char *line)
 {
   char *p, *q;
-  char *password;
   struct timeval now;
+  int i, len;
+
+  /* Blank and free the old password */
+  if (password) {
+    for (i = 0; i < password_length; i++)
+      password[i] = 0;
+    free(password);
+    password = NULL;
+  }
 
   p = line;
   while (*p && isspace((unsigned char)*p))
@@ -1114,28 +1124,31 @@ process_cmd_password(CMD_Request *msg, char *line)
     if (isspace((unsigned char)*q)) *q = 0;
   }
 
-  if (*p) {
-    password = p;
-  } else {
+  if (!*p) {
     /* blank line, prompt for password */
-    password = getpass("Password: ");
+    p = getpass("Password: ");
   }
 
-  if (!*password) {
-    password_seen = 0;
-  } else {
-    password_seen = 1;
+  if (!*p)
+    return 0;
+
+  len = strlen(p);
+  password_length = UTI_DecodePasswordFromText(p);
+
+  if (password_length > 0) {
+    password = malloc(password_length);
+    memcpy(password, p, password_length);
   }
 
-  /* Generate MD5 initial context */
-  MD5Init(&md5_after_just_password);
-  MD5Update(&md5_after_just_password, (unsigned char *) password, strlen(password));
-  
-  /* Blank the password for security */
-  for (p = password; *p; p++) {
-    *p = 0;
+  /* Erase the password from the input or getpass buffer */
+  for (i = 0; i < len; i++)
+    p[i] = 0;
+
+  if (password_length <= 0) {
+      fprintf(stderr, "Could not decode password\n");
+      return 0;
   }
-    
+
   if (gettimeofday(&now, NULL) < 0) {
     printf("500 - Could not read time of day\n");
     return 0;
@@ -1148,43 +1161,33 @@ process_cmd_password(CMD_Request *msg, char *line)
 
 /* ================================================== */
 
-static void
+static int
 generate_auth(CMD_Request *msg)
 {
-  MD5_CTX ctx;
-  int pkt_len;
+  int data_len;
 
-  pkt_len = PKL_CommandLength(msg);
-  ctx = md5_after_just_password;
-  MD5Update(&ctx, (unsigned char *) msg, offsetof(CMD_Request, auth));
-  if (pkt_len > offsetof(CMD_Request, data)) {
-    MD5Update(&ctx, (unsigned char *) &(msg->data), pkt_len - offsetof(CMD_Request, data));
-  }
-  MD5Final(&ctx);
-  memcpy(&(msg->auth), &ctx.digest, 16);
+  data_len = PKL_CommandLength(msg);
+
+  assert(auth_hash_id >= 0);
+
+  return UTI_GenerateNTPAuth(auth_hash_id, (unsigned char *)password, password_length,
+      (unsigned char *)msg, data_len, ((unsigned char *)msg) + data_len, sizeof (msg->auth));
 }
 
 /* ================================================== */
 
 static int
-check_reply_auth(CMD_Reply *msg)
+check_reply_auth(CMD_Reply *msg, int len)
 {
-  int pkt_len;
-  MD5_CTX ctx;
+  int data_len;
 
-  pkt_len = PKL_ReplyLength(msg);
-  ctx = md5_after_just_password;
-  MD5Update(&ctx, (unsigned char *) msg, offsetof(CMD_Request, auth));
-  if (pkt_len > offsetof(CMD_Reply, data)) {
-    MD5Update(&ctx, (unsigned char *) &(msg->data), pkt_len - offsetof(CMD_Reply, data));
-  }
-  MD5Final(&ctx);
+  data_len = PKL_ReplyLength(msg);
 
-  if (!memcmp((void *) &ctx.digest, (void *) &(msg->auth), 16)) {
-    return 1;
-  } else {
-    return 0;
-  }
+  assert(auth_hash_id >= 0);
+
+  return UTI_CheckNTPAuth(auth_hash_id, (unsigned char *)password, password_length,
+      (unsigned char *)msg, data_len,
+      ((unsigned char *)msg) + data_len, len - data_len);
 }
 
 /* ================================================== */
@@ -1237,6 +1240,7 @@ give_help(void)
   printf("waitsync [max-tries [max-correction [max-skew]]] : Wait until synchronised\n");
   printf("writertc : Save RTC parameters to file\n");
   printf("\n");
+  printf("authhash <name>: Set command authentication hash function\n");
   printf("dns -n|+n : Disable/enable resolving IP addresses to hostnames\n");
   printf("dns -4|-6|-46 : Resolve hostnames only to IPv4/IPv6/both addresses\n");
   printf("timeout <milliseconds> : Set initial response timeout\n");
@@ -1272,6 +1276,7 @@ submit_request(CMD_Request *request, CMD_Reply *reply, int *reply_auth_ok)
   int read_length;
   int expected_length;
   int command_length;
+  int auth_length;
   struct timeval tv;
   int timeout;
   int n_attempts;
@@ -1294,25 +1299,32 @@ submit_request(CMD_Request *request, CMD_Reply *reply, int *reply_auth_ok)
   do {
 
     /* Decide whether to authenticate */
-    if (password_seen) {
+    if (password) {
       if (!utoken || (request->command == htons(REQ_LOGON))) {
         /* Otherwise, the daemon won't bother authenticating our
            packet and we won't get a token back */
         request->utoken = htonl(SPECIAL_UTOKEN);
       }
-      generate_auth(request);
+      auth_length = generate_auth(request);
     } else {
-      memset(request->auth, 0, sizeof (request->auth));
+      auth_length = 0;
     }
 
     command_length = PKL_CommandLength(request);
     assert(command_length > 0);
 
+    /* add empty MD5 auth so older servers will not drop the request
+       due to bad length */
+    if (!auth_length) {
+      memset(((char *)request) + command_length, 0, 16);
+      auth_length = 16;
+    }
+
 #if 0
-    printf("Sent command length=%d bytes\n", command_length);
+    printf("Sent command length=%d bytes auth length=%d bytes\n", command_length, auth_length);
 #endif
 
-    if (sendto(sock_fd, (void *) request, command_length, 0,
+    if (sendto(sock_fd, (void *) request, command_length + auth_length, 0,
                &his_addr.u, his_addr_len) < 0) {
 
 
@@ -1375,7 +1387,7 @@ submit_request(CMD_Request *request, CMD_Reply *reply, int *reply_auth_ok)
         read_length = recvfrom_status;
         expected_length = PKL_ReplyLength(reply);
 
-        bad_length = (read_length != expected_length);
+        bad_length = (read_length < expected_length);
         bad_sender = (where_from.u.sa_family != his_addr.u.sa_family ||
                       (where_from.u.sa_family == AF_INET &&
                        (where_from.in4.sin_addr.s_addr != his_addr.in4.sin_addr.s_addr ||
@@ -1429,8 +1441,8 @@ submit_request(CMD_Request *request, CMD_Reply *reply, int *reply_auth_ok)
                ntohl(reply->token));
 #endif
 
-        if (password_seen) {
-          *reply_auth_ok = check_reply_auth(reply);
+        if (password) {
+          *reply_auth_ok = check_reply_auth(reply, read_length);
         } else {
           /* Assume in this case that the reply is always considered
              to be authentic */
@@ -1679,7 +1691,7 @@ process_cmd_sources(char *line)
   IPAddr ip_addr;
   uint32_t latest_meas_ago;
   uint16_t poll, stratum;
-  uint16_t state, mode;
+  uint16_t state, mode, flags, reachability;
   char hostname_buf[50];
 
   /* Check whether to output verbose headers */
@@ -1701,10 +1713,10 @@ process_cmd_sources(char *line)
       printf("||                                   |           |                         \n");
     }
 
-    printf("MS Name/IP address           Stratum Poll LastRx Last sample\n");
-    printf("============================================================================\n");
+    printf("MS Name/IP address         Stratum Poll Reach LastRx Last sample\n");
+    printf("===============================================================================\n");
 
-    /*     "MS NNNNNNNNNNNNNNNNNNNNNNNNN    SS   PP   RRRR  SSSSSSS[SSSSSSS] +/- SSSSSS" */
+    /*     "MS NNNNNNNNNNNNNNNNNNNNNNNNNNN  SS  PP   RRR  RRRR  SSSSSSS[SSSSSSS] +/- SSSSSS" */
 
     for (i=0; i<n_sources; i++) {
       request.command = htons(REQ_SOURCE_DATA);
@@ -1715,6 +1727,8 @@ process_cmd_sources(char *line)
           stratum = ntohs(reply.data.source_data.stratum);
           state = ntohs(reply.data.source_data.state);
           mode = ntohs(reply.data.source_data.mode);
+          flags = ntohs(reply.data.source_data.flags);
+          reachability = ntohs(reply.data.source_data.reachability);
           latest_meas_ago = ntohl(reply.data.source_data.since_sample);
           orig_latest_meas = UTI_FloatNetworkToHost(reply.data.source_data.orig_latest_meas);
           latest_meas = UTI_FloatNetworkToHost(reply.data.source_data.latest_meas);
@@ -1755,8 +1769,12 @@ process_cmd_sources(char *line)
             default:
               printf(" ");
           }
+          switch (flags) {
+            default:
+              break;
+          }
 
-          printf(" %-25s    %2d   %2d   ", hostname_buf, stratum, poll);
+          printf(" %-27s  %2d  %2d   %3o  ", hostname_buf, stratum, poll, reachability);
           print_seconds(latest_meas_ago);
           printf("  ");
           print_signed_nanoseconds(latest_meas);
@@ -1875,11 +1893,15 @@ process_cmd_tracking(char *line)
   struct tm ref_time_tm;
   unsigned long a, b, c, d;
   double correction;
+  double last_offset;
+  double rms_offset;
   double freq_ppm;
   double resid_freq_ppm;
   double skew_ppm;
   double root_delay;
   double root_dispersion;
+  double last_update_interval;
+  const char *leap_status;
   
   request.command = htons(REQ_TRACKING);
   if (request_reply(&request, &reply, RPY_TRACKING, 0)) {
@@ -1899,24 +1921,49 @@ process_cmd_tracking(char *line)
       ref_ip = host;
     }
     
+    switch (ntohs(reply.data.tracking.leap_status)) {
+      case LEAP_Normal:
+        leap_status = "Normal";
+        break;
+      case LEAP_InsertSecond:
+        leap_status = "Insert second";
+        break;
+      case LEAP_DeleteSecond:
+        leap_status = "Delete second";
+        break;
+      case LEAP_Unsynchronised:
+        leap_status = "Not synchronised";
+        break;
+      default:
+        leap_status = "Unknown";
+        break;
+    }
+
     printf("Reference ID    : %lu.%lu.%lu.%lu (%s)\n", a, b, c, d, ref_ip);
-    printf("Stratum         : %lu\n", (unsigned long) ntohl(reply.data.tracking.stratum));
+    printf("Stratum         : %lu\n", (unsigned long) ntohs(reply.data.tracking.stratum));
     UTI_TimevalNetworkToHost(&reply.data.tracking.ref_time, &ref_time);
     ref_time_tm = *gmtime((time_t *)&ref_time.tv_sec);
     printf("Ref time (UTC)  : %s", asctime(&ref_time_tm));
     correction = UTI_FloatNetworkToHost(reply.data.tracking.current_correction);
+    last_offset = UTI_FloatNetworkToHost(reply.data.tracking.last_offset);
+    rms_offset = UTI_FloatNetworkToHost(reply.data.tracking.rms_offset);
     printf("System time     : %.9f seconds %s of NTP time\n", fabs(correction),
            (correction > 0.0) ? "slow" : "fast");
+    printf("Last offset     : %.9f seconds\n", last_offset);
+    printf("RMS offset      : %.9f seconds\n", rms_offset);
     freq_ppm = UTI_FloatNetworkToHost(reply.data.tracking.freq_ppm);
     resid_freq_ppm = UTI_FloatNetworkToHost(reply.data.tracking.resid_freq_ppm);
     skew_ppm = UTI_FloatNetworkToHost(reply.data.tracking.skew_ppm);
     root_delay = UTI_FloatNetworkToHost(reply.data.tracking.root_delay);
     root_dispersion = UTI_FloatNetworkToHost(reply.data.tracking.root_dispersion);
+    last_update_interval = UTI_FloatNetworkToHost(reply.data.tracking.last_update_interval);
     printf("Frequency       : %.3f ppm %s\n", fabs(freq_ppm), (freq_ppm < 0.0) ? "slow" : "fast"); 
     printf("Residual freq   : %.3f ppm\n", resid_freq_ppm);
     printf("Skew            : %.3f ppm\n", skew_ppm);
     printf("Root delay      : %.6f seconds\n", root_delay);
     printf("Root dispersion : %.6f seconds\n", root_dispersion);
+    printf("Update interval : %.1f seconds\n", last_update_interval);
+    printf("Leap status     : %s\n", leap_status);
     return 1;
   }
   return 0;
@@ -2366,11 +2413,13 @@ process_cmd_activity(const char *line)
                "%ld sources online\n"
                "%ld sources offline\n"
                "%ld sources doing burst (return to online)\n"
-               "%ld sources doing burst (return to offline)\n",
+               "%ld sources doing burst (return to offline)\n"
+               "%ld sources with unknown address\n",
                 (long) ntohl(reply.data.activity.online),
                 (long) ntohl(reply.data.activity.offline),
                 (long) ntohl(reply.data.activity.burst_online),
-                (long) ntohl(reply.data.activity.burst_offline));
+                (long) ntohl(reply.data.activity.burst_offline),
+                (long) ntohl(reply.data.activity.unresolved));
         return 1;
   }
   return 0;
@@ -2476,6 +2525,32 @@ process_cmd_dns(const char *line)
 /* ================================================== */
 
 static int
+process_cmd_authhash(const char *line)
+{
+  char hash_name[50];
+  int new_hash_id;
+
+  assert(auth_hash_id >= 0);
+
+  if (sscanf(line, "%49s", hash_name) != 1) {
+    fprintf(stderr, "Could not parse hash name\n");
+    return 0;
+  }
+
+  new_hash_id = HSH_GetHashId(hash_name);
+  if (new_hash_id < 0) {
+    fprintf(stderr, "Unknown hash name: %s\n", hash_name);
+    return 0;
+  }
+
+  auth_hash_id = new_hash_id;
+
+  return 1;
+}
+
+/* ================================================== */
+
+static int
 process_cmd_timeout(const char *line)
 {
   int timeout;
@@ -2527,7 +2602,7 @@ process_line(char *line, int *quit)
   if (!*p) {
     fflush(stderr);
     fflush(stdout);
-    return ret;
+    return 1;
   };
 
   if (!strncmp(p, "offline", 7)) {
@@ -2633,6 +2708,9 @@ process_line(char *line, int *quit)
   } else if (!strncmp(p, "waitsync", 8)) {
     ret = process_cmd_waitsync(p+8);
     do_normal_submit = 0;
+  } else if (!strncmp(p, "authhash", 8)) {
+    ret = process_cmd_authhash(p+8);
+    do_normal_submit = 0;
   } else if (!strncmp(p, "dns ", 4)) {
     ret = process_cmd_dns(p+4);
     do_normal_submit = 0;
@@ -2710,7 +2788,7 @@ static void
 display_gpl(void)
 {
     printf("chrony version %s\n"
-           "Copyright (C) 1997-2003, 2007, 2009-2011 Richard P. Curnow and others\n"
+           "Copyright (C) 1997-2003, 2007, 2009-2012 Richard P. Curnow and others\n"
            "chrony comes with ABSOLUTELY NO WARRANTY.  This is free software, and\n"
            "you are welcome to redistribute it under certain conditions.  See the\n"
            "GNU General Public License version 2 for details.\n\n",
@@ -2768,6 +2846,13 @@ main(int argc, char **argv)
   if (on_terminal && (argc == 0)) {
     display_gpl();
   }
+
+  /* MD5 is the default authentication hash */
+  auth_hash_id = HSH_GetHashId("MD5");
+  if (auth_hash_id < 0) {
+    fprintf(stderr, "Could not initialize MD5\n");
+    return 1;
+  }
   
   open_io(hostname, port);
 
@@ -2786,6 +2871,8 @@ main(int argc, char **argv)
   }
 
   close_io();
+
+  free(password);
 
   return !ret;
 }

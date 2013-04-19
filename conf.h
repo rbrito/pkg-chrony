@@ -60,6 +60,7 @@ extern int CNF_GetCommandPort(void);
 extern int CNF_GetRTCOnUTC(void);
 extern int CNF_GetRTCSync(void);
 extern void CNF_GetMakeStep(int *limit, double *threshold);
+extern void CNF_GetMaxChange(int *delay, int *ignore, double *offset);
 extern void CNF_GetLogChange(int *enabled, double *threshold);
 extern void CNF_GetMailOnChange(int *enabled, double *threshold, char **user);
 extern int CNF_GetNoClientLog(void);
@@ -68,12 +69,14 @@ extern void CNF_GetFallbackDrifts(int *min, int *max);
 extern void CNF_GetBindAddress(int family, IPAddr *addr);
 extern void CNF_GetBindCommandAddress(int family, IPAddr *addr);
 extern char *CNF_GetPidFile(void);
+extern char *CNF_GetLeapSecTimezone(void);
 extern void CNF_GetLinuxHz(int *set, int *hz);
 extern void CNF_GetLinuxFreqScale(int *set, double *freq_scale);
 
 /* Value returned in ppm, as read from file */
 extern double CNF_GetMaxUpdateSkew(void);
 extern double CNF_GetMaxClockError(void);
+extern double CNF_GetCorrectionTimeRatio(void);
 
 extern double CNF_GetReselectDistance(void);
 extern double CNF_GetStratumWeight(void);

@@ -3,7 +3,7 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  1997-2003
- * Copyright (C) Miroslav Lichvar  2009-2011
+ * Copyright (C) Miroslav Lichvar  2009-2012
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -76,6 +76,7 @@ static void parse_logbanner(const char *);
 static void parse_logdir(const char *);
 static void parse_maxupdateskew(const char *);
 static void parse_maxclockerror(const char *);
+static void parse_corrtimeratio(const char *);
 static void parse_reselectdist(const char *);
 static void parse_stratumweight(const char *);
 static void parse_peer(const char *);
@@ -97,6 +98,7 @@ static void parse_noclientlog(const char *);
 static void parse_clientloglimit(const char *);
 static void parse_fallbackdrift(const char *);
 static void parse_makestep(const char *);
+static void parse_maxchange(const char *);
 static void parse_logchange(const char *);
 static void parse_mailonchange(const char *);
 static void parse_bindaddress(const char *);
@@ -110,6 +112,7 @@ static void parse_sched_priority(const char *);
 static void parse_lockall(const char *);
 static void parse_tempcomp(const char *);
 static void parse_include(const char *);
+static void parse_leapsectz(const char *);
 
 /* ================================================== */
 /* Configuration variables */
@@ -122,6 +125,7 @@ static char *drift_file = NULL;
 static char *rtc_file = NULL;
 static unsigned long command_key_id;
 static double max_update_skew = 1000.0;
+static double correction_time_ratio = 1.0;
 static double max_clock_error = 1.0; /* in ppm */
 
 static double reselect_distance = 1e-4;
@@ -165,6 +169,12 @@ static int rtc_sync = 0;
 /* Limit and threshold for clock stepping */
 static int make_step_limit = 0;
 static double make_step_threshold = 0.0;
+
+/* Number of updates before offset checking, number of ignored updates
+   before exiting and the maximum allowed offset */
+static int max_offset_delay = -1;
+static int max_offset_ignore;
+static double max_offset;
 
 /* Flag set if we should log to syslog when a time adjustment
    exceeding the threshold is initiated */
@@ -215,6 +225,9 @@ static double linux_freq_scale;
 static int sched_priority = 0;
 static int lock_memory = 0;
 
+/* Name of a system timezone containing leap seconds occuring at midnight */
+static char *leapsec_tz = NULL;
+
 /* ================================================== */
 
 typedef struct {
@@ -239,6 +252,7 @@ static const Command commands[] = {
   {"dumpdir", 7, parse_dumpdir},
   {"maxupdateskew", 13, parse_maxupdateskew},
   {"maxclockerror", 13, parse_maxclockerror},
+  {"corrtimeratio", 13, parse_corrtimeratio},
   {"commandkey", 10, parse_commandkey},
   {"initstepslew", 12, parse_initstepslew},
   {"local", 5, parse_local},
@@ -254,6 +268,7 @@ static const Command commands[] = {
   {"clientloglimit", 14, parse_clientloglimit},
   {"fallbackdrift", 13, parse_fallbackdrift},
   {"makestep", 8, parse_makestep},
+  {"maxchange", 9, parse_maxchange},
   {"logchange", 9, parse_logchange},
   {"mailonchange", 12, parse_mailonchange},
   {"bindaddress", 11, parse_bindaddress},
@@ -265,6 +280,7 @@ static const Command commands[] = {
   {"reselectdist", 12, parse_reselectdist},
   {"stratumweight", 13, parse_stratumweight},
   {"include", 7, parse_include},
+  {"leapsectz", 9, parse_leapsectz},
   {"linux_hz", 8, parse_linux_hz},
   {"linux_freq_scale", 16, parse_linux_freq_scale},
   {"sched_priority", 14, parse_sched_priority},
@@ -633,6 +649,16 @@ parse_maxclockerror(const char *line)
 /* ================================================== */
 
 static void
+parse_corrtimeratio(const char *line)
+{
+  if (sscanf(line, "%lf", &correction_time_ratio) != 1) {
+    LOG(LOGS_WARN, LOGF_Configure, "Could not read correction time ratio at line %d", line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
 parse_reselectdist(const char *line)
 {
   if (sscanf(line, "%lf", &reselect_distance) != 1) {
@@ -924,6 +950,19 @@ parse_makestep(const char *line)
     make_step_limit = 0;
     LOG(LOGS_WARN, LOGF_Configure,
         "Could not read threshold or update limit for stepping clock at line %d\n",
+        line_number);
+  }
+}
+
+/* ================================================== */
+
+static void
+parse_maxchange(const char *line)
+{
+  if (sscanf(line, "%lf %d %d", &max_offset, &max_offset_delay, &max_offset_ignore) != 3) {
+    max_offset_delay = -1;
+    LOG(LOGS_WARN, LOGF_Configure,
+        "Could not read offset, check delay or ignore limit for maximum change at line %d\n",
         line_number);
   }
 }
@@ -1249,6 +1288,16 @@ parse_include(const char *line)
 /* ================================================== */
 
 static void
+parse_leapsectz(const char *line)
+{
+  /* This must allocate enough space! */
+  leapsec_tz = MallocArray(char, 1 + strlen(line));
+  sscanf(line, "%s", leapsec_tz);
+}
+
+/* ================================================== */
+
+static void
 parse_linux_hz(const char *line)
 {
   if (1 == sscanf(line, "%d", &linux_hz)) {
@@ -1286,21 +1335,14 @@ CNF_ProcessInitStepSlew(void (*after_hook)(void *), void *anything)
 
 void
 CNF_AddSources(void) {
-  NTP_Remote_Address server;
   int i;
 
   for (i=0; i<n_ntp_sources; i++) {
-    if (ntp_sources[i].params.ip_addr.family != IPADDR_UNSPEC) {
-      server.ip_addr = ntp_sources[i].params.ip_addr;
-      memset(&server.local_ip_addr, 0, sizeof (server.local_ip_addr));
-      server.port = ntp_sources[i].params.port;
-
-      NSR_AddSource(&server, ntp_sources[i].type, &ntp_sources[i].params.params);
-    } else {
-      NSR_AddUnresolvedSource(ntp_sources[i].params.name, ntp_sources[i].params.port,
-          ntp_sources[i].type, &ntp_sources[i].params.params);
-    }
+    NSR_AddUnresolvedSource(ntp_sources[i].params.name, ntp_sources[i].params.port,
+        ntp_sources[i].type, &ntp_sources[i].params.params);
   }
+
+  NSR_ResolveSources();
 
   return;
 
@@ -1485,6 +1527,14 @@ CNF_GetMaxClockError(void)
 /* ================================================== */
 
 double
+CNF_GetCorrectionTimeRatio(void)
+{
+  return correction_time_ratio;
+}
+
+/* ================================================== */
+
+double
 CNF_GetReselectDistance(void)
 {
   return reselect_distance;
@@ -1549,6 +1599,16 @@ CNF_GetMakeStep(int *limit, double *threshold)
 {
   *limit = make_step_limit;
   *threshold = make_step_threshold;
+}
+
+/* ================================================== */
+
+void
+CNF_GetMaxChange(int *delay, int *ignore, double *offset)
+{
+  *delay = max_offset_delay;
+  *ignore = max_offset_ignore;
+  *offset = max_offset;
 }
 
 /* ================================================== */
@@ -1658,6 +1718,14 @@ char *
 CNF_GetPidFile(void)
 {
   return pidfile;
+}
+
+/* ================================================== */
+
+char *
+CNF_GetLeapSecTimezone(void)
+{
+  return leapsec_tz;
 }
 
 /* ================================================== */

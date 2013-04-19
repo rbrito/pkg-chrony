@@ -256,6 +256,7 @@ probe_source(SourceRecord *src)
   union sockaddr_in46 his_addr;
   int sock_fd;
   socklen_t addrlen;
+  uint32_t ts_fuzz;
 
 #if 0
   printf("Sending probe to %s sent=%d samples=%d\n", UTI_IPToString(&src->ip_addr), src->n_probes_sent, src->n_samples);
@@ -304,8 +305,9 @@ probe_source(SourceRecord *src)
   }
 
 
+  ts_fuzz = UTI_GetNTPTsFuzz(LCL_GetSysPrecisionAsLog());
   LCL_ReadCookedTime(&cooked, NULL);
-  UTI_TimevalToInt64(&cooked, &pkt.transmit_ts);
+  UTI_TimevalToInt64(&cooked, &pkt.transmit_ts, ts_fuzz);
 
   if (sendto(sock_fd, (void *) &pkt, NTP_NORMAL_PACKET_SIZE,
              0,
@@ -708,7 +710,7 @@ process_measurements(void)
       LOG(LOGS_INFO, LOGF_Acquire, "System's initial offset : %.6f seconds %s of true (slew)",
           fabs(estimated_offset),
           (estimated_offset >= 0) ? "fast" : "slow");
-      LCL_AccumulateOffset(estimated_offset);
+      LCL_AccumulateOffset(estimated_offset, 0.0);
     }
 
   } else {

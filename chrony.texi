@@ -1173,6 +1173,7 @@ directives can occur in any order in the file.
 * cmdallow directive::          Give control access to chronyc on other computers
 * cmddeny directive::           Deny control access to chronyc on other computers
 * commandkey directive::        Set runtime command key
+* corrtimeratio directive::     Set correction time ratio
 * cmdport directive::           Set port to use for runtime commanding
 * deny directive::              Deny access to NTP clients
 * driftfile directive::         Specify location of file containing drift data
@@ -1182,6 +1183,7 @@ directives can occur in any order in the file.
 * include directive::           Include a configuration file
 * initstepslew directive::      Trim the system clock on boot-up.
 * keyfile directive::           Specify location of file containing keys
+* leapsectz directive::         Read leap second data from tz database
 * linux_hz directive::          Define a non-standard value of the kernel HZ constant
 * linux_freq_scale directive::  Define a non-standard value to compensate the kernel frequency bias
 * local directive::             Allow unsynchronised machine to act as server
@@ -1191,6 +1193,7 @@ directives can occur in any order in the file.
 * logdir directive::            Specify directory for logging
 * mailonchange directive::      Send email if a clock correction above a threshold occurs
 * makestep directive::          Step system clock if large correction is needed
+* maxchange directive::         Set maximum allowed offset
 * manual directive::            Allow manual entry using chronyc's settime cmd.
 * maxclockerror directive::     Set maximum frequency error of local clock
 * maxupdateskew directive::     Stop bad estimates upsetting machine clock
@@ -1494,6 +1497,38 @@ This would make @code{chronyd} use 257/udp as its command port.
 (@code{chronyc} would need to be run with the @code{-p 257} switch to
 inter-operate correctly).
 @c }}}
+@c {{{ corrtimeratio
+@node corrtimeratio directive
+@subsection corrtimeratio
+When @code{chronyd} makes a time correction, it controls how quickly
+the system clock is slewed (so far only on Linux).  This rate
+temporarily affects the frequency error of the system clock.
+
+The @code{corrtimeratio} directive controls the ratio between the
+duration in which the clock is slewed for an average correction
+according to the source history and the interval in which the
+corrections are done (usually the NTP polling interval).  Corrections
+larger than the average take less time and smaller corrections take
+more time, the amount of the correction and the correction time are
+inversely proportional.
+
+Increasing @code{corrtimeratio} makes the overall frequency error of
+the system clock smaller, but increases the overall time error as
+the corrections will take longer.
+
+By default, the ratio is 1, which means the duration of an average
+correction will be close to the update interval.
+
+The syntax is
+
+@example
+corrtimeratio 10
+@end example
+
+The current remaining correction is shown in the @code{tracking} report
+(@pxref{tracking command}) as the @code{System time} value.
+
+@c }}}
 @c {{{ deny
 @node deny directive
 @subsection deny
@@ -1694,21 +1729,50 @@ pairs.  The format of the file is shown below
 @example
 10 tulip
 11 hyacinth
-20 crocus
-25 iris
+20 MD5 ASCII:crocus
+25 SHA1 HEX:1dc764e0791b11fa67efc7ecbc4b0d73f68a070c 
  ...
 @end example
 
-Each line consists of an ID and a password.  The ID can be any
-unsigned integer in the range 0 through 2**32-1.  The password can be
-any string of characters not containing a space.
-
-For NTP use, the MD5 authentication scheme is always used.  This must be
-borne in mind if @code{chronyd} is to inter-operate in authenticated
-mode with @code{xntpd} running on other computers.
+Each line consists of an ID, a name of authentication hash function (optional)
+and a password. The ID can be any unsigned integer in the range 0 through
+2**32-1.  The hash function is MD5 by default, depending on how was
+@code{chronyd} compiled other allowed hash functions may be SHA1, SHA256,
+SHA384, SHA512, RMD128, RMD160, RMD256, RMD320, TIGER and WHIRLPOOL.  The
+password can be encoded as a string of characters not containing a space with
+optional @code{ASCII:} prefix or as a hexadecimal number with @code{HEX:}
+prefix.
 
 The ID for the chronyc authentication key is specified with the
 commandkey command (see earlier).
+@c }}}
+@c {{{ leapsectz
+@node leapsectz directive
+@subsection leapsectz
+This directive is used to set the name of the timezone in the system
+tz database which @code{chronyd} can use to find out when will the
+next leap second occur.  It will periodically check if the times
+23:59:59 and 23:59:60 are valid on Jun 30 and Dec 31 in the timezone.
+A useful timezone is @code{right/UTC}.
+This is mainly useful with reference clocks which don't provide the
+leap second information.  It is not necessary to restart
+@code{chronyd} if the tz database is updated with a new leap second at
+least 12 hours before the event.
+
+An example of the command is
+
+@example
+leapsectz right/UTC
+@end example
+
+The following shell command verifies that the timezone contains leap
+seconds and can be used with this directive
+
+@example
+$ TZ=right/UTC date -d 'Dec 31 2008 23:59:60'
+Wed Dec 31 23:59:60 UTC 2008
+@end example
+
 @c }}}
 @c {{{ local
 @node local directive
@@ -1859,9 +1923,9 @@ expressed in UTC, not the local time zone.
 IP address of server/peer from which measurement comes [158.152.1.76]
 @item
 Leap status (@code{N} means normal, @code{+} means that the last minute
-of today has 61 seconds, @code{-} means that the last minute of the day
-has 59 seconds, @code{?} means the remote computer is not currently
-synchronised.) [N]
+of the current month has 61 seconds, @code{-} means that the last minute
+of the month has 59 seconds, @code{?} means the remote computer is not
+currently synchronised.) [N]
 @item
 Stratum of remote computer. [2]
 @item
@@ -1966,7 +2030,7 @@ An example line (which actually appears as a single line in the file)
 from the tracking log file is shown below.
 
 @example
-1998-07-22 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03
+2012-02-23 05:40:50 158.152.1.76     3    340.529      1.606  1.046e-03 N
 @end example
 
 The columns are as follows (the quantities in square brackets are the
@@ -1974,7 +2038,7 @@ values from the example line above) :
 
 @enumerate 1
 @item
-Date [1998-07-22]
+Date [2012-02-03]
 @item
 Hour:Minute:Second [05:40:50].  Note that the date/time pair is
 expressed in UTC, not the local time zone.
@@ -1992,6 +2056,10 @@ The error bounds on the frequency (in ppm) [1.606]
 The estimated local offset at the epoch (which is rapidly corrected by
 slewing the local clock.  (In seconds, positive indicates the local
 system is fast of UTC). [1.046e-3]
+@item
+Leap status (@code{N} means normal, @code{+} means that the last minute
+of this month has 61 seconds, @code{-} means that the last minute of the month
+has 59 seconds, @code{?} means the clock is not currently synchronised.) [N]
 @end enumerate
 
 A banner is periodically written to the log file to indicate the
@@ -2075,8 +2143,8 @@ Sequence number of driver poll within one polling interval for raw
 samples, or @code{-} for filtered samples. [7]
 @item
 Leap status (@code{N} means normal, @code{+} means that the last minute
-of today has 61 seconds, @code{-} means that the last minute of the day
-has 59 seconds). [N]
+of the current month has 61 seconds, @code{-} means that the last minute
+of the month has 59 seconds). [N]
 @item
 Flag indicating whether the sample comes from PPS source. (1 for yes,
 0 for no, or @code{-} for filtered sample). [1]
@@ -2209,6 +2277,27 @@ makestep 1000 10
 
 This would step system clock if the adjustment is larger than 1000
 seconds, but only in the first ten clock updates.
+@c }}}
+@c {{{ maxchange
+@node maxchange directive
+@subsection maxchange
+This directive sets the maximum allowed offset corrected on a clock
+update.  The check is performed only after the specified number of
+updates to allow a large initial adjustment of the system clock.  When
+an offset larger than the specified maximum occurs, it will be ignored
+for the specified number of times and then @code{chronyd} will give up
+and exit (a negative value can be used to never exit).  In both cases
+a message is sent to syslog.
+
+An example of the use of this directive is
+
+@example
+maxchange 1000 1 2
+@end example
+
+After the first clock update, @code{chronyd} will check the offset on
+every clock update, it will ignore two adjustments larger than 1000
+seconds and exit on another one.
 @c }}}
 @c {{{ manual
 @node manual directive
@@ -2379,7 +2468,7 @@ Some examples of applications that can be used as SHM sources are @code{gpsd},
 @item SOCK
 Unix domain socket driver.  It is similar to the SHM driver, but uses a
 different format and uses a socket instead of shared memory.  It does not
-require polling, the offset resolution is not limited to microseconds and it
+require polling and it
 supports transmitting of PPS data.  The parameter is a path to the socket which
 will be created by @code{chronyd} and used to receive the messages.  The format
 of messages sent over the socket is described in the
@@ -2390,7 +2479,7 @@ protocol.  The path where the socket should be created is described in the
 @code{gpsd(8)} man page.  For example:
 
 @example
-refclock SOCK /tmp/chrony.tty0.sock
+refclock SOCK /var/run/chrony.ttyS0.sock
 @end example
 
 @end table
@@ -2694,7 +2783,7 @@ NTP client mode datagram.
 The NTP protocol supports the inclusion of checksums in the packets, to
 prevent computers having their system time upset by rogue packets being
 sent to them.  The checksums are generated as a function of a password,
-using the MD5 algorithm.
+using the cryptographic hash function set in the key file.
 
 The association between key numbers and passwords is contained in the
 keys file, defined by the keyfile command.
@@ -2889,6 +2978,7 @@ password:
 
 @itemize @bullet
 @item @code{activity}
+@item @code{authhash}
 @item @code{dns}
 @item @code{exit}
 @item @code{help}
@@ -2919,6 +3009,7 @@ interface.
 * add server command::          Add a new NTP server
 * allow command::               Allowing NTP client access
 * allow all command::           Allowing NTP client access
+* authhash command::            Set the command authentication hash function
 * burst command::               Initiating a rapid set of measurements
 * clients command::             Show clients that have accessed the server
 * cmdaccheck command::          Verifying command client access
@@ -2990,7 +3081,7 @@ If the auto_offline option is used in specifying some of the servers/peers, the
 @code{activity} command may be useful for detecting when all of them have
 entered the offline state after the PPP link has been disconnected.
 
-The report shows the number of servers/peers in 4 states:
+The report shows the number of servers/peers in 5 states:
 @itemize
 @item @code{online} : the server/peer is currently online (i.e. assumed by
 chronyd to be reachable)
@@ -3002,6 +3093,9 @@ server/peer will be returned to the online state.
 @item @code{burst_offline} : a burst command has been initiated for the
 server/peer and is being performed; after the burst is complete, the
 server/peer will be returned to the offline state.
+@item @code{unresolved} : the name of the server/peer wasn't resolved to an
+address yet; this server is not visible in the @code{sources} and
+@code{sourcestats} reports.
 @end itemize
 @c }}}
 @c {{{ add peer
@@ -3064,6 +3158,20 @@ directive in the configuration file.
 @subsubsection allow all
 The effect of the allow command is identical to the @code{allow all}
 directive in the configuration file (@pxref{allow directive}).
+@c }}}
+@c {{{ authhash
+@node authhash command
+@subsubsection authhash
+This command sets the hash function used for authenticating user commands.
+For successful authentication the hash function has to be the same as the one
+set for the command key in the keys file on the server.  It needs to be set
+before the @code{password} command is used.  The default hash function is MD5.
+
+An example is
+
+@example
+authhash SHA1
+@end example
 @c }}}
 @c {{{ burst
 @node burst command
@@ -3715,6 +3823,8 @@ password on the command line is as follows
 
 @example
 password xyzzy
+password ASCII:xyzzy
+password HEX:78797a7a79
 @end example
 
 To enter the password without it being echoed, enter
@@ -3728,9 +3838,10 @@ should enter the password and press return.  (Note that the no-echo mode
 is limited to 8 characters on SunOS 4.1 due to limitations in the system
 library.  Other systems do not have this restriction.)
 
-The password is any string of characters not containing whitespace.  It
-has to match @code{chronyd's} currently defined command key (@pxref{commandkey
-directive}).
+The password can be encoded as a string of characters not containing a space
+with optional @code{ASCII:} prefix or as a hexadecimal number with @code{HEX:}
+prefix.  It has to match @code{chronyd's} currently defined command key
+(@pxref{commandkey directive}).
 @c }}}
 @c {{{ polltarget
 @node polltarget command
@@ -3897,11 +4008,11 @@ columns.
 @example
 @group
 210 Number of sources = 3
-MS Name/IP address      Stratum Poll LastRx Last sample
-=======================================================================
-^+ a.b.c                    3     6    47m  -9491us[-6983us] +/-  159ms
-^+ d.e.f                    3     6    47m    +32ms[  +35ms] +/-  274ms
-^* g.h.i                    2     6    47m  +8839us[  +11ms] +/-  214ms
+MS Name/IP address         Stratum Poll Reach LastRx Last sample
+===============================================================================
+#* GPS0                          0   4   377    11   -479ns[ -621ns] +/-  134ns
+^? a.b.c                         2   6   377    23   -923us[ -924us] +/-   43ms
+^+ d.e.f                         1   6   377    21  -2629us[-2619us] +/-   86ms
 @end group
 @end example
 
@@ -3942,10 +4053,18 @@ that a measurement is being made every 64 seconds.
 @code{chronyd} automatically varies the polling rate in response to prevailing
 conditions.
 
+@item Reach
+This shows the source's reachability register printed as octal number.  The
+register has 8 bits and is updated on every received or missed packet from
+the source.  A value of 377 indicates that a valid reply was received for all
+from the last eight transmissions.
+
 @item LastRx
 This column shows how long ago the last sample was received from the
 source.  This is normally in seconds.  The letters @code{m}, @code{h},
-@code{d} or @code{y} indicate minutes, hours, days or years.
+@code{d} or @code{y} indicate minutes, hours, days or years.  A value
+of 10 years indicates there were no samples received from this source
+yet.
 
 @item Last sample
 This column shows the offset between the local clock and the source at
@@ -4046,13 +4165,18 @@ performance.  An example of the output is shown below.
 @example
 Reference ID    : 1.2.3.4 (a.b.c)
 Stratum         : 3
-Ref time (UTC)  : Sun May 17 06:13:11 1998
-System time     : 0.000000000 seconds fast of NTP time
+Ref time (UTC)  : Fri Feb  3 15:00:29 2012
+System time     : 0.000001501 seconds slow of NTP time
+Last offset     : -0.000001632 seconds
+RMS offset      : 0.000002360 seconds
 Frequency       : 331.898 ppm fast
 Residual freq   : 0.004 ppm
 Skew            : 0.154 ppm
 Root delay      : 0.373169 seconds
 Root dispersion : 0.024780 seconds
+Update interval : 64.2 seconds
+Leap status     : Normal
+
 @end example
 
 The fields are explained as follows.
@@ -4073,7 +4197,7 @@ computer, so the computer in the example is two hops away
 (i.e. @code{a.b.c} is a stratum-2 and is synchronised from a stratum-1).
 
 @item Ref time
-This is the time (GMT) at which the last measurement from the reference
+This is the time (UTC) at which the last measurement from the reference
 source was processed.
 
 @item System time
@@ -4094,9 +4218,13 @@ On systems such as Solaris and SunOS, @code{chronyd} has no means to
 adjust the fundamental rate of the system clock, so keeps the system
 time correct by periodically making offsets to it as though an error had
 been measured.  The build up of these offsets will be observed in this
-report.  On systems such as Linux where @code{chronyd} can adjust the
-fundamental rate of the system clock, this value will show zero unless a
-very recent measurement has shown the system to be error.
+report.
+
+@item Last offset
+This is the estimated local offset on the last clock update.
+
+@item RMS offset
+This is a long-term average of the offset value.
 
 @item Frequency
 The `frequency' is the rate by which the system's clock would be would
@@ -4149,6 +4277,13 @@ stratum-1 computer is correct) is given by
 @example
 clock_error <= root_dispersion + (0.5 * |root_delay|)
 @end example
+
+@item Update interval
+This is the interval between the last two clock updates.
+
+@item Leap status
+This is the leap status, which can be @code{Normal}, @code{Insert second},
+@code{Delete second} or @code{Not synchronised}.
 
 @end table
 @c }}}
