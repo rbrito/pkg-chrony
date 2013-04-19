@@ -1,12 +1,12 @@
 Description: Add version.h
 Author: Joachim Wiedorn <ad_debian@joonet.de>
 Reviewed-By: Rogério Theodoro de Brito <rbrito@ime.usp.br>
-Last-Update: 2012-11-08
+Last-Update: 2013-04-19
 
 --- /dev/null
 +++ b/version.h
 @@ -0,0 +1,4 @@
 +#ifndef VERSION_H
 +#define VERSION_H 1
-+#define PROGRAM_VERSION_STRING "1.26"
++#define PROGRAM_VERSION_STRING "1.27"
 +#endif /* VERSION_H */
