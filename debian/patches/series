@@ -1,4 +1,3 @@
 0001-Various-spelling-fixes.patch
 0002-Fix-Makefile.in-so-that-getdate.c-gets-made-and-remo.patch
-0003-Add-version.h.patch
 0004-Patch-the-configure-script-to-not-look-for-ncurses.patch
