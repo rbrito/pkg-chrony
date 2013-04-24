@@ -1,0 +1,32 @@
+From: "John G. Hasler" <jhasler@debian.org>
+Date: Thu, 8 Nov 2012 00:00:00 -0200
+Subject: Fix Makefile.in so that getdate.c gets made (and removed in
+ "clean").
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Forwarded: no
+Reviewed-By: Rogério Theodoro de Brito <rbrito@ime.usp.br>
+---
+ Makefile.in |    5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/Makefile.in b/Makefile.in
+index bc02bbd..7fc1149 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -79,11 +79,10 @@ distclean : clean
+ 	-rm -f Makefile
+ 
+ clean :
+-	-rm -f *.o *.s chronyc chronyd core *~
++	-rm -f *.o *.s chronyc chronyd core getdate.c *~
+ 	-rm -rf .deps
+ 
+-getdate.c : ;
+-getdate :
++getdate.c :
+ 	bison -o getdate.c getdate.y
+ 
+ # For install, don't use the install command, because its switches

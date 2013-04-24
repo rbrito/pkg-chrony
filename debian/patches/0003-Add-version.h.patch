@@ -1,0 +1,23 @@
+From: Joachim Wiedorn <ad_debian@joonet.de>
+Date: Fri, 19 Apr 2013 00:00:00 -0300
+Subject: Add version.h
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Reviewed-By: Rogério Theodoro de Brito <rbrito@ime.usp.br>
+---
+ version.h |    4 ++++
+ 1 file changed, 4 insertions(+)
+ create mode 100644 version.h
+
+diff --git a/version.h b/version.h
+new file mode 100644
+index 0000000..601d3da
+--- /dev/null
++++ b/version.h
+@@ -0,0 +1,4 @@
++#ifndef VERSION_H
++#define VERSION_H 1
++#define PROGRAM_VERSION_STRING "1.27"
++#endif /* VERSION_H */

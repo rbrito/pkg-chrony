@@ -1,4 +1,4 @@
-spelling-fixes.patch
-fix-makefile.in.patch
-add-version.h.patch
-don-t-look-for-ncurses.patch
+0001-Various-spelling-fixes.patch
+0002-Fix-Makefile.in-so-that-getdate.c-gets-made-and-remo.patch
+0003-Add-version.h.patch
+0004-Patch-the-configure-script-to-not-look-for-ncurses.patch

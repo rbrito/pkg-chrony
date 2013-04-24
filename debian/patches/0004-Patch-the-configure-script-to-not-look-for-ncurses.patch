@@ -1,13 +1,22 @@
-Author: Sven Joachim <svenjoac@gmx.de>
-Description: Patch the configure script to not look for ncurses
+From: Sven Joachim <svenjoac@gmx.de>
+Date: Sun, 4 Nov 2012 00:00:00 -0200
+Subject: Patch the configure script to not look for ncurses
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
 Bug-Debian: http://bugs.debian.org/646732
 Forwarded: no
-Last-Update: 2012-11-04
 Reviewed-by: Rogério Theodoro de Brito <rbrito@ime.usp.br>
+---
+ configure |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
+diff --git a/configure b/configure
+index 5803854..c4f7382 100755
 --- a/configure
 +++ b/configure
-@@ -482,12 +482,12 @@
+@@ -482,12 +482,12 @@ if [ $feat_readline = "1" ]; then
  
    if [ "x$READLINE_LINK" = "x" ] && [ $try_readline = "1" ]; then
      if test_code readline 'stdio.h readline/readline.h readline/history.h' \
